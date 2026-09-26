@@ -1,0 +1,63 @@
+.room-screen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  margin: 16px 0;
+}
+.room-screen {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+.room-screen header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.room-screen header b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.room-screen-stage {
+  position: relative;
+  aspect-ratio: 16/9;
+  min-width: 0;
+  background: #000;
+}
+.room-screen-expand {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 0;
+}
+.room-screen-stage video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.room-screen-fullscreen {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  padding: 6px 10px;
+  background: #090e1ddd;
+  color: var(--text);
+  font-size: 12px;
+}
+.room-screen-stage:fullscreen {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}

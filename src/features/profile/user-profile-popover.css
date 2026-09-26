@@ -1,0 +1,107 @@
+.user-profile-popover {
+  position: fixed;
+  z-index: 70;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 12px;
+  background: #0c1423;
+  box-shadow: 0 14px 40px #0008;
+  outline: none;
+  scrollbar-width: thin;
+  -webkit-app-region: no-drag;
+}
+.user-profile-popover .lyc-profile-card {
+  max-width: none;
+  box-shadow: none;
+}
+.user-profile-popover .lyc-profile-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+  overflow-wrap: anywhere;
+}
+.user-profile-popover .lyc-profile-card-body {
+  padding: 0 20px 20px;
+}
+.user-profile-popover .lyc-profile-avatar {
+  width: 76px;
+  height: 76px;
+  margin-top: -32px;
+}
+.user-profile-edit {
+  display: block;
+  margin: 10px 16px 14px;
+  width: calc(100% - 32px);
+  padding: 8px;
+  font-size: 12px;
+  color: #bdcaf0;
+  background: #17253e;
+  border: 1px solid #6482ff20;
+  border-radius: 6px;
+}
+.user-profile-edit:hover {
+  background: #203253;
+}
+.user-profile-feedback {
+  padding: 16px;
+  font-size: 13px;
+  color: #aebdd6;
+}
+.chat-view .message button.user-profile-avatar-trigger {
+  grid-column: 1;
+  padding: 0;
+  margin: 0;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 50%;
+}
+.chat-view .message button.user-profile-avatar-trigger .avatar {
+  cursor: pointer;
+}
+.chat-view .message-meta button.user-profile-name-trigger {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+}
+.user-profile-name-trigger:hover {
+  text-decoration: underline;
+}
+.members-sidebar .member button.user-profile-member-trigger {
+  display: block;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+.members-sidebar .member .member-avatar.user-profile-member-trigger {
+  flex-shrink: 0;
+}
+.members-sidebar .member-identity button.user-profile-member-trigger:hover b {
+  text-decoration: underline;
+}
+[data-profile-trigger] {
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+[data-profile-trigger]:focus-visible {
+  outline: 2px solid #738be0;
+  outline-offset: 2px;
+}

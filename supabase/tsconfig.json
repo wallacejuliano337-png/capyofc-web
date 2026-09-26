@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "npm:@supabase/supabase-js@2.116.0": [
+        "../node_modules/@supabase/supabase-js/dist/index.d.mts"
+      ],
+      "npm:livekit-server-sdk@2.19.0": [
+        "../node_modules/livekit-server-sdk/dist/index.d.ts"
+      ]
+    }
+  },
+  "include": ["functions/**/*.ts", "deno.d.ts"]
+}

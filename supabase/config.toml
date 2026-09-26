@@ -1,0 +1,4 @@
+[functions.livekit-token]
+# O handler exige Bearer e valida auth.getUser(); identidade não vem do cliente.
+# A verificação legada do gateway não substitui esta autenticação.
+verify_jwt = false
