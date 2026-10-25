@@ -32,9 +32,15 @@ import {
   Check,
   Paperclip,
   Copy,
+  ChevronLeft,
 } from 'lucide-react';
 
-export const DiscordChatView: React.FC = () => {
+export interface DiscordChatViewProps {
+  onBack?: () => void;
+  isMobile?: boolean;
+}
+
+export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobile }) => {
   const {
     servers,
     activeServerId,
@@ -266,11 +272,21 @@ export const DiscordChatView: React.FC = () => {
 
       {/* Channel Top Header */}
       <header
-        className={`h-12 px-4 flex items-center justify-between border-b ${
+        className={`min-h-12 ${isMobile ? 'pt-safe py-2' : 'h-12'} px-3 sm:px-4 flex items-center justify-between border-b ${
           isOled ? 'bg-black border-[#1a1a1a]' : 'bg-[#313338] border-[#202225]'
         } flex-shrink-0 z-10 select-none shadow-sm`}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-1 -ml-1 mr-0.5 text-[#dbdee1] hover:text-white rounded active:bg-white/10 flex items-center gap-0.5 flex-shrink-0"
+              title="Voltar aos canais"
+            >
+              <ChevronLeft className="w-5 h-5 text-[#949ba4]" />
+              <span className="text-xs font-semibold text-[#dbdee1] hidden xs:inline">Canais</span>
+            </button>
+          )}
           {isDm ? (
             <span className="text-[#80848e] font-bold text-base flex-shrink-0">@</span>
           ) : channelType === 'voice' ? (
@@ -867,7 +883,7 @@ export const DiscordChatView: React.FC = () => {
       </div>
 
       {/* Message Typing Input Bar */}
-      <div className="mx-4 sm:mx-6 mb-6 select-none flex-shrink-0 relative">
+      <div className="mx-2 sm:mx-6 mb-2 sm:mb-6 pb-safe select-none flex-shrink-0 relative">
         {/* Reply Preview Banner */}
         {replyingTo && (
           <div className="bg-[#2b2d31] rounded-t-lg px-4 py-1.5 flex items-center justify-between text-xs border-b border-[#232428]">
@@ -942,7 +958,7 @@ export const DiscordChatView: React.FC = () => {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={`Conversar em #${channelName}`}
-            className="flex-1 bg-transparent !border-0 !outline-none !shadow-none !ring-0 !p-0 text-[14px] leading-5 text-[#f2f3f5] placeholder-[#80848e] select-text py-0.5"
+            className="flex-1 bg-transparent !border-0 !outline-none !shadow-none !ring-0 !p-0 text-base sm:text-[14px] leading-5 text-[#f2f3f5] placeholder-[#80848e] select-text py-0.5"
           />
 
           {/* Action Icons Right */}

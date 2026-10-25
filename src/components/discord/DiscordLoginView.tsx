@@ -209,7 +209,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
 
   return (
     <div
-      className="fixed inset-0 w-screen h-screen bg-[#070913] text-white select-none overflow-hidden flex flex-col justify-between"
+      className="fixed inset-0 w-screen h-screen bg-[#070913] text-white select-none overflow-y-auto md:overflow-hidden flex flex-col justify-between pt-safe pb-safe"
       style={{
         backgroundImage: `radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.28) 0%, transparent 55%),
                           radial-gradient(circle at 25% 65%, rgba(88, 101, 242, 0.25) 0%, transparent 55%),
@@ -220,11 +220,11 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       }}
     >
       {/* ── 1. LOGOTIPO CAPYCHAT (TOPO ESQUERDO DESTACADO E NÍTIDO CONFORME EXEMPLO) ── */}
-      <header className="absolute top-7 sm:top-9 left-7 sm:left-10 lg:left-12 z-40 pointer-events-none">
+      <header className="absolute top-4 sm:top-9 left-4 sm:left-10 lg:left-12 z-40 pointer-events-none">
         <img
           src="/assets/login/capychat-tight.png"
           alt="CapyChat"
-          className="h-9 sm:h-11 lg:h-12 w-auto object-contain drop-shadow-[0_0_20px_rgba(139,92,246,0.5)]"
+          className="h-8 sm:h-11 lg:h-12 w-auto object-contain drop-shadow-[0_0_20px_rgba(139,92,246,0.5)]"
         />
       </header>
 
@@ -239,7 +239,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       </div>
 
       {/* Cristal nítido com pata no chão reflexivo (ao lado da pata esquerda da capivara) */}
-      <div className="absolute bottom-[3.5vh] left-[2.5vw] w-[10.5vw] min-w-[110px] max-w-[160px] h-auto pointer-events-none select-none z-30">
+      <div className="absolute bottom-[3.5vh] left-[2.5vw] w-[10.5vw] min-w-[110px] max-w-[160px] h-auto pointer-events-none select-none z-30 hidden sm:block">
         <img
           src="/assets/login/cristal-dado.png"
           alt=""
@@ -268,26 +268,26 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       {/* ── 3. COMPOSIÇÃO INTEGRADA: CAPIVARA À ESQUERDA & CARD CENTRALIZADO ──────── */}
       <div
         role="main"
-        className="relative z-20 flex-1 w-full h-full flex items-end justify-center px-4 sm:px-8 lg:px-12 pb-[3.5vh] pt-[6vh]"
+        className="relative z-20 flex-1 w-full min-h-full flex items-center md:items-end justify-center px-4 sm:px-8 lg:px-12 py-16 sm:py-0 pb-6 sm:pb-[3.5vh] pt-16 sm:pt-[6vh]"
         style={{ background: 'transparent' }}
       >
-        <div className="relative w-full max-w-[1650px] h-[76vh] min-h-[500px] max-h-[700px] flex flex-row items-end justify-center gap-4 sm:gap-6 lg:gap-8">
+        <div className="relative w-full max-w-[1650px] h-auto md:h-[76vh] md:min-h-[500px] md:max-h-[700px] flex flex-col md:flex-row items-center md:items-end justify-center gap-4 sm:gap-6 lg:gap-8">
           
-          {/* COLUNA ESQUERDA: Mascote da Capivara (GRANDE, TALL, ASSENTADA NO PISO CONFORME EXEMPLO) */}
-          <div className="relative flex-shrink-0 h-full w-[33vw] max-w-[560px] min-w-[340px] flex items-end justify-center z-20 pb-0.5">
+          {/* COLUNA ESQUERDA: Mascote da Capivara (No desktop mantém 1:1; no mobile compacta no topo) */}
+          <div className="relative flex-shrink-0 h-24 md:h-full w-24 md:w-[33vw] max-w-[560px] md:min-w-[340px] flex items-end justify-center z-20 pb-0.5">
             <div className="relative w-full h-full flex items-end justify-center">
               {/* Brilho suave difuso atrás da capivara */}
-              <div className="absolute inset-x-0 bottom-4 h-3/4 bg-gradient-to-tr from-[#7c3aed]/35 via-[#ec4899]/18 to-transparent rounded-full blur-3xl scale-95 pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-2 md:bottom-4 h-3/4 bg-gradient-to-tr from-[#7c3aed]/35 via-[#ec4899]/18 to-transparent rounded-full blur-2xl md:blur-3xl scale-95 pointer-events-none" />
               <img
                 src="/assets/login/capylogin.png"
                 alt="Mascote CapyChat"
-                className="h-full w-full object-contain object-bottom drop-shadow-[0_20px_45px_rgba(0,0,0,0.65)] select-none pointer-events-none transform transition-transform duration-700 hover:scale-[1.01]"
+                className="h-full w-full object-contain object-bottom drop-shadow-[0_10px_25px_rgba(0,0,0,0.65)] md:drop-shadow-[0_20px_45px_rgba(0,0,0,0.65)] select-none pointer-events-none transform transition-transform duration-700 hover:scale-[1.01]"
               />
             </div>
           </div>
 
           {/* COLUNA DIREITA: Card Central de Autenticação (PROPORÇÃO LARGA E PERFEITAMENTE VISÍVEL) */}
-          <div className="relative flex-1 max-w-[880px] min-w-[480px] self-center bg-[#131527]/90 backdrop-blur-2xl border border-[#7c3aed]/40 rounded-[28px] p-6 sm:p-8 lg:p-9 shadow-[0_0_60px_rgba(124,58,237,0.22),0_25px_60px_rgba(0,0,0,0.65)] flex flex-col sm:flex-row items-stretch gap-6 sm:gap-8 lg:gap-10 z-20">
+          <div className="relative w-full flex-1 max-w-[880px] min-w-0 md:min-w-[480px] self-center bg-[#131527]/95 backdrop-blur-2xl border border-[#7c3aed]/40 rounded-2xl sm:rounded-[28px] p-5 sm:p-8 lg:p-9 shadow-[0_0_60px_rgba(124,58,237,0.22),0_25px_60px_rgba(0,0,0,0.65)] flex flex-col sm:flex-row items-stretch gap-6 sm:gap-8 lg:gap-10 z-20">
             
             {/* LADO ESQUERDO DO CARD: Formulário de Autenticação */}
             <div className="flex-1 flex flex-col justify-between">
@@ -335,7 +335,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Como quer ser chamado?"
-                            className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
+                            className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
                             required
                           />
                         </div>
@@ -352,7 +352,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="nome_usuario"
-                            className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
+                            className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
                             required
                           />
                         </div>
@@ -372,7 +372,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
                         value={emailOrPhone}
                         onChange={(e) => setEmailOrPhone(e.target.value)}
                         placeholder="Digite seu e-mail ou telefone"
-                        className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
+                        className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
                         required
                       />
                     </div>
@@ -390,7 +390,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Digite sua senha"
-                        className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
+                        className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-[#6b7280]"
                         required
                       />
                       <button

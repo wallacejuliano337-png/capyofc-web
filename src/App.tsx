@@ -23,12 +23,16 @@ import { DiscordCreateServerModal } from './components/discord/DiscordCreateServ
 import { DiscordQuickSwitcherModal } from './components/discord/DiscordQuickSwitcherModal';
 import { DiscordLoginView } from './components/discord/DiscordLoginView';
 import { DiscordUpdateNotifier } from './components/discord/DiscordUpdateNotifier';
+import { useIsMobile } from './hooks/useIsMobile';
+import { DiscordMobileLayout } from './components/mobile/DiscordMobileLayout';
+import { OfflineBanner } from './components/mobile/OfflineBanner';
 import { initAutoUpdatePoller } from './services/autoUpdateService';
 import { playNotificationSound } from './services/notification-sounds';
 import { supabase } from './lib/supabase';
 
 export function App() {
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
   const {
     activeServerId,
     activeChannelId,
@@ -207,9 +211,34 @@ export function App() {
         data-theme={theme}
         className={`theme-${theme} flex flex-col h-screen w-screen overflow-hidden bg-[#060814] text-[#dbdee1] font-sans antialiased select-none`}
       >
-        <WindowTitleBar />
-        <DiscordUpdateNotifier />
+        <OfflineBanner />
+        {!isMobile && <WindowTitleBar />}
+        {!isMobile && <DiscordUpdateNotifier />}
         <DiscordLoginView onLogin={login} />
+      </div>
+    );
+  }
+
+  // Se estiver em modo mobile (iPhone Safari ou tela < 768px), renderiza a experiência móvel dedicada
+  if (isMobile) {
+    return (
+      <div
+        data-theme={theme}
+        className={`theme-${theme} flex flex-col h-screen w-screen overflow-hidden bg-[#1e1f22] text-[#dbdee1] font-sans antialiased select-none`}
+      >
+        <DiscordMobileLayout />
+
+        {/* Modais flutuantes compatíveis com mobile */}
+        <DiscordMemberProfilePopout />
+        <DiscordSettingsModal />
+        <DiscordServerSettingsModal />
+        <DiscordServerBoostModal />
+        <DiscordCreateChannelModal />
+        <DiscordCreateCategoryModal />
+        <DiscordCreateServerModal
+          isOpen={isCreateServerModalOpen}
+          onClose={closeCreateServerModal}
+        />
       </div>
     );
   }

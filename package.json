@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "build": "npm run typecheck && vite build && node scripts/electron.mjs",
+    "build:web": "npm run typecheck && vite build",
     "dist": "npm run build && node scripts/dist.mjs",
     "dist:win": "npm run build && node scripts/dist.mjs",
     "dist:publish": "npm run build && node scripts/publish.mjs",
