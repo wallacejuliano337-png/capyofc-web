@@ -1,7 +1,8 @@
 import { db, supabase } from "../lib/supabase";
 import { cleanContent } from "../lib/permissions";
 import { readLocal, writeLocal, demoProfile } from "./demo";
-import type { Message } from "../types";
+import type { Message, MessageAttachment } from "../types";
+
 export async function history(
   channel: string,
   before?: string,
@@ -22,13 +23,18 @@ export async function history(
   if (before) q = q.lt("created_at", before);
   const { data, error } = await q;
   if (error) throw error;
-  return (data as Message[]).reverse();
+  return (data as Message[]).reverse().map((m) => ({
+    ...m,
+    attachments: (m.attachments || []) as MessageAttachment[],
+  }));
 }
+
 export async function send(
   channel_id: string,
   author_id: string,
   content: string,
   reply_to: string | null,
+  attachments: MessageAttachment[] = [],
 ) {
   content = cleanContent(content);
   if (!supabase) {
@@ -39,6 +45,7 @@ export async function send(
       author_id,
       content,
       reply_to,
+      attachments,
       created_at: new Date().toISOString(),
       edited_at: null,
       profiles: demoProfile,
@@ -49,9 +56,16 @@ export async function send(
   }
   const { error } = await db()
     .from("messages")
-    .insert({ channel_id, author_id, content, reply_to });
+    .insert({
+      channel_id,
+      author_id,
+      content,
+      reply_to,
+      attachments: attachments.length ? attachments : [],
+    });
   if (error) throw error;
 }
+
 export async function edit(id: string, content: string) {
   content = cleanContent(content);
   if (!supabase) {
@@ -68,6 +82,7 @@ export async function edit(id: string, content: string) {
     .eq("id", id);
   if (error) throw error;
 }
+
 export async function remove(id: string) {
   if (!supabase) {
     const d = readLocal();
@@ -75,12 +90,20 @@ export async function remove(id: string) {
     writeLocal(d);
     return;
   }
-  const { error } = await db().from("messages").delete().eq("id", id);
-  if (error) throw error;
+  // Try soft-delete first to preserve reply references; fallback to hard delete if column not present
+  const { error: softErr } = await db()
+    .from("messages")
+    .update({ content: "", deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (softErr) {
+    const { error } = await db().from("messages").delete().eq("id", id);
+    if (error) throw error;
+  }
 }
-export async function reactTo(m: Message, user_id: string) {
+
+export async function reactTo(m: Message, user_id: string, emoji = "🔥") {
   const exists = m.message_reactions?.some(
-    (r) => r.user_id === user_id && r.emoji === "🔥",
+    (r) => r.user_id === user_id && r.emoji === emoji,
   );
   if (!supabase) {
     const d = readLocal();
@@ -89,10 +112,12 @@ export async function reactTo(m: Message, user_id: string) {
         ? {
             ...v,
             message_reactions: exists
-              ? v.message_reactions?.filter((r) => r.user_id !== user_id)
+              ? v.message_reactions?.filter(
+                  (r) => !(r.user_id === user_id && r.emoji === emoji),
+                )
               : [
                   ...(v.message_reactions || []),
-                  { message_id: m.id, user_id, emoji: "🔥" },
+                  { message_id: m.id, user_id, emoji },
                 ],
           }
         : v,
@@ -106,7 +131,7 @@ export async function reactTo(m: Message, user_id: string) {
         .delete()
         .eq("message_id", m.id)
         .eq("user_id", user_id)
-        .eq("emoji", "🔥")
-    : await q.insert({ message_id: m.id, user_id, emoji: "🔥" });
+        .eq("emoji", emoji)
+    : await q.insert({ message_id: m.id, user_id, emoji });
   if (error) throw error;
 }

@@ -25,7 +25,18 @@ export interface Channel {
   kind: "text" | "voice";
   description: string;
   team_id: string | null;
+  is_private?: boolean;
+  sync_permissions?: boolean;
 }
+
+export interface MessageAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  content_type: string;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
@@ -33,9 +44,14 @@ export interface Message {
   content: string;
   created_at: string;
   edited_at: string | null;
+  deleted_at?: string | null;
   reply_to: string | null;
+  attachments?: MessageAttachment[];
   profiles?: Profile;
   message_reactions?: Reaction[];
+  webhook_id?: string | null;
+  webhook_name?: string | null;
+  webhook_avatar_url?: string | null;
 }
 export interface Reaction {
   message_id: string;
@@ -79,13 +95,64 @@ export interface Source {
   name: string;
   thumbnail: string;
 }
+export interface NotificationPayload {
+  type: "channel" | "dm" | "call" | "mention" | "channel_message";
+  channelId?: string;
+  communityId?: string;
+  conversationId?: string;
+  peerId?: string;
+}
+
+export type UpdateState =
+  | "idle"
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+export interface UpdateInfoPayload {
+  state: UpdateState;
+  currentVersion: string;
+  availableVersion?: string;
+  progressPercent?: number;
+  error?: string;
+}
+
 declare global {
   interface Window {
+    electronAPI?: {
+      getScreenSources: () => Promise<Source[]>;
+    };
     arena?: {
       window: (action: "minimize" | "maximize" | "close") => Promise<void>;
       sources: () => Promise<Source[]>;
       selectSource: (id: string, audio: boolean) => Promise<void>;
-      notify: (title: string, body: string) => Promise<void>;
+      notify: (
+        title: string,
+        body: string,
+        payload?: NotificationPayload,
+      ) => Promise<void>;
+      onNotificationClick?: (
+        callback: (payload: NotificationPayload) => void,
+      ) => () => void;
+      setBadgeCount?: (count: number) => Promise<void>;
+      getNotificationsMuted?: () => Promise<boolean>;
+      setNotificationsMuted?: (muted: boolean) => Promise<void>;
+      onTrayMuteToggle?: (callback: (muted: boolean) => void) => () => void;
+      getVersion?: () => Promise<string>;
+      getUpdateStatus?: () => Promise<UpdateInfoPayload>;
+      checkForUpdates?: () => Promise<UpdateInfoPayload>;
+      installUpdate?: () => Promise<boolean>;
+      onUpdateStatus?: (
+        callback: (status: UpdateInfoPayload) => void,
+      ) => () => void;
+      onVoiceToggleMute?: (callback: () => void) => () => void;
+      onVoicePtt?: (callback: () => void) => () => void;
+      onVoiceDisconnect?: (callback: () => void) => () => void;
+      openUpdateModal?: () => Promise<boolean>;
+      onShowUpdateModal?: (callback: () => void) => () => void;
     };
   }
 }

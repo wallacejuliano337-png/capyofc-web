@@ -1,0 +1,106 @@
+{
+  "name": "capychat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CapyChat Desktop",
+  "author": "CapyChat",
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit && tsc -p supabase/tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "npm run typecheck && vite build && node scripts/electron.mjs",
+    "dist": "npm run build && node scripts/dist.mjs",
+    "dist:win": "npm run build && node scripts/dist.mjs",
+    "dist:publish": "npm run build && node scripts/publish.mjs",
+    "dist:verify": "node scripts/verify-dist.mjs",
+    "test:desktop": "node scripts/smoke.mjs"
+  },
+  "build": {
+    "appId": "com.capychat.app",
+    "productName": "CapyChat",
+    "copyright": "Copyright © 2026 CapyChat",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/icon.png",
+      "assets/icon.ico"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "legalTrademarks": "CapyChat",
+      "executableName": "CapyChat",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "artifactName": "CapyChat-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CapyChat",
+      "uninstallDisplayName": "CapyChat",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "lyc-arena",
+        "repo": "lyc-arena"
+      }
+    ],
+    "electronDist": "node_modules/electron/dist"
+  },
+  "dependencies": {
+    "@livekit/components-react": "2.9.24",
+    "@supabase/supabase-js": "2.116.0",
+    "electron-updater": "6.8.9",
+    "livekit-client": "2.22.3",
+    "lucide-react": "1.47.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.6.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "eslint": "10.11.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "livekit-server-sdk": "2.19.0",
+    "prettier": "3.9.8",
+    "supabase": "2.117.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}

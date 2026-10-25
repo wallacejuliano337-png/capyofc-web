@@ -24,6 +24,6 @@ describe("channel message presentation", () => {
   const image=renderToStaticMarkup(createElement(Avatar,{name:"Coronel",url:"/avatar-fixture.png",size:40}));
   expect(image).toContain('<img src="/avatar-fixture.png"');
   const fallback=renderToStaticMarkup(createElement(Avatar,{name:"Naori",url:null,size:40}));
-  expect(fallback).toContain('NA</div>');expect(fallback).not.toContain('<img');
+  expect(fallback).toContain('/assets/avatar-padrao-capychat.png');
  });
 });

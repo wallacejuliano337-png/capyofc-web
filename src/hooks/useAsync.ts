@@ -13,6 +13,7 @@ export function useAsync<T>(fn: () => Promise<T>) {
       const value = await fn();
       if (id === sequence.current) setData(value);
     } catch (e) {
+      console.error("[useAsync ERROR]:", e);
       if (id === sequence.current) setError(messageOf(e));
     } finally {
       if (id === sequence.current) setLoading(false);

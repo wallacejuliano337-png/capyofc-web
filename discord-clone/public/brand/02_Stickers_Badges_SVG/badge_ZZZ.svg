@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100" width="240" height="100">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@900&amp;display=swap');
+      .sticker-text {
+        font-family: 'Inter', sans-serif;
+        font-weight: 900;
+        font-size: 52px;
+        fill: #A78BFA;
+        stroke: #FFFFFF;
+        stroke-width: 10px;
+        paint-order: stroke fill;
+        stroke-linejoin: round;
+      }
+      .sticker-inner {
+        font-family: 'Inter', sans-serif;
+        font-weight: 900;
+        font-size: 52px;
+        fill: #A78BFA;
+        stroke: #0F0F14;
+        stroke-width: 4px;
+        paint-order: stroke fill;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+  <g transform="rotate(-5 120 50)">
+    <text x="120" y="68" text-anchor="middle" class="sticker-text">ZzZ</text>
+    <text x="120" y="68" text-anchor="middle" class="sticker-inner">ZzZ</text>
+  </g>
+</svg>

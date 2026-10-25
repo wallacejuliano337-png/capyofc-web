@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+  <rect x="10" y="10" width="180" height="180" rx="42" fill="#0F0F14" stroke="#1F1F2E" stroke-width="4"/>
+  
+    <!-- Orelha -->
+    <ellipse cx="75" cy="65" rx="12" ry="16" transform="rotate(-25 75 65)" fill="#8B5CF6" stroke="#0F0F14" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Cabeca / Focinho -->
+    <path fill="#8B5CF6" stroke="#0F0F14" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M 50,115 C 50,70 95,62 125,68 C 155,74 172,82 172,108 C 172,138 150,152 115,152 C 75,152 50,140 50,115 Z" />
+    <!-- Olho fechado -->
+    <path d="M 105,94 Q 115,84 124,94" fill="none" stroke="#0F0F14" stroke-width="5.5" stroke-linecap="round" />
+    <!-- Nariz -->
+    <path d="M 148,96 Q 155,103 162,96" fill="none" stroke="#0F0F14" stroke-width="5" stroke-linecap="round" />
+    <path d="M 155,101 L 155,124" fill="none" stroke="#0F0F14" stroke-width="5" stroke-linecap="round" />
+    <!-- Sorriso -->
+    <path d="M 135,128 Q 148,135 155,124 Q 160,132 165,127" fill="none" stroke="#0F0F14" stroke-width="4.5" stroke-linecap="round" />
+    <!-- Arco Headset -->
+    <path d="M 55,95 C 52,48 118,45 135,69" fill="none" stroke="#0F0F14" stroke-width="16" stroke-linecap="round" />
+    <path d="M 55,95 C 52,48 118,45 135,69" fill="none" stroke="#A78BFA" stroke-width="8" stroke-linecap="round" />
+    <!-- Concha Headset -->
+    <ellipse cx="58" cy="115" rx="22" ry="28" fill="#6D28D9" stroke="#0F0F14" stroke-width="5" />
+    <ellipse cx="56" cy="115" rx="15" ry="20" fill="#8B5CF6" stroke="#0F0F14" stroke-width="3" />
+    <!-- Coroa -->
+    <path fill="#E5E7EB" d="M 47,121 L 47,109 L 52,114 L 56,107 L 60,114 L 65,109 L 65,121 Z" />
+    <!-- Microfone -->
+    <path d="M 65,138 Q 82,150 102,148" fill="none" stroke="#0F0F14" stroke-width="9" stroke-linecap="round" />
+    <path d="M 65,138 Q 82,150 102,148" fill="none" stroke="#8B5CF6" stroke-width="4" stroke-linecap="round" />
+    <rect x="96" y="142" width="16" height="10" rx="5" fill="#0F0F14" stroke="#8B5CF6" stroke-width="2.5" />
+    
+</svg>

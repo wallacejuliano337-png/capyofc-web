@@ -1,5 +1,6 @@
 import type { Profile } from "../types";
 import { db } from "../lib/supabase";
+import { normalizePublicPerson } from "./social";
 const complete = (p?: Profile): p is Profile =>
   !!p &&
   [
@@ -24,7 +25,7 @@ export class UserProfileCache {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as Profile;
+      return normalizePublicPerson(data as Profile);
     },
   ) {}
   async get(id: string, seed?: Profile) {

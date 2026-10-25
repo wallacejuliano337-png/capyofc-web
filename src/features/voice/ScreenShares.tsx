@@ -33,11 +33,11 @@ export function ScreenShares() {
           const name = track.participant.name || track.participant.identity;
           return (
             <section className="room-screen" key={track.publication.trackSid}>
-              <header>
-                <span className="live-dot">AO VIVO</span>
-                <b>{name}</b>
-              </header>
               <div className="room-screen-stage">
+                <div className="room-screen-overlay-header">
+                  <span className="live-dot">AO VIVO</span>
+                  <b className="room-screen-streamer-name">{name}</b>
+                </div>
                 <button
                   type="button"
                   className="room-screen-expand"
@@ -53,8 +53,8 @@ export function ScreenShares() {
                     void fullscreen(e.currentTarget.parentElement)
                   }
                 >
-                  <Maximize size={16} />
-                  Tela cheia
+                  <Maximize size={15} />
+                  <span>Tela cheia</span>
                 </button>
               </div>
             </section>

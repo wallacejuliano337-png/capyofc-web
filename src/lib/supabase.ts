@@ -17,9 +17,19 @@ export function db() {
   return supabase;
 }
 export function messageOf(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : typeof error === "object" && error && "message" in error
-      ? String(error.message)
-      : "Não foi possível concluir. Tente novamente.";
+  if (!error) return "Não foi possível concluir. Tente novamente.";
+  const msg =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
+  if (
+    msg.includes("Failed to fetch") ||
+    msg.includes("NetworkError") ||
+    msg.includes("TypeError")
+  ) {
+    return "Falha temporária de conexão com o servidor. Verifique sua conexão.";
+  }
+  return msg || "Não foi possível concluir. Tente novamente.";
 }

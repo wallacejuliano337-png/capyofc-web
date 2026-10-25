@@ -1,13 +1,13 @@
-import authBackground from "../../../assets/auth/background.png";
-import authLogo from "../../../assets/auth/logo.png";
-import authMascot from "../../../assets/auth/mascot.png";
+import authScenery from "../../../assets/auth/scenery.png";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
+  QrCode,
   UserRound,
 } from "lucide-react";
 import "./auth.css";
@@ -80,9 +80,12 @@ export function useAuth() {
   };
 }
 export function Auth({
+  onDemo: _onDemo,
+  onLogin,
   error: outerError,
 }: {
   onDemo: () => void;
+  onLogin?: (profile?: Profile) => void;
   error: string;
 }) {
   const [mode, setMode] = useState<
@@ -100,6 +103,7 @@ export function Auth({
   const [confirmation, setConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const task = useTask();
   const switchMode = (next: typeof mode) => {
     setMode(next);
@@ -111,19 +115,13 @@ export function Auth({
   };
   return (
     <main className="arena-auth">
-      <div className="arena-auth-brand">
-        <img src={authLogo} alt="LYC Arena" draggable={false} />
-      </div>
       <div className="arena-auth-scenery" aria-hidden="true">
         <img
           className="arena-auth-background"
-          src={authBackground}
+          src={authScenery}
           alt=""
           draggable={false}
         />
-        <div className="arena-auth-mascot">
-          <img src={authMascot} alt="" draggable={false} />
-        </div>
       </div>
       <section
         className={"arena-auth-card " + (mode === "signup" ? "is-signup" : "")}
@@ -186,25 +184,75 @@ export function Auth({
             void task.run(async () => {
               if (mode === "login") {
                 sessionStorage.removeItem("lyc-recovery");
-                const { error } = await db().auth.signInWithPassword({
-                  email,
-                  password,
-                });
-                if (error) throw error;
+                const cleanEmail = email.trim();
+                if (!cleanEmail) {
+                  throw new Error("Por favor, informe seu e-mail.");
+                }
+                if (!password) {
+                  throw new Error("Por favor, informe sua senha.");
+                }
+                const { data: authData, error } =
+                  await db().auth.signInWithPassword({
+                    email: cleanEmail,
+                    password,
+                  });
+                if (error) {
+                  if (
+                    error.message.toLowerCase().includes("invalid login credentials")
+                  ) {
+                    throw new Error("E-mail ou senha incorretos.");
+                  }
+                  if (
+                    error.message.toLowerCase().includes("email not confirmed")
+                  ) {
+                    throw new Error(
+                      "Por favor, confirme seu e-mail antes de entrar.",
+                    );
+                  }
+                  throw error;
+                }
+                if (authData?.user) {
+                  try {
+                    const { data: prof } = await db()
+                      .from("profiles")
+                      .select("*")
+                      .eq("id", authData.user.id)
+                      .single();
+                    if (prof && onLogin) {
+                      onLogin(prof);
+                      return;
+                    }
+                  } catch {
+                    // Fallback handled by onAuthStateChange
+                  }
+                }
+                if (onLogin) {
+                  onLogin();
+                }
               }
               if (mode === "signup") {
+                const cleanEmail = email.trim();
+                const cleanName = name.trim();
+                if (!cleanName)
+                  throw new Error("Por favor, informe seu nome de usuário.");
+                if (password.length < 8)
+                  throw new Error("A senha deve ter no mínimo 8 caracteres.");
                 if (password !== confirmation)
                   throw new Error("As senhas não coincidem.");
                 const { error } = await db().auth.signUp({
-                  email,
+                  email: cleanEmail,
                   password,
-                  options: { data: { display_name: name } },
+                  options: { data: { display_name: cleanName } },
                 });
                 if (error) throw error;
                 setNotice("Conta criada. Confirme seu e-mail antes de entrar.");
               }
               if (mode === "reset") {
-                const { error } = await db().auth.resetPasswordForEmail(email);
+                const cleanEmail = email.trim();
+                if (!cleanEmail)
+                  throw new Error("Por favor, informe seu e-mail.");
+                const { error } =
+                  await db().auth.resetPasswordForEmail(cleanEmail);
                 if (error) throw error;
                 setNotice("Se a conta existir, enviaremos um código.");
                 setMode("verify");
@@ -212,8 +260,8 @@ export function Auth({
               if (mode === "verify") {
                 sessionStorage.setItem("lyc-recovery", "1");
                 const { error } = await db().auth.verifyOtp({
-                  email,
-                  token,
+                  email: email.trim(),
+                  token: token.trim(),
                   type: "recovery",
                 });
                 if (error) {
@@ -224,6 +272,10 @@ export function Auth({
                 setMode("password");
               }
               if (mode === "password") {
+                if (password.length < 8)
+                  throw new Error(
+                    "A nova senha deve ter no mínimo 8 caracteres.",
+                  );
                 const { error } = await db().auth.updateUser({ password });
                 if (error) throw error;
                 sessionStorage.removeItem("lyc-recovery");
@@ -260,13 +312,21 @@ export function Auth({
                 <label className="arena-auth-input">
                   <Mail size={18} />
                   <input
-                    aria-label="E-mail"
-                    type="email"
+                    aria-label={
+                      mode === "login"
+                        ? "E-mail ou número de telefone"
+                        : "E-mail"
+                    }
+                    type={mode === "login" ? "text" : "email"}
                     autoComplete="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="E-mail"
+                    placeholder={
+                      mode === "login"
+                        ? "E-mail ou número de telefone"
+                        : "E-mail"
+                    }
                   />
                 </label>
                 {mode === "signup" && <small>Informe um e-mail válido.</small>}
@@ -283,7 +343,7 @@ export function Auth({
                     }
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={8}
+                    minLength={mode === "login" ? undefined : 8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Senha"
@@ -351,31 +411,71 @@ export function Auth({
             )}
             {mode === "login" && (
               <div className="arena-auth-options">
-                <label title="Sua sessão é mantida automaticamente neste dispositivo.">
-                  <input type="checkbox" checked disabled />
-                  Manter-me conectado
+                <label className="arena-auth-remember">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span className="arena-auth-checkbox">
+                    {rememberMe && <Check size={11} />}
+                  </span>
+                  <span>Manter-me conectado</span>
                 </label>
-                <button type="button" onClick={() => switchMode("reset")}>
+                <button
+                  type="button"
+                  className="arena-auth-forgot"
+                  onClick={() => switchMode("reset")}
+                >
                   Esqueceu sua senha?
                 </button>
               </div>
             )}
-            <button className="arena-auth-submit" type="submit">
-              {task.busy
-                ? "Aguarde…"
-                : mode === "login"
-                  ? "Entrar"
-                  : mode === "signup"
-                    ? "Criar conta"
-                    : "Continuar"}
+            <button
+              className="arena-auth-submit"
+              type="submit"
+              disabled={task.busy}
+            >
+              <span>
+                {task.busy
+                  ? "Aguarde…"
+                  : mode === "login"
+                    ? "Entrar"
+                    : mode === "signup"
+                      ? "Criar conta"
+                      : "Continuar"}
+              </span>
               <ArrowRight size={18} />
             </button>
+            {mode === "login" && (
+              <>
+                <div className="arena-auth-divider">
+                  <span>ou</span>
+                </div>
+                <button
+                  type="button"
+                  className="arena-auth-qr-btn"
+                  onClick={() =>
+                    setNotice(
+                      "O login via código QR estará disponível no aplicativo móvel da LYC Arena.",
+                    )
+                  }
+                >
+                  <QrCode size={18} />
+                  <span>Entrar com código QR</span>
+                </button>
+              </>
+            )}
           </fieldset>
         </form>
         {mode === "login" ? (
           <p className="arena-auth-footer">
             Não tem uma conta?{" "}
-            <button disabled={task.busy} onClick={() => switchMode("signup")}>
+            <button
+              type="button"
+              disabled={task.busy}
+              onClick={() => switchMode("signup")}
+            >
               Registre-se
             </button>
           </p>
@@ -383,7 +483,11 @@ export function Auth({
           mode === "signup" && (
             <p className="arena-auth-footer">
               Já tem uma conta?{" "}
-              <button disabled={task.busy} onClick={() => switchMode("login")}>
+              <button
+                type="button"
+                disabled={task.busy}
+                onClick={() => switchMode("login")}
+              >
                 Entrar
               </button>
             </p>

@@ -1,0 +1,2636 @@
+{
+  "backup_type": "PRE_CLEANUP_SNAPSHOT",
+  "created_at": "2026-10-23T21:17:58.446Z",
+  "project_id": "tfjkinffnksmiqatdhnb",
+  "auth_mode": "authenticated_session",
+  "note": "Backup seguro e higienizado antes da limpeza das 56 contas de teste.",
+  "tables": {
+    "profiles": {
+      "status": "ok",
+      "count": 63,
+      "rows": [
+        {
+          "id": "cae45643-956a-4f75-a8fa-d7c279cebf5f",
+          "username": "u_cae45643956a4f75a8fad7c2",
+          "display_name": "Alpha 199319",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:20:00.009112+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "a58a003b-6df2-4dda-90f5-3f9c4dcd0043",
+          "username": "u_a58a003b6df24dda90f53f9c",
+          "display_name": "Beta 199618",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:20:00.216236+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "06f17e89-d088-46ed-a254-cfc79217480c",
+          "username": "u_06f17e89d08846eda254cfc7",
+          "display_name": "Alpha 534889",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:25:36.067913+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "7a4901f2-d51f-4747-9c5a-6b3aa716ada6",
+          "username": "david",
+          "display_name": "Kirito",
+          "avatar_url": "https://tfjkinffnksmiqatdhnb.supabase.co/storage/v1/object/public/avatars/7a4901f2-d51f-4747-9c5a-6b3aa716ada6/fccc806a-5376-4539-93cc-17a1d99503b9.jpg",
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-09-23T02:11:13.869325+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "73426b78-425e-486a-abb5-951bf7ca959d",
+          "username": "everton",
+          "display_name": "Everton",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-09-29T15:33:30.787327+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "89ef8f98-37c5-4199-b598-88c90ae2db6e",
+          "username": "hermanbeta",
+          "display_name": "HERMAN BETA",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-04T00:43:49.500485+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "eda43ba0-44ee-4565-a0e7-bad81800e715",
+          "username": "foox7",
+          "display_name": "FOOX7",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-05T00:54:52.930121+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "33e0a99f-c10b-4057-b23d-85cf5fc13ba9",
+          "username": "moraex",
+          "display_name": "Moraex",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-13T02:29:32.440349+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "f724e836-be35-4d53-9fd9-4dc97ba1acb9",
+          "username": "u_f724e836be354d539fd94dc9",
+          "display_name": "Capy Amigo",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-20T03:56:12.432861+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "username": "lycdev",
+          "display_name": "Coronel",
+          "avatar_url": "https://tfjkinffnksmiqatdhnb.supabase.co/storage/v1/object/public/avatars/f8fcd139-cf43-4873-bd7d-a807ecd73567/4885b81a-8e58-4486-98b7-f683ab0cf549.gif",
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-09-20T17:54:08.844527+00:00",
+          "banner_url": "https://tfjkinffnksmiqatdhnb.supabase.co/storage/v1/object/public/avatars/f8fcd139-cf43-4873-bd7d-a807ecd73567/634e0066-22b2-49fe-8286-cb164acabb72.gif",
+          "bio": "DONO DA LYC",
+          "profile_primary_color": "#000000",
+          "profile_secondary_color": "#000000",
+          "profile_accent_color": "#000000"
+        },
+        {
+          "id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "username": "naori",
+          "display_name": "Naori",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-09-20T17:56:57.006139+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "52f38d7d-666e-4f0f-99c2-7d150659bb39",
+          "username": "u_52f38d7d666e4f0f99c27d15",
+          "display_name": "Capy Tester 148167",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-21T02:52:29.331432+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "95dbc856-1489-40f5-914d-3cbc90cbb4e6",
+          "username": "u_95dbc856148940f5914d3cbc",
+          "display_name": "Capy Updated Name",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-21T03:14:27.76558+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "a05e5ba0-f76a-4059-8d84-3721761ddd00",
+          "username": "capy_a_632854",
+          "display_name": "Capy Amigo Alpha 632854",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-21T03:17:14.409316+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "929794e5-2a05-4fd3-a72d-618e59d7dc25",
+          "username": "capy_b_632854",
+          "display_name": "Capy Amigo Beta 632854",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-21T03:17:14.682625+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "53f5007d-a0ba-4cac-92ee-cf57992168f9",
+          "username": "capyamigo_56403",
+          "display_name": "Capy Amigo 56403",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-21T04:34:18.937947+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "f44e2be3-03cd-43e7-995a-719a49f9b012",
+          "username": "capy_a_455481",
+          "display_name": "Capy Amigo Alpha 455481",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T06:20:57.669951+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "7b477a9a-8ab1-4ea5-9461-12efe1f67365",
+          "username": "capy_b_455481",
+          "display_name": "Capy Amigo Beta 455481",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T06:20:58.017481+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "d77517df-6a3c-401d-ad3b-6922faa5992f",
+          "username": "u_d77517df6a3c401dad3b6922",
+          "display_name": "Inspector",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T06:28:49.999677+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "ed69d1a7-b06c-41f6-8c55-835a7ab28b0b",
+          "username": "u_ed69d1a7b06c41f68c55835a",
+          "display_name": "Inspector2",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T06:31:12.225712+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "c542a680-42b2-413a-bf9c-83f967493cac",
+          "username": "u_c542a68042b2413abf9c83f9",
+          "display_name": "Checker",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T07:01:13.412595+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "8a0274f6-731a-4da9-a97d-06343229dbf7",
+          "username": "u_8a0274f6731a4da9a97d0634",
+          "display_name": "RPC User",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T07:01:27.098576+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "39d81d53-8d89-4f57-a65d-442a72d5e4ad",
+          "username": "u_39d81d538d894f57a65d442a",
+          "display_name": "Usuário Alpha 045213",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T07:04:07.953158+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "dc9adf11-5776-40f1-878e-abf05f472f06",
+          "username": "u_dc9adf11577640f1878eabf0",
+          "display_name": "Usuário Beta 047070",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T07:04:09.299708+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "6c0f8eef-3549-4efe-9004-c7e321784383",
+          "username": "u_6c0f8eef35494efe9004c7e3",
+          "display_name": "Dual Alpha 009547",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T07:20:12.097539+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "3cb43393-4cdc-4313-9ad5-79cb7605df2c",
+          "username": "u_3cb433934cdc43139ad579cb",
+          "display_name": "Dual Beta 009547",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T07:20:12.367562+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "610a5033-2d02-48c0-8477-e45fba6c4a84",
+          "username": "u_610a50332d0248c08477e45f",
+          "display_name": "Usuário Alpha 785495",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:13:06.653413+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "9b13a11b-0180-4f26-b665-23a28d58e387",
+          "username": "u_9b13a11b01804f26b66523a2",
+          "display_name": "Usuário Beta 787364",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:13:07.96067+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "91738f64-fb1e-464b-abac-a9d0bf45bf33",
+          "username": "u_91738f64fb1e464babaca9d0",
+          "display_name": "Usuário Alpha 055319",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:17:36.499016+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "4cffba8e-9053-4147-8dde-05856a07c37f",
+          "username": "u_4cffba8e905341478dde0585",
+          "display_name": "Usuário Beta 056995",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:17:37.613438+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "3e014270-244b-499b-aa6d-1607fcba4519",
+          "username": "u_3e014270244b499baa6d1607",
+          "display_name": "Alpha 175148",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:19:36.152253+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "2a4ae293-bb97-4e95-9f02-a44551f78fc4",
+          "username": "u_2a4ae293bb974e959f02a445",
+          "display_name": "Beta 175840",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:19:36.475582+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "3a607ed3-ec3c-49f4-89cd-2e37fc566bb9",
+          "username": "u_3a607ed3ec3c49f489cd2e37",
+          "display_name": "Beta 535799",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:25:36.431883+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "811408b4-31cf-4b76-ad0b-d800acc9f157",
+          "username": "u_811408b431cf4b76ad0bd800",
+          "display_name": "U 556865",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:25:57.547194+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "caa4962e-b170-42ed-aafa-fa11544163de",
+          "username": "u_caa4962eb17042edaafafa11",
+          "display_name": "Alpha 574471",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:26:15.244126+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "857daae0-274a-46b3-86b5-86ccb5590d1f",
+          "username": "u_857daae0274a46b386b586cc",
+          "display_name": "Beta 574859",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:26:15.467388+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "d5f11ad9-d964-4ec7-9bc6-f38a3c9d5477",
+          "username": "u_d5f11ad9d9644ec79bc6f38a",
+          "display_name": "Capy Alpha 363791",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:39:24.736281+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "cb149b42-f4ff-450e-854b-5ee6bb72a161",
+          "username": "u_cb149b42f4ff450e854b5ee6",
+          "display_name": "Capy Beta 364365",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:39:25.038179+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "ad9ffc6e-38a5-4ed3-a486-b6f6febd7a20",
+          "username": "u_ad9ffc6e38a54ed3a486b6f6",
+          "display_name": "Capy Alpha 454519",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:40:55.350235+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "88b43829-8bdb-4594-b52e-25d14c6d4754",
+          "username": "u_88b438298bdb4594b52e25d1",
+          "display_name": "Capy Beta 454936",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:40:55.598322+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "31022437-2bd6-43ec-9928-9c036d4c196d",
+          "username": "u_310224372bd643ec99289c03",
+          "display_name": "Capy Alpha 594342",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:43:15.419942+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "40982cea-dd0f-47d7-8a86-963bac7d4f09",
+          "username": "u_40982ceadd0f47d78a86963b",
+          "display_name": "Capy Beta 594997",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:43:15.65167+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "000fd306-9ad4-40dc-a04e-8e31dcdc77c2",
+          "username": "u_000fd3069ad440dca04e8e31",
+          "display_name": "Capy Alpha 762489",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:46:04.993301+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "1f3fdac8-67b6-4661-8ffc-5cdd5db73cb0",
+          "username": "u_1f3fdac867b646618ffc5cdd",
+          "display_name": "Capy Beta 764672",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:46:05.434871+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "4ae28e23-67b8-4d11-8f73-bd6da4dd2c10",
+          "username": "u_4ae28e2367b84d118f73bd6d",
+          "display_name": "Capy Alpha 923149",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:48:43.928994+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "9a01d454-06df-48fc-8b2d-614af3778d98",
+          "username": "u_9a01d45406df48fc8b2d614a",
+          "display_name": "Capy Beta 923534",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:48:44.222206+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "5f9bbc35-e688-4e1f-b6c2-813dc3c4d14a",
+          "username": "u_5f9bbc35e6884e1fb6c2813d",
+          "display_name": "Capy Alpha 129382",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:52:10.341875+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "b230b2b6-f2b2-44af-810d-2a8aa44142d6",
+          "username": "u_b230b2b6f2b244af810d2a8a",
+          "display_name": "Capy Beta 129913",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:52:10.602652+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "6df208d7-2872-434d-92c5-87124302269d",
+          "username": "u_6df208d72872434d92c58712",
+          "display_name": "Capy Alpha 401051",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:56:41.845197+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "e6bdce18-9987-483a-9168-3fdfd0f64942",
+          "username": "u_e6bdce189987483a91683fdf",
+          "display_name": "Capy Beta 401380",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T19:56:42.089482+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "989cef9a-0649-4b21-b429-62d0c1716500",
+          "username": "amigo_856255",
+          "display_name": "Amigo Convidado 856255",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:04:17.657484+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "0d080b14-b714-4193-abbe-4ea3fd8c0b52",
+          "username": "u_0d080b14b7144193abbe4ea3",
+          "display_name": "User X 862435",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:04:23.15649+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "ff8fea75-591b-4b5b-ac5a-69990f4e07f4",
+          "username": "u_ff8fea75591b4b5bac5a6999",
+          "display_name": "User Y 862641",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:04:23.357031+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "d9bb15ae-30fa-4922-8ee7-0dca01b84a34",
+          "username": "u_d9bb15ae30fa49228ee70dca",
+          "display_name": "User Z 863668",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:04:24.367127+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "05063ba9-db4a-423e-8329-81701e8966ce",
+          "username": "amigo_362849",
+          "display_name": "Amigo Convidado 362849",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:12:49.025817+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "583edf45-058f-4292-b93e-d7ae4a07805d",
+          "username": "u_583edf45058f4292b93ed7ae",
+          "display_name": "User X 373908",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:12:54.634557+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "4e0d30c0-bc2d-401f-8bbe-3f4bf1a66c7a",
+          "username": "u_4e0d30c0bc2d401f8bbe3f4b",
+          "display_name": "User Y 374094",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:12:54.832922+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "ff997b21-8be6-4acb-a980-ac28d8f8bb3b",
+          "username": "u_ff997b218be64acba980ac28",
+          "display_name": "User Z 375159",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:12:55.900721+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "82668c61-d66c-4160-84cf-6f59236a77b5",
+          "username": "u_82668c61d66c416084cf6f59",
+          "display_name": "Membro",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:17:58.095012+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "f2e463e2-a983-4511-bd16-397af49462cd",
+          "username": "u_f2e463e2a9834511bd16397a",
+          "display_name": "Membro",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:18:13.512431+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "a8879b28-cca6-4a7b-b5c4-8e2741a0716a",
+          "username": "u_a8879b28cca64a7bb5c48e27",
+          "display_name": "Membro",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:19:24.06673+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "be75df30-9abd-45d9-91b9-f13524b4919d",
+          "username": "u_be75df309abd45d991b9f135",
+          "display_name": "Membro",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:20:24.69651+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        },
+        {
+          "id": "791164b0-1ca9-4e6b-9fa1-12040b1be515",
+          "username": "u_791164b01ca94e6b9fa11204",
+          "display_name": "Membro",
+          "avatar_url": null,
+          "status": "online",
+          "role": "MEMBER",
+          "created_at": "2026-10-23T20:28:07.806331+00:00",
+          "banner_url": null,
+          "bio": "",
+          "profile_primary_color": "#142744",
+          "profile_secondary_color": "#30204c",
+          "profile_accent_color": "#7588f5"
+        }
+      ]
+    },
+    "communities": {
+      "status": "ok",
+      "count": 2,
+      "rows": [
+        {
+          "id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "name": "LYC++",
+          "image_url": "https://tfjkinffnksmiqatdhnb.supabase.co/storage/v1/object/public/avatars/f8fcd139-cf43-4873-bd7d-a807ecd73567/community-d3f2173f-79f0-4362-b60a-ad079f724b54-icon-21523b5f-c1fa-400d-9938-db45d69cf375.png",
+          "owner_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "is_official": true,
+          "created_at": "2026-09-20T23:17:45.048974+00:00",
+          "revision": 312,
+          "is_community": false,
+          "rules_channel_id": null,
+          "public_updates_channel_id": null
+        },
+        {
+          "id": "e159079b-b57e-4e58-9c57-9eb9d2b2fe62",
+          "name": "Validação admin 3066424 OK",
+          "image_url": null,
+          "owner_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "is_official": false,
+          "created_at": "2026-09-21T17:51:07.299349+00:00",
+          "revision": 52,
+          "is_community": false,
+          "rules_channel_id": null,
+          "public_updates_channel_id": null
+        }
+      ]
+    },
+    "channels": {
+      "status": "ok",
+      "count": 7,
+      "rows": [
+        {
+          "id": "0920ef2b-8ae9-4548-b640-3954b1f8a633",
+          "name": "staff-chat",
+          "category": "STAFF",
+          "kind": "text",
+          "description": "Canal privado da staff",
+          "team_id": null,
+          "is_private": true,
+          "position": 0,
+          "created_at": "2026-10-06T00:48:11.091646+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "a56ed219-527d-43ab-80e4-e7dbfb8c68ab",
+          "deleted_at": null,
+          "sync_permissions": false
+        },
+        {
+          "id": "2d00ee7d-5ecf-486b-b1ff-aaf87621bd11",
+          "name": "lobby",
+          "category": "SALAS DE VOZ",
+          "kind": "voice",
+          "description": "Conecte sua voz à comunidade.",
+          "team_id": null,
+          "is_private": false,
+          "position": 5,
+          "created_at": "2026-09-20T08:32:36.944058+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "965e9733-7f05-4b14-ab89-256ed8b3fefe",
+          "deleted_at": null,
+          "sync_permissions": true
+        },
+        {
+          "id": "c4f2ff42-fa89-4808-83d3-f64ecacac2a7",
+          "name": "treino",
+          "category": "SALAS DE VOZ",
+          "kind": "voice",
+          "description": "Prepare seu squad.",
+          "team_id": null,
+          "is_private": false,
+          "position": 6,
+          "created_at": "2026-09-20T08:32:36.944058+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "965e9733-7f05-4b14-ab89-256ed8b3fefe",
+          "deleted_at": null,
+          "sync_permissions": true
+        },
+        {
+          "id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "name": "geral",
+          "category": "COMUNIDADE",
+          "kind": "text",
+          "description": "O ponto de encontro da nossa comunidade.",
+          "team_id": null,
+          "is_private": false,
+          "position": 1,
+          "created_at": "2026-09-20T08:32:36.944058+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "cddbe8a9-9985-41ae-9913-1802f4cc22f7",
+          "deleted_at": null,
+          "sync_permissions": true
+        },
+        {
+          "id": "2224ff4a-fde5-4243-8572-256e9a226ad1",
+          "name": "avisos",
+          "category": "COMUNIDADE",
+          "kind": "text",
+          "description": "Comunicados oficiais da LYC.",
+          "team_id": null,
+          "is_private": false,
+          "position": 2,
+          "created_at": "2026-09-20T08:32:36.944058+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "cddbe8a9-9985-41ae-9913-1802f4cc22f7",
+          "deleted_at": null,
+          "sync_permissions": true
+        },
+        {
+          "id": "2f283544-ba27-43dd-a225-cce5866e42aa",
+          "name": "resultados",
+          "category": "COMUNIDADE",
+          "kind": "text",
+          "description": "Cada partida conta uma história.",
+          "team_id": null,
+          "is_private": false,
+          "position": 3,
+          "created_at": "2026-09-20T08:32:36.944058+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "cddbe8a9-9985-41ae-9913-1802f4cc22f7",
+          "deleted_at": null,
+          "sync_permissions": true
+        },
+        {
+          "id": "37672e02-445c-4e1d-8ab3-6f4a2e3fc896",
+          "name": "procurar-time",
+          "category": "COMUNIDADE",
+          "kind": "text",
+          "description": "Encontre seu próximo squad.",
+          "team_id": null,
+          "is_private": false,
+          "position": 4,
+          "created_at": "2026-09-20T08:32:36.944058+00:00",
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "category_id": "cddbe8a9-9985-41ae-9913-1802f4cc22f7",
+          "deleted_at": null,
+          "sync_permissions": true
+        }
+      ]
+    },
+    "messages": {
+      "status": "ok",
+      "count": 8,
+      "rows": [
+        {
+          "id": "96fb3ed9-40d5-4da6-ac73-7a77d9c612a7",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "content": "eae manow",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:10:20.654064+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "dd1222c2-7712-440f-ab8b-c13de8beb022",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "content": "ta funcionando o chat agora",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:10:29.133984+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "68f15950-0b57-44d7-8b78-ad41d2524102",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "content": "em tempo real mesmo",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:10:35.297997+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "79dfd3d1-5353-4bcf-aac6-b98309b85bee",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "content": "racista",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:47:04.64564+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "248bbd9f-5da9-4319-a0c1-966d98032236",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "content": "facista",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:47:09.914723+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "dd5b67f5-2e18-4f71-97c2-8a24eaf5d450",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "content": "taxista",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:47:14.319955+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "254dc2f7-d28a-432a-8f0b-23b2ebb97b3e",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "content": "pianista",
+          "reply_to": null,
+          "created_at": "2026-09-20T18:47:19.153321+00:00",
+          "edited_at": null
+        },
+        {
+          "id": "3e74d0b5-2c44-40d5-8079-cf919b2b2e8d",
+          "channel_id": "e12e572c-2576-4965-8ded-312ae4d98257",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "content": "SIX SEVEN",
+          "reply_to": null,
+          "created_at": "2026-09-22T18:49:11.887345+00:00",
+          "edited_at": null
+        }
+      ]
+    },
+    "community_members": {
+      "status": "ok",
+      "count": 65,
+      "rows": [
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "role_id": "7d7f0200-40d4-483c-97ee-095d5acf1fbc",
+          "joined_at": "2026-09-20T23:17:45.048974+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "e159079b-b57e-4e58-9c57-9eb9d2b2fe62",
+          "user_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "role_id": "7fbaa245-dbad-4a94-a3f5-37b70f61fa89",
+          "joined_at": "2026-09-21T17:51:07.299349+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "e159079b-b57e-4e58-9c57-9eb9d2b2fe62",
+          "user_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "role_id": "559bbe35-b7a5-41c5-87b2-11a14d5b77da",
+          "joined_at": "2026-09-21T17:51:12.431473+00:00",
+          "left_at": "2026-09-21T17:51:13.27221+00:00"
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "7a4901f2-d51f-4747-9c5a-6b3aa716ada6",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-09-23T02:11:13.869325+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "73426b78-425e-486a-abb5-951bf7ca959d",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-09-29T15:33:30.787327+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-09-20T23:17:45.048974+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "89ef8f98-37c5-4199-b598-88c90ae2db6e",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-04T00:43:49.500485+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "eda43ba0-44ee-4565-a0e7-bad81800e715",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-05T00:54:52.930121+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "33e0a99f-c10b-4057-b23d-85cf5fc13ba9",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-13T02:29:32.440349+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "f724e836-be35-4d53-9fd9-4dc97ba1acb9",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-20T03:56:12.432861+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "52f38d7d-666e-4f0f-99c2-7d150659bb39",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-21T02:52:29.331432+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "95dbc856-1489-40f5-914d-3cbc90cbb4e6",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-21T03:14:27.76558+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "a05e5ba0-f76a-4059-8d84-3721761ddd00",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-21T03:17:14.409316+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "929794e5-2a05-4fd3-a72d-618e59d7dc25",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-21T03:17:14.682625+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "53f5007d-a0ba-4cac-92ee-cf57992168f9",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-21T04:34:18.937947+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "f44e2be3-03cd-43e7-995a-719a49f9b012",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T06:20:57.669951+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "7b477a9a-8ab1-4ea5-9461-12efe1f67365",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T06:20:58.017481+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "d77517df-6a3c-401d-ad3b-6922faa5992f",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T06:28:49.999677+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "ed69d1a7-b06c-41f6-8c55-835a7ab28b0b",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T06:31:12.225712+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "c542a680-42b2-413a-bf9c-83f967493cac",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T07:01:13.412595+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "8a0274f6-731a-4da9-a97d-06343229dbf7",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T07:01:27.098576+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "39d81d53-8d89-4f57-a65d-442a72d5e4ad",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T07:04:07.953158+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "dc9adf11-5776-40f1-878e-abf05f472f06",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T07:04:09.299708+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "6c0f8eef-3549-4efe-9004-c7e321784383",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T07:20:12.097539+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "3cb43393-4cdc-4313-9ad5-79cb7605df2c",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T07:20:12.367562+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "610a5033-2d02-48c0-8477-e45fba6c4a84",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:13:06.653413+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "9b13a11b-0180-4f26-b665-23a28d58e387",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:13:07.96067+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "91738f64-fb1e-464b-abac-a9d0bf45bf33",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:17:36.499016+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "4cffba8e-9053-4147-8dde-05856a07c37f",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:17:37.613438+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "3e014270-244b-499b-aa6d-1607fcba4519",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:19:36.152253+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "2a4ae293-bb97-4e95-9f02-a44551f78fc4",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:19:36.475582+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "cae45643-956a-4f75-a8fa-d7c279cebf5f",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:20:00.009112+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "a58a003b-6df2-4dda-90f5-3f9c4dcd0043",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:20:00.216236+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "06f17e89-d088-46ed-a254-cfc79217480c",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:25:36.067913+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "3a607ed3-ec3c-49f4-89cd-2e37fc566bb9",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:25:36.431883+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "811408b4-31cf-4b76-ad0b-d800acc9f157",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:25:57.547194+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "caa4962e-b170-42ed-aafa-fa11544163de",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:26:15.244126+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "857daae0-274a-46b3-86b5-86ccb5590d1f",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:26:15.467388+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "d5f11ad9-d964-4ec7-9bc6-f38a3c9d5477",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:39:24.736281+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "cb149b42-f4ff-450e-854b-5ee6bb72a161",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:39:25.038179+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "ad9ffc6e-38a5-4ed3-a486-b6f6febd7a20",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:40:55.350235+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "88b43829-8bdb-4594-b52e-25d14c6d4754",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:40:55.598322+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "31022437-2bd6-43ec-9928-9c036d4c196d",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:43:15.419942+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "40982cea-dd0f-47d7-8a86-963bac7d4f09",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:43:15.65167+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "000fd306-9ad4-40dc-a04e-8e31dcdc77c2",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:46:04.993301+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "1f3fdac8-67b6-4661-8ffc-5cdd5db73cb0",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:46:05.434871+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "4ae28e23-67b8-4d11-8f73-bd6da4dd2c10",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:48:43.928994+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "9a01d454-06df-48fc-8b2d-614af3778d98",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:48:44.222206+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "5f9bbc35-e688-4e1f-b6c2-813dc3c4d14a",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:52:10.341875+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "b230b2b6-f2b2-44af-810d-2a8aa44142d6",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:52:10.602652+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "6df208d7-2872-434d-92c5-87124302269d",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:56:41.845197+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "e6bdce18-9987-483a-9168-3fdfd0f64942",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T19:56:42.089482+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "989cef9a-0649-4b21-b429-62d0c1716500",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:04:17.657484+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "0d080b14-b714-4193-abbe-4ea3fd8c0b52",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:04:23.15649+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "ff8fea75-591b-4b5b-ac5a-69990f4e07f4",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:04:23.357031+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "d9bb15ae-30fa-4922-8ee7-0dca01b84a34",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:04:24.367127+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "05063ba9-db4a-423e-8329-81701e8966ce",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:12:49.025817+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "583edf45-058f-4292-b93e-d7ae4a07805d",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:12:54.634557+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "4e0d30c0-bc2d-401f-8bbe-3f4bf1a66c7a",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:12:54.832922+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "ff997b21-8be6-4acb-a980-ac28d8f8bb3b",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:12:55.900721+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "82668c61-d66c-4160-84cf-6f59236a77b5",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:17:58.095012+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "f2e463e2-a983-4511-bd16-397af49462cd",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:18:13.512431+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "a8879b28-cca6-4a7b-b5c4-8e2741a0716a",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:19:24.06673+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "be75df30-9abd-45d9-91b9-f13524b4919d",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:20:24.69651+00:00",
+          "left_at": null
+        },
+        {
+          "community_id": "d3f2173f-79f0-4362-b60a-ad079f724b54",
+          "user_id": "791164b0-1ca9-4e6b-9fa1-12040b1be515",
+          "role_id": "55348b54-81ff-4fb2-9e18-f228ad44788e",
+          "joined_at": "2026-10-23T20:28:07.806331+00:00",
+          "left_at": null
+        }
+      ]
+    },
+    "server_templates": {
+      "status": "ok",
+      "count": 8,
+      "rows": [
+        {
+          "id": "cpt_torneio-pro-055319",
+          "name": "Modelo de Torneio Pro",
+          "description": "Servidor estruturado para campeonatos",
+          "creator_id": "91738f64-fb1e-464b-abac-a9d0bf45bf33",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_torneio-pro-055319",
+            "name": "Modelo de Torneio Pro",
+            "roles": [
+              {
+                "name": "Juiz Oficial",
+                "color": "#f0b232",
+                "position": 2,
+                "permissions": {
+                  "viewChannels": true,
+                  "manageChannels": true
+                }
+              },
+              {
+                "name": "Capitão",
+                "color": "#5865f2",
+                "position": 1,
+                "permissions": {
+                  "viewChannels": true
+                }
+              }
+            ],
+            "version": 1,
+            "settings": {
+              "rules": [
+                "Respeito mútuo",
+                "Sem trapaça"
+              ],
+              "verificationLevel": "medium",
+              "defaultNotification": "mentions"
+            },
+            "createdAt": "2026-10-23T19:17:37.229Z",
+            "categories": [
+              {
+                "name": "INFORMAÇÕES",
+                "channels": [
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Regras da competição"
+                  },
+                  {
+                    "name": "tabela-jogos",
+                    "type": "text",
+                    "topic": "Chaves e horários"
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ COMPETITIVA",
+                "channels": [
+                  {
+                    "name": "Lobby Equipe 1",
+                    "type": "voice"
+                  },
+                  {
+                    "name": "Lobby Equipe 2",
+                    "type": "voice"
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Usuário Alpha 055319",
+            "description": "Servidor estruturado para campeonatos"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:17:37.762616+00:00",
+          "updated_at": "2026-10-23T19:17:37.762616+00:00"
+        },
+        {
+          "id": "cpt_torneio_pro_175148",
+          "name": "Torneio Pro Alpha",
+          "description": "Template oficial de torneio criado por Alpha",
+          "creator_id": "3e014270-244b-499b-aa6d-1607fcba4519",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_torneio_pro_175148",
+            "name": "Torneio Pro Alpha",
+            "roles": [
+              {
+                "name": "Admin",
+                "color": "#ff0000",
+                "position": 1,
+                "permissions": {
+                  "viewChannels": true,
+                  "manageChannels": true
+                }
+              }
+            ],
+            "version": 1,
+            "createdAt": "2026-10-23T19:19:36.094Z",
+            "categories": [
+              {
+                "name": "INFORMAÇÕES",
+                "channels": [
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Regras oficiais"
+                  },
+                  {
+                    "name": "anuncios",
+                    "type": "text",
+                    "topic": "Avisos"
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "Geral Voz",
+                    "type": "voice"
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Alpha 175148",
+            "description": "Template oficial de torneio criado por Alpha"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:19:36.715316+00:00",
+          "updated_at": "2026-10-23T19:19:36.715316+00:00"
+        },
+        {
+          "id": "cpt_torneio_pro_199319",
+          "name": "Torneio Pro Alpha",
+          "description": "Template oficial de torneio criado por Alpha",
+          "creator_id": "cae45643-956a-4f75-a8fa-d7c279cebf5f",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_torneio_pro_199319",
+            "name": "Torneio Pro Alpha",
+            "roles": [
+              {
+                "name": "Admin",
+                "color": "#ff0000",
+                "position": 1,
+                "permissions": {
+                  "viewChannels": true,
+                  "manageChannels": true
+                }
+              }
+            ],
+            "version": 1,
+            "createdAt": "2026-10-23T19:19:59.814Z",
+            "categories": [
+              {
+                "name": "INFORMAÇÕES",
+                "channels": [
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Regras oficiais"
+                  },
+                  {
+                    "name": "anuncios",
+                    "type": "text",
+                    "topic": "Avisos"
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "Geral Voz",
+                    "type": "voice"
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Alpha 199319",
+            "description": "Template oficial de torneio criado por Alpha"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:20:00.38637+00:00",
+          "updated_at": "2026-10-23T19:20:00.38637+00:00"
+        },
+        {
+          "id": "cpt_torneio_pro_534889",
+          "name": "Torneio Pro Alpha",
+          "description": "Template oficial de torneio criado por Alpha",
+          "creator_id": "06f17e89-d088-46ed-a254-cfc79217480c",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_torneio_pro_534889",
+            "name": "Torneio Pro Alpha",
+            "roles": [
+              {
+                "name": "Admin",
+                "color": "#ff0000",
+                "position": 1,
+                "permissions": {
+                  "viewChannels": true,
+                  "manageChannels": true
+                }
+              }
+            ],
+            "version": 1,
+            "createdAt": "2026-10-23T19:25:36.011Z",
+            "categories": [
+              {
+                "name": "INFORMAÇÕES",
+                "channels": [
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Regras oficiais"
+                  },
+                  {
+                    "name": "anuncios",
+                    "type": "text",
+                    "topic": "Avisos"
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "Geral Voz",
+                    "type": "voice"
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Alpha 534889",
+            "description": "Template oficial de torneio criado por Alpha"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:25:36.980751+00:00",
+          "updated_at": "2026-10-23T19:25:36.980751+00:00"
+        },
+        {
+          "id": "cpt_torneio_pro_574471",
+          "name": "Torneio Pro Alpha",
+          "description": "Template oficial de torneio criado por Alpha",
+          "creator_id": "caa4962e-b170-42ed-aafa-fa11544163de",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_torneio_pro_574471",
+            "name": "Torneio Pro Alpha",
+            "roles": [
+              {
+                "name": "Admin",
+                "color": "#ff0000",
+                "position": 1,
+                "permissions": {
+                  "viewChannels": true,
+                  "manageChannels": true
+                }
+              }
+            ],
+            "version": 1,
+            "createdAt": "2026-10-23T19:26:15.049Z",
+            "categories": [
+              {
+                "name": "INFORMAÇÕES",
+                "channels": [
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Regras oficiais"
+                  },
+                  {
+                    "name": "anuncios",
+                    "type": "text",
+                    "topic": "Avisos"
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "Geral Voz",
+                    "type": "voice"
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Alpha 574471",
+            "description": "Template oficial de torneio criado por Alpha"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:26:15.649974+00:00",
+          "updated_at": "2026-10-23T19:26:15.649974+00:00"
+        },
+        {
+          "id": "cpt_servidor-alpha-594342-fjrkm",
+          "name": "CapyChat Oficial (Modelo)",
+          "description": "Comunidade Oficial do CapyChat. Notícias, torneios e transmissões.",
+          "creator_id": "31022437-2bd6-43ec-9928-9c036d4c196d",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_servidor-alpha-594342-fjrkm",
+            "name": "CapyChat Oficial (Modelo)",
+            "roles": [],
+            "version": 1,
+            "settings": {
+              "rules": [],
+              "traits": [],
+              "verificationLevel": "low",
+              "defaultNotification": "mentions",
+              "explicitContentFilter": "noroles"
+            },
+            "createdAt": "2026-10-23T19:43:17.072Z",
+            "categories": [
+              {
+                "name": "CANAIS DE TEXTO",
+                "channels": [
+                  {
+                    "name": "geral",
+                    "type": "text",
+                    "topic": "Canal principal",
+                    "position": 0,
+                    "isPrivate": false
+                  },
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Diretrizes do servidor",
+                    "position": 1,
+                    "isPrivate": false
+                  },
+                  {
+                    "name": "avisos",
+                    "type": "text",
+                    "topic": "Avisos da comunidade",
+                    "position": 2,
+                    "isPrivate": false
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "lounge-voz",
+                    "type": "voice",
+                    "position": 0,
+                    "isPrivate": false
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Capy Alpha 594342",
+            "description": "Comunidade Oficial do CapyChat. Notícias, torneios e transmissões.",
+            "sourceServerName": "Servidor Alpha 594342"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:43:17.675141+00:00",
+          "updated_at": "2026-10-23T19:43:17.072+00:00"
+        },
+        {
+          "id": "cpt_servidor-alpha-762489-8gbj0",
+          "name": "CapyChat Oficial (Modelo)",
+          "description": "Comunidade Oficial do CapyChat. Notícias, torneios e transmissões.",
+          "creator_id": "000fd306-9ad4-40dc-a04e-8e31dcdc77c2",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_servidor-alpha-762489-8gbj0",
+            "name": "CapyChat Oficial (Modelo)",
+            "roles": [],
+            "version": 1,
+            "settings": {
+              "rules": [],
+              "traits": [],
+              "verificationLevel": "low",
+              "defaultNotification": "mentions",
+              "explicitContentFilter": "noroles"
+            },
+            "createdAt": "2026-10-23T19:46:06.434Z",
+            "categories": [
+              {
+                "name": "CANAIS DE TEXTO",
+                "channels": [
+                  {
+                    "name": "geral",
+                    "type": "text",
+                    "topic": "Canal principal",
+                    "position": 0,
+                    "isPrivate": false
+                  },
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Diretrizes do servidor",
+                    "position": 1,
+                    "isPrivate": false
+                  },
+                  {
+                    "name": "avisos",
+                    "type": "text",
+                    "topic": "Avisos da comunidade",
+                    "position": 2,
+                    "isPrivate": false
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "lounge-voz",
+                    "type": "voice",
+                    "position": 0,
+                    "isPrivate": false
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Capy Alpha 762489",
+            "description": "Comunidade Oficial do CapyChat. Notícias, torneios e transmissões.",
+            "sourceServerName": "Servidor Alpha 762489"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:46:07.043219+00:00",
+          "updated_at": "2026-10-23T19:46:06.434+00:00"
+        },
+        {
+          "id": "cpt_servidor-alpha-401051-nge7d",
+          "name": "CapyChat Oficial (Modelo)",
+          "description": "Comunidade Oficial do CapyChat. Notícias, torneios e transmissões.",
+          "creator_id": "6df208d7-2872-434d-92c5-87124302269d",
+          "source_community_id": null,
+          "data": {
+            "id": "cpt_servidor-alpha-401051-nge7d",
+            "name": "CapyChat Oficial (Modelo)",
+            "roles": [],
+            "version": 1,
+            "settings": {
+              "rules": [],
+              "traits": [],
+              "verificationLevel": "low",
+              "defaultNotification": "mentions",
+              "explicitContentFilter": "noroles"
+            },
+            "createdAt": "2026-10-23T19:56:43.990Z",
+            "categories": [
+              {
+                "name": "CANAIS DE TEXTO",
+                "channels": [
+                  {
+                    "name": "geral",
+                    "type": "text",
+                    "topic": "Canal principal",
+                    "position": 0,
+                    "isPrivate": false
+                  },
+                  {
+                    "name": "regras",
+                    "type": "text",
+                    "topic": "Diretrizes do servidor",
+                    "position": 1,
+                    "isPrivate": false
+                  },
+                  {
+                    "name": "avisos",
+                    "type": "text",
+                    "topic": "Avisos da comunidade",
+                    "position": 2,
+                    "isPrivate": false
+                  }
+                ],
+                "position": 0
+              },
+              {
+                "name": "VOZ",
+                "channels": [
+                  {
+                    "name": "lounge-voz",
+                    "type": "voice",
+                    "position": 0,
+                    "isPrivate": false
+                  }
+                ],
+                "position": 1
+              }
+            ],
+            "creatorName": "Capy Alpha 401051",
+            "description": "Comunidade Oficial do CapyChat. Notícias, torneios e transmissões.",
+            "sourceServerName": "Servidor Alpha 401051"
+          },
+          "uses_count": 0,
+          "created_at": "2026-10-23T19:56:44.616706+00:00",
+          "updated_at": "2026-10-23T19:56:43.99+00:00"
+        }
+      ]
+    },
+    "friendships": {
+      "status": "ok",
+      "count": 1,
+      "rows": [
+        {
+          "user_low": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "user_high": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "requester_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "state": "accepted",
+          "updated_at": "2026-09-28T05:02:22.468545+00:00"
+        }
+      ]
+    },
+    "user_presence": {
+      "status": "ok",
+      "count": 63,
+      "rows": [
+        {
+          "user_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "status": "online",
+          "expires_at": "2026-09-30T22:56:19.950194+00:00"
+        },
+        {
+          "user_id": "eda43ba0-44ee-4565-a0e7-bad81800e715",
+          "status": "online",
+          "expires_at": "2026-10-20T02:13:39.626786+00:00"
+        },
+        {
+          "user_id": "f724e836-be35-4d53-9fd9-4dc97ba1acb9",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "89ef8f98-37c5-4199-b598-88c90ae2db6e",
+          "status": "online",
+          "expires_at": "2026-10-12T01:28:58.095187+00:00"
+        },
+        {
+          "user_id": "7a4901f2-d51f-4747-9c5a-6b3aa716ada6",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "33e0a99f-c10b-4057-b23d-85cf5fc13ba9",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "73426b78-425e-486a-abb5-951bf7ca959d",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "52f38d7d-666e-4f0f-99c2-7d150659bb39",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "95dbc856-1489-40f5-914d-3cbc90cbb4e6",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "a05e5ba0-f76a-4059-8d84-3721761ddd00",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "929794e5-2a05-4fd3-a72d-618e59d7dc25",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "53f5007d-a0ba-4cac-92ee-cf57992168f9",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "f44e2be3-03cd-43e7-995a-719a49f9b012",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "7b477a9a-8ab1-4ea5-9461-12efe1f67365",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "d77517df-6a3c-401d-ad3b-6922faa5992f",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "ed69d1a7-b06c-41f6-8c55-835a7ab28b0b",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "c542a680-42b2-413a-bf9c-83f967493cac",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "8a0274f6-731a-4da9-a97d-06343229dbf7",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "39d81d53-8d89-4f57-a65d-442a72d5e4ad",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "dc9adf11-5776-40f1-878e-abf05f472f06",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "6c0f8eef-3549-4efe-9004-c7e321784383",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "3cb43393-4cdc-4313-9ad5-79cb7605df2c",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "610a5033-2d02-48c0-8477-e45fba6c4a84",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "9b13a11b-0180-4f26-b665-23a28d58e387",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "91738f64-fb1e-464b-abac-a9d0bf45bf33",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "4cffba8e-9053-4147-8dde-05856a07c37f",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "3e014270-244b-499b-aa6d-1607fcba4519",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "2a4ae293-bb97-4e95-9f02-a44551f78fc4",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "cae45643-956a-4f75-a8fa-d7c279cebf5f",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "a58a003b-6df2-4dda-90f5-3f9c4dcd0043",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "06f17e89-d088-46ed-a254-cfc79217480c",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "3a607ed3-ec3c-49f4-89cd-2e37fc566bb9",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "811408b4-31cf-4b76-ad0b-d800acc9f157",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "caa4962e-b170-42ed-aafa-fa11544163de",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "857daae0-274a-46b3-86b5-86ccb5590d1f",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "d5f11ad9-d964-4ec7-9bc6-f38a3c9d5477",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "cb149b42-f4ff-450e-854b-5ee6bb72a161",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "ad9ffc6e-38a5-4ed3-a486-b6f6febd7a20",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "88b43829-8bdb-4594-b52e-25d14c6d4754",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "31022437-2bd6-43ec-9928-9c036d4c196d",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "40982cea-dd0f-47d7-8a86-963bac7d4f09",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "000fd306-9ad4-40dc-a04e-8e31dcdc77c2",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "1f3fdac8-67b6-4661-8ffc-5cdd5db73cb0",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "4ae28e23-67b8-4d11-8f73-bd6da4dd2c10",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "9a01d454-06df-48fc-8b2d-614af3778d98",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "5f9bbc35-e688-4e1f-b6c2-813dc3c4d14a",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "b230b2b6-f2b2-44af-810d-2a8aa44142d6",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "6df208d7-2872-434d-92c5-87124302269d",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "e6bdce18-9987-483a-9168-3fdfd0f64942",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "989cef9a-0649-4b21-b429-62d0c1716500",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "0d080b14-b714-4193-abbe-4ea3fd8c0b52",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "ff8fea75-591b-4b5b-ac5a-69990f4e07f4",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "d9bb15ae-30fa-4922-8ee7-0dca01b84a34",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "05063ba9-db4a-423e-8329-81701e8966ce",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "583edf45-058f-4292-b93e-d7ae4a07805d",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "4e0d30c0-bc2d-401f-8bbe-3f4bf1a66c7a",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "ff997b21-8be6-4acb-a980-ac28d8f8bb3b",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "82668c61-d66c-4160-84cf-6f59236a77b5",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "f2e463e2-a983-4511-bd16-397af49462cd",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "a8879b28-cca6-4a7b-b5c4-8e2741a0716a",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "be75df30-9abd-45d9-91b9-f13524b4919d",
+          "status": "offline",
+          "expires_at": null
+        },
+        {
+          "user_id": "791164b0-1ca9-4e6b-9fa1-12040b1be515",
+          "status": "offline",
+          "expires_at": null
+        }
+      ]
+    },
+    "social_inbox": {
+      "status": "ok",
+      "count": 1,
+      "rows": [
+        {
+          "user_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "revision": 107
+        }
+      ]
+    },
+    "dm_messages": {
+      "status": "ok",
+      "count": 15,
+      "rows": [
+        {
+          "id": "c312d1a8-1e6e-4f1c-bbcc-de7528df3a61",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "seq": 2,
+          "content": "[Social 4434230] resposta da Naori",
+          "reply_to": "eaf5d279-0e77-4369-8b33-6c1f856a20da",
+          "created_at": "2026-09-21T18:16:01.267312+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "eaf5d279-0e77-4369-8b33-6c1f856a20da",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 1,
+          "content": "",
+          "reply_to": null,
+          "created_at": "2026-09-21T18:14:04.268087+00:00",
+          "edited_at": "2026-09-22T03:05:59.679082+00:00",
+          "deleted_at": "2026-09-22T03:06:00.588556+00:00"
+        },
+        {
+          "id": "060ffedb-c1a3-49bc-8891-6dd984a9b95d",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 3,
+          "content": "[Social 4434230] não lida 1",
+          "reply_to": null,
+          "created_at": "2026-09-22T03:06:01.434086+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "93c8ab1c-bd63-4a2c-b750-cb026cc5acb6",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 4,
+          "content": "[Social 4434230] não lida 2",
+          "reply_to": null,
+          "created_at": "2026-09-22T03:08:10.021043+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "ea971a61-11c8-43d7-9bcb-9e641dbf21d6",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 5,
+          "content": "[Regressão social] envio 1790046639438",
+          "reply_to": null,
+          "created_at": "2026-09-22T03:10:41.247835+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "cce5742f-0dbe-45e9-9272-f93dcd98b83b",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "seq": 7,
+          "content": "[Reply final] 1790046819587",
+          "reply_to": "30a534ac-2fcf-440d-9387-811d767cabd6",
+          "created_at": "2026-09-22T03:13:41.326577+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "30a534ac-2fcf-440d-9387-811d767cabd6",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 6,
+          "content": "",
+          "reply_to": null,
+          "created_at": "2026-09-22T03:10:44.674303+00:00",
+          "edited_at": "2026-09-22T03:13:42.298015+00:00",
+          "deleted_at": "2026-09-22T03:13:43.141498+00:00"
+        },
+        {
+          "id": "20454f97-e3a0-42e4-b4df-e4828ac35902",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 8,
+          "content": "eae",
+          "reply_to": null,
+          "created_at": "2026-09-24T05:20:09.137149+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "c00e6ff8-ccfe-4a42-b27e-7ff6a34ed142",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 9,
+          "content": "eae",
+          "reply_to": null,
+          "created_at": "2026-09-28T02:51:40.465619+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "f6f9e320-9712-4b1b-a7f9-dec7b40a2998",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 10,
+          "content": "ee",
+          "reply_to": null,
+          "created_at": "2026-09-28T03:10:10.328073+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "ee4cf8e9-f7f9-466a-b7a2-4fd352f6a28f",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 11,
+          "content": "teste bot",
+          "reply_to": null,
+          "created_at": "2026-09-28T03:29:01.943973+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "7769ca1e-a278-47c9-bbb9-05d84e8fb683",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 12,
+          "content": "fg",
+          "reply_to": null,
+          "created_at": "2026-09-28T04:17:51.879945+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "19beeb94-1170-43d0-beb5-9eddb17dbbfb",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "seq": 13,
+          "content": "eae",
+          "reply_to": null,
+          "created_at": "2026-09-28T05:00:14.33156+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "62f12747-a12d-45ee-ad84-e02a77663288",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "seq": 14,
+          "content": "oi",
+          "reply_to": null,
+          "created_at": "2026-09-28T05:19:07.845868+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        },
+        {
+          "id": "27dbec26-88dc-4d23-b614-4224dbc039a3",
+          "conversation_id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "author_id": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "seq": 15,
+          "content": "tes",
+          "reply_to": null,
+          "created_at": "2026-09-28T20:11:45.345908+00:00",
+          "edited_at": null,
+          "deleted_at": null
+        }
+      ]
+    },
+    "dm_conversations": {
+      "status": "ok",
+      "count": 1,
+      "rows": [
+        {
+          "id": "f63d00cf-c70a-4a77-bd0b-912d0cb8cef5",
+          "user_low": "96dde735-f6d8-4aaf-abd7-0176e44888f2",
+          "user_high": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "last_seq": 15,
+          "updated_at": "2026-09-28T20:11:45.38869+00:00"
+        }
+      ]
+    },
+    "community_invites": {
+      "status": "ok",
+      "count": 1,
+      "rows": [
+        {
+          "code": "c12b37fe131c4ed292fc0d4568b66be0",
+          "community_id": "e159079b-b57e-4e58-9c57-9eb9d2b2fe62",
+          "created_by": "f8fcd139-cf43-4873-bd7d-a807ecd73567",
+          "expires_at": null,
+          "max_uses": 1,
+          "uses": 1,
+          "revoked_at": "2026-09-21T17:51:14.484195+00:00",
+          "created_at": "2026-09-21T17:51:12.127066+00:00"
+        }
+      ]
+    }
+  }
+}

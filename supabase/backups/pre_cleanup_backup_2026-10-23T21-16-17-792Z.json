@@ -1,0 +1,69 @@
+{
+  "backup_type": "PRE_CLEANUP_SNAPSHOT",
+  "created_at": "2026-10-23T21:16:17.793Z",
+  "project_id": "tfjkinffnksmiqatdhnb",
+  "auth_mode": "anon_public",
+  "note": "Backup seguro e higienizado antes da limpeza das 56 contas de teste.",
+  "tables": {
+    "profiles": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "communities": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "channels": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "messages": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "community_members": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "server_templates": {
+      "status": "ok",
+      "count": 0,
+      "rows": []
+    },
+    "friendships": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "user_presence": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "social_inbox": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "dm_messages": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "dm_conversations": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    },
+    "community_invites": {
+      "status": "skipped",
+      "count": 0,
+      "rows": []
+    }
+  }
+}

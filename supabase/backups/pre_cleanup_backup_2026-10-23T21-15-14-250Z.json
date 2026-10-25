@@ -1,0 +1,67 @@
+{
+  "exported_at": "2026-10-23T21:15:14.252Z",
+  "project_id": "tfjkinffnksmiqatdhnb",
+  "note": "Safe pre-cleanup snapshot of all entities. Sanitized (zero credentials, zero tokens).",
+  "tables": {
+    "profiles": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "communities": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "channels": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "messages": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "community_members": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "server_templates": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "friendships": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "user_presence": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "social_inbox": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "dm_messages": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "dm_conversations": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    },
+    "community_invites": {
+      "status": "error",
+      "error": "Expected 3 parts in JWT; got 1",
+      "rows": []
+    }
+  }
+}

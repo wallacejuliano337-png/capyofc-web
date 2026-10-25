@@ -1,137 +1,147 @@
-/* Authentication assets remain independent and unmodified. */
+/* Official LYC Arena Authentication Styles - Responsive & Crisp */
 .arena-auth {
+  min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
   position: relative;
   isolation: isolate;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 70px 24px 36px;
-  overflow-x: clip;
+  padding: 40px 24px 28px;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: #e8ebf4;
   background: #060914;
   font-size: 14px;
 }
+
 .arena-auth-brand {
-  position: absolute;
-  top: 20px;
-  left: 24px;
-  width: clamp(73px, 6.57vw, 96.36px);
-  aspect-ratio: 317 / 144;
-  overflow: hidden;
-  z-index: 1;
+  display: none;
 }
-.arena-auth-brand img {
-  position: absolute;
-  max-width: none;
-  width: 537.224%;
-  height: auto;
-  left: -216.404%;
-  top: -232.639%;
-}
+
 .arena-auth-scenery {
-  position: absolute;
+  position: fixed;
   inset: 0;
   overflow: hidden;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
+  background: #060914;
 }
+
 .arena-auth-background {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: center center;
+  display: block;
+  image-rendering: high-quality;
+  image-rendering: -webkit-optimize-contrast;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
-.arena-auth-mascot {
-  position: absolute;
-  right: -2vw;
-  bottom: -12px;
-  width: clamp(260px, 31vw, 620px);
-  aspect-ratio: 507 / 624;
-  overflow: hidden;
-}
-.arena-auth-mascot img {
-  position: absolute;
-  max-width: none;
-  width: 335.897%;
-  height: auto;
-  left: -235.897%;
-  top: -48.077%;
-}
-@media (max-width: 1100px) {
-  .arena-auth-mascot {
-    width: 24vw;
-  }
-}
+
+/* Card Styling - High quality glassmorphic presence with solid opacity to prevent bleed-through */
 .arena-auth-card {
-  width: 384px;
-  max-width: 100%;
-  padding: 54px 28px 28px;
-  background: #090e1dcc;
-  border: 1px solid #35468a66;
-  border-radius: 12px;
+  width: clamp(390px, 25vw, 450px);
+  max-width: min(450px, 92vw);
+  padding: clamp(28px, 3vh, 36px) clamp(24px, 2.4vw, 34px) clamp(24px, 2.5vh, 30px);
+  background: #080e20;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 35px rgba(37, 99, 235, 0.2);
   position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  animation: auth-card-appear 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: auto;
 }
+
 .arena-auth-card.is-signup {
-  width: 424px;
-  padding: 18px 28px 24px;
+  width: clamp(420px, 28vw, 470px);
+  padding: 26px 30px 24px;
 }
+
 .arena-auth-heading {
   text-align: center;
-  margin-bottom: 26px;
-  animation: auth-appear 0.16s ease-out;
+  margin-bottom: clamp(16px, 2.2vh, 22px);
 }
+
 .arena-auth-heading h1 {
-  font-size: 24px;
-  line-height: 1.25;
+  font-size: clamp(21px, 1.4vw, 25px);
   font-weight: 700;
-  margin: 0 0 10px;
-  letter-spacing: -0.4px;
-  color: #f3f4f8;
+  line-height: 1.25;
+  margin: 0 0 8px;
+  color: #ffffff;
+  letter-spacing: -0.3px;
 }
+
 .arena-auth-heading p {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.35;
-  color: #d8dce7;
+  font-size: clamp(12.5px, 0.85vw, 13.5px);
+  line-height: 1.45;
+  color: #94a3b8;
 }
+
 .arena-auth-back {
-  color: #9291f4;
+  background: transparent;
+  border: 0;
+  color: #818cf8;
   font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 0;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: color 0.15s ease;
 }
+
+.arena-auth-back:hover {
+  color: #a5b4fc;
+}
+
 .arena-auth fieldset {
   padding: 0;
   margin: 0;
   border: 0;
   min-width: 0;
 }
+
 .arena-auth-field {
-  margin-bottom: 12px;
+  margin-bottom: clamp(11px, 1.5vh, 14px);
 }
+
 .arena-auth-input {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  min-height: 40px;
-  border: 1px solid #35456899;
-  border-radius: 6px;
-  background: #05091699;
+  min-height: clamp(42px, 3vh, 46px);
+  border: 1px solid rgba(59, 130, 246, 0.24);
+  border-radius: 10px;
+  background: rgba(13, 21, 42, 0.7);
   margin: 0;
-  padding: 0 12px;
-  color: #bdc5d6;
+  padding: 0 14px;
+  color: #cbd5e1;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
+
 .arena-auth-input:focus-within {
-  border-color: #7778d5;
-  box-shadow: 0 0 0 2px #6466bd15;
+  border-color: #3b82f6;
+  background: rgba(15, 26, 54, 0.9);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
+
 .arena-auth-input > svg {
   flex-shrink: 0;
+  color: #94a3b8;
 }
+
 .arena-auth .arena-auth-input input {
   min-width: 0;
   flex: 1;
@@ -139,133 +149,331 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 11px 0;
+  padding: 10px 0;
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 18px;
-  color: #e5e9f4;
+  color: #f8fafc;
   outline: 0;
   box-shadow: none;
 }
+
 .arena-auth-input input::placeholder {
-  color: #c4cad7;
+  color: #64748b;
   opacity: 1;
 }
+
 .arena-auth-input button {
+  background: transparent;
+  border: 0;
   padding: 4px;
-  color: #8f9abc;
+  color: #94a3b8;
   flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
 }
+
+.arena-auth-input button:hover {
+  color: #ffffff;
+}
+
 .arena-auth-field small {
   display: block;
   font-size: 11px;
-  color: #acb5c8;
+  color: #94a3b8;
   line-height: 16px;
   margin-top: 4px;
 }
+
 .arena-auth-options {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin: 4px 0 16px;
-  font-size: 11px;
+  gap: 12px;
+  margin: clamp(10px, 1.4vh, 14px) 0 clamp(12px, 1.8vh, 18px);
+  font-size: 12px;
 }
-.arena-auth-options label {
+
+.arena-auth-remember {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 7px;
-  font-size: 11px;
+  gap: 8px;
+  font-size: 12px;
   margin: 0;
-  color: #cdd2e0;
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
 }
-.arena-auth-options input {
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  accent-color: #6950f5;
+
+.arena-auth-remember input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
-.arena-auth-options button {
+
+.arena-auth-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: rgba(15, 23, 42, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: all 0.15s ease;
+}
+
+.arena-auth-remember input:checked + .arena-auth-checkbox {
+  background: #4f46e5;
+  border-color: #6366f1;
+}
+
+.arena-auth-forgot {
+  background: transparent;
+  border: 0;
   padding: 0;
-  font-size: 11px;
-  color: #8d98ff;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4d7cff;
+  cursor: pointer;
+  transition: color 0.15s ease;
 }
+
+.arena-auth-forgot:hover {
+  color: #818cf8;
+  text-decoration: underline;
+}
+
 .arena-auth-submit {
   width: 100%;
-  min-height: 42px;
-  border-radius: 6px;
+  min-height: clamp(44px, 3.2vh, 48px);
+  border-radius: 10px;
+  border: 0;
   position: relative;
-  background: linear-gradient(105deg, #5e30f3, #294ffa);
-  color: white;
-  font-size: 14px;
+  background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 50%, #2563eb 100%);
+  color: #ffffff;
+  font-size: clamp(13.5px, 0.95vw, 14.5px);
   font-weight: 600;
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
-.arena-auth-submit > svg {
-  position: absolute;
-  right: 14px;
+
+.arena-auth-submit:hover:not(:disabled) {
+  background: linear-gradient(90deg, #5c53f7 0%, #4a8df8 50%, #3571ee 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
 }
-.arena-auth-submit:hover {
-  background: linear-gradient(105deg, #6c40ff, #3b60ff);
+
+.arena-auth-submit:active:not(:disabled) {
+  transform: translateY(0);
 }
+
 .arena-auth fieldset:disabled .arena-auth-submit {
   opacity: 0.6;
   cursor: wait;
 }
+
+.arena-auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: clamp(12px, 1.8vh, 16px) 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.arena-auth-divider::before,
+.arena-auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.arena-auth-divider span {
+  padding: 0 12px;
+}
+
+.arena-auth-qr-btn {
+  width: 100%;
+  min-height: clamp(40px, 3vh, 44px);
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.arena-auth-qr-btn:hover {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
 .arena-auth-footer {
-  margin: 24px 0 0;
+  margin: clamp(16px, 2.2vh, 22px) 0 0;
   text-align: center;
   font-size: 13px;
-  color: #cbd2e0;
+  color: #94a3b8;
 }
+
 .arena-auth-footer button {
-  color: #9298ff;
-  padding: 0 3px;
+  background: transparent;
+  border: 0;
+  color: #4d7cff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s ease;
 }
-.arena-auth button:not(.arena-auth-submit):hover {
-  color: #d5d6ff;
-  background: #ffffff06;
+
+.arena-auth-footer button:hover {
+  color: #818cf8;
+  text-decoration: underline;
 }
+
 .arena-auth .error,
 .arena-auth .notice {
   font-size: 12px;
   line-height: 1.5;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
   overflow-wrap: anywhere;
 }
-@keyframes auth-appear {
+
+.arena-auth .error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.arena-auth .notice {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+@keyframes auth-card-appear {
   from {
-    opacity: 0.6;
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
   }
   to {
     opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
-@media (max-width: 900px) {
-  .arena-auth-mascot {
-    display: none;
-  }
-}
-@media (max-height: 700px) {
-  .arena-auth {
-    align-items: flex-start;
-  }
-  .arena-auth-card:not(.is-signup) {
-    margin-top: 16px;
-    padding-top: 32px;
-  }
-}
+
 @media (prefers-reduced-motion: reduce) {
-  .arena-auth-heading {
+  .arena-auth-card {
     animation: none;
   }
-  .arena-auth button {
+  .arena-auth-submit,
+  .arena-auth-input,
+  .arena-auth-qr-btn {
     transition: none;
   }
 }
 
+/* =========================================
+   RESPONSIVE BREAKPOINTS: DESKTOP / MEDIUM / COMPACT
+   ========================================= */
+
+/* Background image ALWAYS stays strictly centered to preserve composition with mascot */
+.arena-auth-background {
+  object-position: center center !important;
+}
+
+/* Medium window width */
+@media (max-width: 1200px) {
+  .arena-auth-card {
+    width: clamp(380px, 32vw, 430px);
+    padding: clamp(24px, 2.8vh, 32px) clamp(22px, 2.2vw, 28px) clamp(22px, 2.2vh, 26px);
+  }
+}
+
+/* Compact / small window (tablet / smaller desktop window) */
+@media (max-width: 900px) {
+  .arena-auth-card {
+    width: min(410px, 94vw);
+    padding: 24px 22px 20px;
+  }
+}
+
+/* Narrow window (e.g. snapped half-screen or small width) */
+@media (max-width: 600px) {
+  .arena-auth {
+    padding: 20px 12px;
+  }
+
+  .arena-auth-card {
+    width: 100%;
+    max-width: min(400px, 96vw);
+    padding: 20px 16px 16px;
+  }
+}
+
+/* Vertical constraint handling (never cuts off inputs, buttons or registration) */
+@media (max-height: 750px) {
+  .arena-auth {
+    justify-content: flex-start;
+    padding-top: 14px;
+    padding-bottom: 16px;
+    overflow-y: auto;
+  }
+
+  .arena-auth-card {
+    margin: auto 0;
+    padding: 18px 20px 16px;
+  }
+
+  .arena-auth-heading {
+    margin-bottom: 12px;
+  }
+
+  .arena-auth-heading h1 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  .arena-auth-field {
+    margin-bottom: 9px;
+  }
+
+  .arena-auth-options {
+    margin: 8px 0 10px;
+  }
+
+  .arena-auth-divider {
+    margin: 8px 0;
+  }
+
+  .arena-auth-footer {
+    margin: 12px 0 0;
+  }
+}
 
 /* Native title drag area; never intercept authentication controls. */
 .arena-auth::before {
@@ -273,16 +481,20 @@
   position: fixed;
   top: 0;
   left: 0;
-  right: 108px;
-  height: 64px;
-  z-index: 2;
+  right: 120px;
+  height: 38px;
+  z-index: 1;
   -webkit-app-region: drag;
+  pointer-events: none;
 }
-.arena-auth-brand,
+
 .arena-auth-card {
-  z-index: 3;
+  z-index: 10;
   -webkit-app-region: no-drag;
+  pointer-events: auto;
 }
+
 .arena-auth :is(form, input, label, button, a, select, textarea) {
   -webkit-app-region: no-drag;
+  pointer-events: auto;
 }

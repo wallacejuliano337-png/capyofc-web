@@ -1,5 +1,5 @@
 import type { Profile } from "../../types";
-import { presenceLabels } from "../../services/social";
+import { normalizeUsername, presenceLabels } from "../../services/social";
 import "./profile-editor.css";
 export interface ProfileAppearance {
   banner: string | null;
@@ -55,7 +55,7 @@ export function ProfileCard({
           <i className={"presence-dot presence-" + presence} />
         </div>
         <h3>{profile.display_name || "Seu nome"}</h3>
-        <p className="lyc-profile-handle">@{profile.username}</p>
+        <p className="lyc-profile-handle">@{normalizeUsername(profile.username, profile.display_name)}</p>
         <p className="lyc-profile-status">
           {presenceLabels[presence] || presenceLabels.offline}
         </p>

@@ -1,63 +1,170 @@
 .room-screen-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   width: 100%;
-  min-width: 0;
-  margin: 16px 0;
+  max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
 }
+
 .room-screen {
-  min-width: 0;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-secondary);
-}
-.room-screen header {
+  box-shadow: none;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  justify-content: center;
 }
-.room-screen header b {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
+
 .room-screen-stage {
   position: relative;
-  aspect-ratio: 16/9;
-  min-width: 0;
-  background: #000;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 240px);
+  background: #000000;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
+
 .room-screen-expand {
   display: block;
   width: 100%;
   height: 100%;
   padding: 0;
+  margin: 0;
+  border: 0;
   border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
 }
+
 .room-screen-stage video {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: contain !important;
+  background: #000000;
+  border-radius: 8px;
 }
+
+.room-screen-overlay-header {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: rgba(9, 13, 20, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.room-screen-streamer-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 4px;
+  color: #ef4444;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.live-dot::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+  animation: pulse-live 1.8s infinite;
+}
+
 .room-screen-fullscreen {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  padding: 6px 10px;
-  background: #090e1ddd;
-  color: var(--text);
+  bottom: 12px;
+  right: 12px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(9, 13, 20, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #f1f5f9;
   font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
+
+.room-screen-fullscreen:hover {
+  background: rgba(20, 27, 40, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
 .room-screen-stage:fullscreen {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  max-width: none;
+  border-radius: 0;
   aspect-ratio: auto;
+  background: #000000;
+}
+
+.room-screen-stage:fullscreen video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain !important;
+}
+
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
 }

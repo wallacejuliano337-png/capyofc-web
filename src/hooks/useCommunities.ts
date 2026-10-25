@@ -4,7 +4,13 @@ import {
   loadCommunities,
   loadCommunity,
   loadLegacyCommunity,
+  type Category,
+  type Member,
+  type CommunityRole,
+  type ChannelPermissionOverride,
+  type CategoryPermissionOverride,
 } from "../services/communities";
+import type { Channel } from "../types";
 import { useAsync } from "./useAsync";
 export function useCommunities(userId?: string) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -29,11 +35,13 @@ export function useCommunities(userId?: string) {
             ? loadCommunity(id)
             : {
                 communityId: undefined,
-                channels: [],
-                categories: [],
-                members: [],
-                roles: [],
-                permissions: [],
+                channels: [] as Channel[],
+                categories: [] as Category[],
+                members: [] as Member[],
+                roles: [] as CommunityRole[],
+                permissions: [] as string[],
+                channelOverrides: [] as ChannelPermissionOverride[],
+                categoryOverrides: [] as CategoryPermissionOverride[],
               },
       [id, legacy],
     ),

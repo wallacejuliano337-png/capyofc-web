@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { supabase } from "../lib/supabase";
+import { getAvatarUrl, DEFAULT_AVATAR } from "../utils/avatar";
 const urls = new Map<string, string | null>();
 const listeners = new Set<() => void>();
 let revision = 0;
@@ -15,10 +16,17 @@ export function publishAvatar(id: string, url: string | null) {
   listeners.forEach((fn) => fn());
 }
 export function useAvatarUrl(id?: string, fallback?: string | null) {
+  const effectiveFallback = fallback ? getAvatarUrl(fallback) : DEFAULT_AVATAR;
   return useSyncExternalStore(
     subscribe,
-    () => (id && urls.has(id) ? urls.get(id) : fallback),
-    () => fallback,
+    () => {
+      if (id && urls.has(id)) {
+        const u = urls.get(id);
+        return getAvatarUrl(u);
+      }
+      return effectiveFallback;
+    },
+    () => effectiveFallback,
   );
 }
 export function useAvatarSync(userId?: string) {

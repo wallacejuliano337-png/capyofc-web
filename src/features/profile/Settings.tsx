@@ -2,9 +2,10 @@ import { ProfileEditor } from "./ProfileEditor";
 import { profileAppearance, saveProfile } from "../../services/profile";
 import { X, Search, Pencil } from "lucide-react";
 import { VoiceSettings } from "./VoiceSettings";
+import { NotificationSettings } from "./NotificationSettings";
 import "./settings.css";
 import { useEffect, useRef, useState } from "react";
-import type { Profile } from "../../types";
+import type { Profile, UpdateInfoPayload } from "../../types";
 import { db, supabase } from "../../lib/supabase";
 import { Avatar, ErrorNotice, Submit, useTask } from "../../components/ui";
 export function Settings({
@@ -31,6 +32,63 @@ export function Settings({
   const task = useTask();
   const [section, setSection] = useState<string>(initialSection);
   const [search, setSearch] = useState("");
+  const [appVersion, setAppVersion] = useState("0.1.0");
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfoPayload>({
+    state: "idle",
+    currentVersion: "0.1.0",
+  });
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+
+  useEffect(() => {
+    if (window.arena?.getVersion) {
+      window.arena
+        .getVersion()
+        .then((v) => {
+          if (v) {
+            setAppVersion(v);
+            setUpdateInfo((prev) => ({ ...prev, currentVersion: v }));
+          }
+        })
+        .catch(() => {});
+    }
+
+    if (window.arena?.getUpdateStatus) {
+      window.arena
+        .getUpdateStatus()
+        .then((s) => {
+          if (s) setUpdateInfo(s);
+        })
+        .catch(() => {});
+    }
+
+    if (window.arena?.onUpdateStatus) {
+      return window.arena.onUpdateStatus((status) => {
+        setUpdateInfo(status);
+        setIsCheckingUpdate(false);
+      });
+    }
+  }, []);
+
+  const handleCheckUpdate = async () => {
+    if (!window.arena?.checkForUpdates) return;
+    setIsCheckingUpdate(true);
+    try {
+      const res = await window.arena.checkForUpdates();
+      setUpdateInfo(res);
+    } catch {
+      // Handled
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const [showRestartModal, setShowRestartModal] = useState(false);
+
+  const handleRestartAndInstall = async () => {
+    if (window.arena?.installUpdate) {
+      await window.arena.installUpdate();
+    }
+  };
   const normalize = (value: string) =>
     value
       .normalize("NFD")
@@ -44,7 +102,7 @@ export function Settings({
         { label: "Perfil", id: "profile" },
         { label: "Dados e privacidade" },
         { label: "Privacidade e segurança" },
-        { label: "Notificações" },
+        { label: "Notificações", id: "notifications" },
       ],
     },
     {
@@ -196,6 +254,9 @@ export function Settings({
         </aside>
         <section className="settings-content">
           <div className="settings-content-inner">
+            {section === "notifications" && (
+              <NotificationSettings userId={profile.id} />
+            )}
             {section === "voice" && <VoiceSettings />}
             {(section === "stream" || section === "sounds") && (
               <>
@@ -264,12 +325,65 @@ export function Settings({
               </>
             )}
             {section === "about" && (
-              <>
+              <div className="settings-about-section">
                 <h2>Sobre</h2>
-                <h3>LYC Arena</h3>
-                <p className="muted">O ponto de encontro da comunidade LYC.</p>
-                <p>Converse, reúna seu time e compartilhe suas partidas.</p>
-              </>
+                <div className="settings-about-header">
+                  <div className="settings-about-branding">
+                    <h3>LYC Arena</h3>
+                    <span className="settings-version-badge">v{appVersion}</span>
+                  </div>
+                  <p className="muted">O ponto de encontro da comunidade LYC.</p>
+                  <p>Converse, reúna seu time e compartilhe suas partidas.</p>
+                </div>
+
+                <div className="settings-updater-card">
+                  <div className="settings-updater-header">
+                    <h4>Atualizações</h4>
+                    <span
+                      className={`settings-updater-status ${updateInfo.state}`}
+                    >
+                      {updateInfo.state === "checking" || isCheckingUpdate
+                        ? "Verificando atualizações..."
+                        : updateInfo.state === "available"
+                          ? `Atualização disponível (${updateInfo.availableVersion})`
+                          : updateInfo.state === "downloading"
+                            ? `Baixando atualização (${updateInfo.progressPercent ?? 0}%)...`
+                            : updateInfo.state === "downloaded"
+                              ? `Atualização pronta para instalar (${updateInfo.availableVersion})`
+                              : updateInfo.state === "error"
+                                ? "Não foi possível verificar no momento"
+                                : "Você está utilizando a versão mais recente"}
+                    </span>
+                  </div>
+
+                  <div className="settings-updater-actions">
+                    {updateInfo.state === "downloaded" ? (
+                      <button
+                        type="button"
+                        className="primary settings-restart-btn"
+                        onClick={() => setShowRestartModal(true)}
+                      >
+                        Reiniciar e atualizar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={
+                          isCheckingUpdate ||
+                          updateInfo.state === "checking" ||
+                          updateInfo.state === "downloading"
+                        }
+                        onClick={() => void handleCheckUpdate()}
+                      >
+                        {isCheckingUpdate || updateInfo.state === "checking"
+                          ? "Verificando..."
+                          : "Verificar atualizações"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
             {section === "profile" && (
               <>
@@ -385,6 +499,37 @@ export function Settings({
           <X size={22} />
         </button>
       </div>
+
+      {showRestartModal && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>Reiniciar e atualizar</h3>
+            <p>
+              O LYC Arena será reiniciado para concluir a instalação da nova versão.
+              Certifique-se de que não está em uma chamada ou transmissão ativa antes de prosseguir.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setShowRestartModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary settings-restart-btn"
+                onClick={() => {
+                  setShowRestartModal(false);
+                  void handleRestartAndInstall();
+                }}
+              >
+                Confirmar e reiniciar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

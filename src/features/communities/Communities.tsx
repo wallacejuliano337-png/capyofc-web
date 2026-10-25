@@ -1,7 +1,16 @@
 import type { OpenUserProfile } from "../profile/UserProfilePopover";
 import { presenceLabels } from "../../services/social";
-import { useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import {
+  ChevronDown,
+  Plus,
+  FolderPlus,
+  Settings as SettingsIcon,
+  Shield,
+  LogOut,
+  UserPlus,
+  Bell,
+} from "lucide-react";
 import {
   Avatar,
   ErrorNotice,
@@ -19,26 +28,34 @@ import {
   type CommunityRole,
 } from "../../services/communities";
 import {
-  RoleManager,
-  InviteManager,
-  OrderButtons,
-} from "./CommunityAdministration";
+  getDisplayRoleColor,
+  getHighestRole,
+} from "../../services/community-roles";
 import type { Channel } from "../../types";
+
+export { CreateChannelModal } from "./CreateChannelModal";
+export { CreateCategoryModal } from "./CreateCategoryModal";
+export { EditChannelModal } from "./EditChannelModal";
+export { EditCategoryModal } from "./EditCategoryModal";
+export { CommunitySettings } from "./CommunitySettings";
+
 export function CommunityControls({
-  children,
+  children: _children,
   compact,
-  communities,
+  communities: _communities,
   current,
   onSelect,
   onChanged,
-  categories,
-  channels,
-  members,
-  roles,
+  categories: _categories,
+  channels: _channels,
+  members: _members,
+  roles: _roles,
   permissions,
   userId,
   open,
   onOpenChange: setOpen,
+  onCreateChannel,
+  onCreateCategory,
 }: {
   children?: ReactNode;
   compact?: boolean;
@@ -54,516 +71,308 @@ export function CommunityControls({
   userId: string;
   open: "directory" | "settings" | null;
   onOpenChange: (value: "directory" | "settings" | null) => void;
+  onCreateChannel?: () => void;
+  onCreateCategory?: () => void;
 }) {
   const task = useTask();
   const [name, setName] = useState(""),
     [image, setImage] = useState(""),
     [code, setCode] = useState("");
-  const [editCommunity, setEditCommunity] = useState(false);
-  const [category, setCategory] = useState({ id: "", name: "", position: 0 });
-  const [channel, setChannel] = useState({
-    id: "",
-    name: "",
-    category_id: "",
-    kind: "text",
-    description: "",
-    position: 0,
-  });
-  const canAdmin = communityAdminPermissions.some((p) =>
-    permissions.includes(p),
-  );
-  const manage = permissions.includes("manage_channels");
+  const canAdmin =
+    communityAdminPermissions.some((p) => permissions.includes(p)) ||
+    current?.owner_id === userId;
+  const manage =
+    permissions.includes("manage_channels") || current?.owner_id === userId;
   const run = (action: string, payload: Record<string, unknown>) =>
     communityAction(action, { community_id: current?.id, ...payload });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const bannerUrl =
+    current?.banner_url ||
+    (() => {
+      try {
+        return current?.id
+          ? localStorage.getItem(`lyc_community_banner_${current.id}`) || null
+          : null;
+      } catch {
+        return null;
+      }
+    })();
+
   return (
     <>
       {!compact && (
         <button
-          className="community-menu-trigger"
-          popoverTarget="community-menu"
+          ref={triggerRef}
+          type="button"
+          className={`community-menu-trigger ${menuOpen ? "active" : ""} ${bannerUrl ? "has-banner" : ""}`}
+          style={
+            bannerUrl
+              ? {
+                  backgroundImage: `linear-gradient(rgba(17, 18, 20, 0.4), rgba(17, 18, 20, 0.85)), url(${bannerUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : undefined
+          }
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-expanded={menuOpen}
         >
-          <b>{current?.name || "LYC Arena"}</b>
-          <ChevronDown size={18} />
+          <b>{current?.name || "Comunidade LYC"}</b>
+          <ChevronDown
+            size={18}
+            className={`trigger-chevron ${menuOpen ? "open" : ""}`}
+          />
         </button>
       )}
-      <div
-        id="community-menu"
-        popover="auto"
-        className="shell-popover community-popover"
-      >
-        <div className="community-title">
-          <Avatar
-            name={current?.name || "Comunidades"}
-            url={current?.image_url}
-            size={28}
-          />
-          <select
-            aria-label="Comunidade"
-            value={current?.id || ""}
-            onChange={(e) => onSelect(e.target.value)}
-          >
-            {!current && <option value="">Nenhuma comunidade</option>}
-            {communities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          className="admin-link"
-          onClick={() => {
-            document.getElementById("community-menu")?.hidePopover();
-            setOpen("directory");
+
+      {menuOpen && !compact && (
+        <div
+          ref={menuRef}
+          className="floating-menu server-dropdown-menu"
+          style={{
+            position: "fixed",
+            top: "52px",
+            left: "76px",
+            zIndex: 1000,
           }}
         >
-          Comunidades e permissões
-        </button>
-        {current && canAdmin && (
+          {canAdmin && (
+            <>
+              <button
+                type="button"
+                className="floating-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setOpen("settings");
+                }}
+              >
+                <span>Convidar para comunidade</span>
+                <UserPlus size={16} />
+              </button>
+              <button
+                type="button"
+                className="floating-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setOpen("settings");
+                }}
+              >
+                <span>Configurações</span>
+                <SettingsIcon size={16} />
+              </button>
+              <div className="floating-menu-divider" />
+            </>
+          )}
+
+          {manage && (
+            <>
+              <button
+                type="button"
+                className="floating-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onCreateChannel?.();
+                }}
+              >
+                <span>Criar canal</span>
+                <Plus size={16} />
+              </button>
+              <button
+                type="button"
+                className="floating-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onCreateCategory?.();
+                }}
+              >
+                <span>Criar categoria</span>
+                <FolderPlus size={16} />
+              </button>
+              <div className="floating-menu-divider" />
+            </>
+          )}
+
           <button
-            className="admin-link"
+            type="button"
+            className="floating-menu-item"
             onClick={() => {
-              document.getElementById("community-menu")?.hidePopover();
-              setOpen("settings");
+              setMenuOpen(false);
             }}
           >
-            Configurações da comunidade
+            <span>Notificações</span>
+            <Bell size={16} />
           </button>
-        )}
-        {children}
-      </div>
-      {open && (
+
+          <button
+            type="button"
+            className="floating-menu-item"
+            onClick={() => {
+              setMenuOpen(false);
+              setOpen("directory");
+            }}
+          >
+            <span>Permissões</span>
+            <Shield size={16} />
+          </button>
+
+          {current && current.owner_id !== userId && (
+            <>
+              <div className="floating-menu-divider" />
+              <button
+                type="button"
+                className="floating-menu-item danger"
+                disabled={task.busy}
+                onClick={() => {
+                  setMenuOpen(false);
+                  void task.run(async () => {
+                    if (
+                      !confirm(
+                        "Sair desta comunidade? Você precisará de um convite para voltar.",
+                      )
+                    )
+                      return;
+                    await run("leave", {});
+                    await onChanged();
+                  });
+                }}
+              >
+                <span>Sair da comunidade</span>
+                <LogOut size={16} />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {open === "directory" && (
         <Modal
-          title={
-            open === "settings"
-              ? "Configurações da comunidade"
-              : "Comunidades e permissões"
-          }
+          title="Comunidades e permissões"
           onClose={() => setOpen(null)}
         >
           <ErrorNotice text={task.error} />
-          {open === "directory" && (
-            <div className="panel">
-              <h2>Criar ou entrar</h2>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void task.run(async () => {
-                    const id = await communityAction<string>("create", {
-                      name,
-                      image_url: image,
-                    });
-                    await onChanged();
-                    onSelect(id);
-                    setName("");
-                    setImage("");
+          <div className="panel">
+            <h2>Criar ou entrar</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void task.run(async () => {
+                  const id = await communityAction<string>("create", {
+                    name,
+                    image_url: image,
                   });
-                }}
-              >
-                <label>
-                  Nome da nova comunidade
-                  <input
-                    required
-                    maxLength={60}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Imagem da nova comunidade (URL HTTPS)
-                  <input
-                    type="url"
-                    value={image}
-                    onChange={(e) => setImage(e.target.value)}
-                  />
-                </label>
-                <Submit busy={task.busy}>Criar comunidade</Submit>
-              </form>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void task.run(async () => {
-                    const id = await communityAction<string>("join", {
-                      code: inviteCode(code),
-                    });
-                    await onChanged();
-                    onSelect(id);
-                    setCode("");
-                  });
-                }}
-              >
-                <label>
-                  Código ou link de convite
-                  <input
-                    required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                  />
-                </label>
-                <Submit busy={task.busy}>Entrar por convite</Submit>
-              </form>
-            </div>
-          )}
-          {open === "settings" && !canAdmin && (
-            <p>Você não possui permissão administrativa.</p>
-          )}
-          {current && (open === "directory" || canAdmin) && (
-            <>
-              <h2>{current.name}</h2>
-              <p>
-                Seu cargo:{" "}
-                {members.find((m) => m.user_id === userId)?.community_roles
-                  ?.name || "Membro"}
-              </p>
-              <p className="muted">
-                Permissões:{" "}
-                {permissions.length
-                  ? permissions.join(", ")
-                  : "Somente leitura"}
-              </p>
-              {open === "settings" &&
-                permissions.includes("manage_community") && (
-                  <>
-                    <button onClick={() => setEditCommunity(!editCommunity)}>
-                      Editar comunidade
-                    </button>
-                    {editCommunity && (
-                      <CommunityEditor
-                        community={current}
-                        save={async (payload) => {
-                          await run("edit_community", payload);
-                          await onChanged();
-                        }}
-                      />
-                    )}
-                  </>
-                )}
-              {open === "directory" && current.owner_id !== userId && (
-                <button
-                  className="danger"
-                  disabled={task.busy}
-                  onClick={() =>
-                    void task.run(async () => {
-                      if (
-                        !confirm(
-                          "Sair desta comunidade? Você precisará de um convite para voltar.",
-                        )
-                      )
-                        return;
-                      await run("leave", {});
-                      await onChanged();
-                      setOpen(null);
-                    })
-                  }
-                >
-                  Sair da comunidade
-                </button>
-              )}
-              {open === "settings" &&
-                permissions.includes("create_invites") && (
-                  <InviteManager community={current} onChanged={onChanged} />
-                )}
-              {open === "settings" && manage && (
-                <>
-                  <form
-                    className="panel"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void task.run(async () => {
-                        await run(
-                          category.id ? "edit_category" : "create_category",
-                          category,
-                        );
-                        setCategory({ id: "", name: "", position: 0 });
-                        await onChanged();
-                      });
-                    }}
-                  >
-                    <h3>
-                      {category.id ? "Editar categoria" : "Nova categoria"}
-                    </h3>
-                    <label>
-                      Nome da categoria
-                      <input
-                        required
-                        maxLength={60}
-                        value={category.name}
-                        onChange={(e) =>
-                          setCategory({ ...category, name: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Ordem da categoria
-                      <input
-                        type="number"
-                        value={category.position}
-                        onChange={(e) =>
-                          setCategory({
-                            ...category,
-                            position: Number(e.target.value),
-                          })
-                        }
-                      />
-                    </label>
-                    <Submit busy={task.busy}>Salvar categoria</Submit>
-                  </form>
-                  {categories.map((c) => (
-                    <div className="ticket-row" key={c.id}>
-                      <b>{c.name}</b>
-                      <span>Ordem {c.position}</span>
-                      <OrderButtons
-                        items={categories}
-                        id={c.id}
-                        name={c.name}
-                        busy={task.busy}
-                        move={(ids) =>
-                          task.run(async () => {
-                            await run("reorder_categories", { ids });
-                            await onChanged();
-                          })
-                        }
-                      />
-                      <button onClick={() => setCategory(c)}>
-                        Editar categoria {c.name}
-                      </button>
-                      <button
-                        disabled={task.busy}
-                        onClick={() =>
-                          void task.run(async () => {
-                            if (!confirm("Excluir esta categoria vazia?"))
-                              return;
-                            await run("delete_category", { id: c.id });
-                            await onChanged();
-                          })
-                        }
-                      >
-                        Excluir categoria {c.name}
-                      </button>
-                    </div>
-                  ))}
-                  <form
-                    className="panel"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void task.run(async () => {
-                        await run(
-                          channel.id ? "edit_channel" : "create_channel",
-                          {
-                            ...channel,
-                            category_id:
-                              channel.category_id || categories[0]?.id,
-                          },
-                        );
-                        setChannel({
-                          id: "",
-                          name: "",
-                          category_id: "",
-                          kind: "text",
-                          description: "",
-                          position: 0,
-                        });
-                        await onChanged();
-                      });
-                    }}
-                  >
-                    <h3>{channel.id ? "Editar canal" : "Novo canal"}</h3>
-                    <label>
-                      Nome do canal
-                      <input
-                        required
-                        maxLength={60}
-                        value={channel.name}
-                        onChange={(e) =>
-                          setChannel({ ...channel, name: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Categoria do canal
-                      <select
-                        required
-                        value={channel.category_id || categories[0]?.id || ""}
-                        onChange={(e) =>
-                          setChannel({
-                            ...channel,
-                            category_id: e.target.value,
-                          })
-                        }
-                      >
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Tipo do canal
-                      <select
-                        disabled={!!channel.id}
-                        value={channel.kind}
-                        onChange={(e) =>
-                          setChannel({ ...channel, kind: e.target.value })
-                        }
-                      >
-                        <option value="text">Texto</option>
-                        <option value="voice">Voz</option>
-                      </select>
-                    </label>
-                    <label>
-                      Descrição
-                      <input
-                        value={channel.description}
-                        onChange={(e) =>
-                          setChannel({
-                            ...channel,
-                            description: e.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Ordem do canal
-                      <input
-                        type="number"
-                        value={channel.position}
-                        onChange={(e) =>
-                          setChannel({
-                            ...channel,
-                            position: Number(e.target.value),
-                          })
-                        }
-                      />
-                    </label>
-                    <Submit busy={task.busy}>
-                      {channel.id ? "Salvar canal" : "Criar canal"}
-                    </Submit>
-                  </form>
-                  {channels.map((c) => (
-                    <div className="ticket-row" key={c.id}>
-                      <b>{c.name}</b>
-                      <span>
-                        {c.kind} · {c.position}
-                      </span>
-                      <OrderButtons
-                        items={channels.filter(
-                          (other) => other.category_id === c.category_id,
-                        )}
-                        id={c.id}
-                        name={c.name}
-                        busy={task.busy}
-                        move={(ids) =>
-                          task.run(async () => {
-                            await run("reorder_channels", {
-                              ids,
-                              category_id: c.category_id,
-                            });
-                            await onChanged();
-                          })
-                        }
-                      />
-                      <button
-                        onClick={() =>
-                          setChannel({
-                            id: c.id,
-                            name: c.name,
-                            category_id: c.category_id || "",
-                            kind: c.kind,
-                            description: c.description,
-                            position: c.position || 0,
-                          })
-                        }
-                      >
-                        Editar canal {c.name}
-                      </button>
-                      <button
-                        disabled={task.busy}
-                        onClick={() =>
-                          void task.run(async () => {
-                            if (
-                              !confirm(
-                                "Excluir este canal da lista? O histórico será preservado.",
-                              )
-                            )
-                              return;
-                            await run("delete_channel", { id: c.id });
-                            await onChanged();
-                          })
-                        }
-                      >
-                        Excluir canal {c.name}
-                      </button>
-                    </div>
-                  ))}
-                </>
-              )}
-              {open === "settings" && permissions.includes("manage_roles") && (
-                <RoleManager
-                  community={current}
-                  roles={roles}
-                  members={members}
-                  permissions={permissions}
-                  userId={userId}
-                  onChanged={onChanged}
+                  await onChanged();
+                  onSelect(id);
+                  setName("");
+                  setImage("");
+                  setOpen(null);
+                });
+              }}
+            >
+              <label>
+                Nome da nova comunidade
+                <input
+                  required
+                  maxLength={60}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
-              )}
-              {open === "directory" && (
-                <p>Consulte os membros e cargos na lista da comunidade.</p>
-              )}
-            </>
+              </label>
+              <label>
+                Imagem da nova comunidade (URL HTTPS)
+                <input
+                  type="url"
+                  value={image}
+                  onChange={(e) => setImage(e.target.value)}
+                />
+              </label>
+              <Submit busy={task.busy}>Criar comunidade</Submit>
+            </form>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void task.run(async () => {
+                  const id = await communityAction<string>("join", {
+                    code: inviteCode(code),
+                  });
+                  await onChanged();
+                  onSelect(id);
+                  setCode("");
+                  setOpen(null);
+                });
+              }}
+            >
+              <label>
+                Código ou link de convite
+                <input
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+              </label>
+              <Submit busy={task.busy}>Entrar por convite</Submit>
+            </form>
+          </div>
+          {current && current.owner_id !== userId && (
+            <button
+              className="danger"
+              disabled={task.busy}
+              onClick={() =>
+                void task.run(async () => {
+                  if (
+                    !confirm(
+                      "Sair desta comunidade? Você precisará de um convite para voltar.",
+                    )
+                  )
+                    return;
+                  await run("leave", {});
+                  await onChanged();
+                  setOpen(null);
+                })
+              }
+            >
+              Sair da comunidade
+            </button>
           )}
         </Modal>
       )}
     </>
   );
 }
-function CommunityEditor({
-  community,
-  save,
-}: {
-  community: Community;
-  save: (v: Record<string, unknown>) => Promise<void>;
-}) {
-  const [name, setName] = useState(community.name),
-    [image, setImage] = useState(community.image_url || "");
-  const task = useTask();
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        void task.run(() => save({ name, image_url: image }));
-      }}
-    >
-      <ErrorNotice text={task.error} />
-      <label>
-        Nome da comunidade
-        <input
-          required
-          maxLength={60}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      <label>
-        Imagem da comunidade (URL HTTPS)
-        <input
-          type="url"
-          value={image}
-          onChange={(e) => setImage(e.target.value)}
-        />
-      </label>
-      <Submit busy={task.busy}>Salvar comunidade</Submit>
-    </form>
-  );
-}
 export function CommunityMembers({
   members,
+  roles = [],
   presence,
   onUserProfile,
 }: {
   onUserProfile?: OpenUserProfile;
   members: Member[];
+  roles?: CommunityRole[];
   presence: Record<string, string>;
 }) {
   const groups = ["OWNER", "ADMIN", "MODERADOR", "ONLINE", "OFFLINE"];
@@ -591,6 +400,8 @@ export function CommunityMembers({
               </h4>
               {rows.map((m) => {
                 const status = presence[m.user_id] || "offline";
+                const roleColor = getDisplayRoleColor(m, roles);
+                const highest = getHighestRole(m, roles);
                 return (
                   <div
                     className={
@@ -628,12 +439,16 @@ export function CommunityMembers({
                           )
                         }
                       >
-                        <b title={m.profiles.display_name}>
+                        <b
+                          title={m.profiles.display_name}
+                          style={{ color: roleColor }}
+                        >
                           {m.profiles.display_name}
                         </b>
                       </button>
                       <small>
-                        {m.community_roles.name} · {presenceLabels[status]}
+                        {highest?.name || m.community_roles.name} ·{" "}
+                        {presenceLabels[status]}
                       </small>
                     </div>
                   </div>

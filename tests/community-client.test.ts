@@ -26,3 +26,22 @@ it("accepts invitation codes and pasted links but rejects unrelated values", () 
   expect(inviteCode("https://example.test/?invite=" + code)).toBe(code);
   expect(() => inviteCode("arbitrary-room")).toThrow();
 });
+it("correctly calls communityAction for create_channel and create_category", async () => {
+  await communityAction("create_channel", {
+    community_id: "comm-123",
+    name: "geral-test",
+    category_id: "cat-456",
+    kind: "text",
+    description: "",
+  });
+  expect(rpc).toHaveBeenLastCalledWith("community_action", {
+    action: "create_channel",
+    payload: {
+      community_id: "comm-123",
+      name: "geral-test",
+      category_id: "cat-456",
+      kind: "text",
+      description: "",
+    },
+  });
+});

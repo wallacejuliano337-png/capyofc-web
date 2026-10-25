@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 type Snapshot = {
   input: string;
   output: string;
+  video: string;
   volume: number;
   connected: boolean;
 };
@@ -12,6 +13,7 @@ export class AudioSettings {
   private snapshot: Snapshot = {
     input: "default",
     output: "default",
+    video: "default",
     volume: 1,
     connected: false,
   };
@@ -32,6 +34,7 @@ export class AudioSettings {
       this.update({
         input: room.getActiveDevice("audioinput") || "default",
         output: room.getActiveDevice("audiooutput") || "default",
+        video: room.getActiveDevice("videoinput") || "default",
         connected: room.state === "connected",
       });
     room.on("activeDeviceChanged", sync);
@@ -46,13 +49,22 @@ export class AudioSettings {
       }
     };
   }
-  async select(kind: "audioinput" | "audiooutput", id: string) {
+  async select(
+    kind: "audioinput" | "audiooutput" | "videoinput",
+    id: string,
+  ) {
     if (!this.room) throw new Error("Aguarde a inicialização do áudio.");
     const room = this.room;
     if (!(await room.switchActiveDevice(kind, id)))
       throw new Error("Não foi possível selecionar este dispositivo.");
     if (this.room === room)
-      this.update(kind === "audioinput" ? { input: id } : { output: id });
+      this.update(
+        kind === "audioinput"
+          ? { input: id }
+          : kind === "audiooutput"
+            ? { output: id }
+            : { video: id },
+      );
   }
   setVolume(value: number) {
     if (Number.isFinite(value))

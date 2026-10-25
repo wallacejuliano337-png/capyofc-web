@@ -1,0 +1,350 @@
+/* ══════════════════════════════════════════════════════════════════════
+   LYC ARENA & CAPYCHAT — DYNAMIC THEME SYSTEM (Dark, OLED, Light)
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="dark"],
+.theme-dark {
+  /* 3 Real Discord Dark Theme Columns */
+  --discord-rail: #1e1f22;          /* Column 1: Server Rail (deepest dark) */
+  --discord-sidebar: #2b2d31;       /* Column 2: Channels & Members Sidebar */
+  --discord-profile: #232428;       /* User profile & voice RTC bottom card */
+  --discord-chat: #313338;          /* Column 3: Center Chat & Stage area */
+  --discord-input: #383a40;         /* Chat input bar & search inputs */
+  --discord-hover: #35373c;         /* Active channel background & hover */
+
+  /* Text Colors */
+  --discord-text-normal: #dbdee1;
+  --discord-text-muted: #949ba4;
+  --discord-text-active: #ffffff;
+  --discord-border: #1f2023;
+
+  /* Accents */
+  --discord-blurple: #5865f2;
+  --discord-blurple-hover: #4752c4;
+  --discord-green: #23a55a;
+  --discord-red: #f23f43;
+  --discord-yellow: #f0b232;
+  --discord-offline: #80848e;
+
+  /* Layout Widths */
+  --rail-width: 72px;
+  --sidebar-width: 240px;
+  --members-width: 240px;
+
+  color-scheme: dark;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   1. MODO MEIA-NOITE (PRETO OLED #000000)
+   ══════════════════════════════════════════════════════════════════════ */
+[data-theme="oled"],
+.theme-oled {
+  --discord-rail: #0a0a0a;
+  --discord-sidebar: #000000;
+  --discord-profile: #0a0a0a;
+  --discord-chat: #000000;
+  --discord-input: #111111;
+  --discord-hover: #161616;
+  --discord-text-normal: #dbdee1;
+  --discord-text-muted: #8e9297;
+  --discord-text-active: #ffffff;
+  --discord-border: #181818;
+
+  color-scheme: dark;
+}
+
+/* OLED: Superfícies Principais para Preto Absoluto (#000000) */
+[data-theme="oled"] .bg-\[\#313338\]:not(.theme-card-preview-dark):not(.theme-card-preview-light),
+.theme-oled .bg-\[\#313338\]:not(.theme-card-preview-dark):not(.theme-card-preview-light) {
+  background-color: #000000 !important;
+}
+
+[data-theme="oled"] aside.bg-\[\#2b2d31\],
+.theme-oled aside.bg-\[\#2b2d31\],
+[data-theme="oled"] .bg-\[\#2b2d31\]:not(.theme-card-preview-dark):not(.theme-card-preview-light):not(.theme-card-preview-oled),
+.theme-oled .bg-\[\#2b2d31\]:not(.theme-card-preview-dark):not(.theme-card-preview-light):not(.theme-card-preview-oled) {
+  background-color: #000000 !important;
+}
+
+/* OLED: Painéis Secundários (Sidebar de Servidores, Titlebar, Rodapé, Modais) -> #0a0a0a / #111111 */
+[data-theme="oled"] nav.bg-\[\#1e1f22\],
+.theme-oled nav.bg-\[\#1e1f22\],
+[data-theme="oled"] header.bg-\[\#1e1f22\],
+.theme-oled header.bg-\[\#1e1f22\],
+[data-theme="oled"] .bg-\[\#1e1f22\]:not(.theme-card-preview-dark):not(.theme-card-preview-light):not(.theme-card-preview-oled),
+.theme-oled .bg-\[\#1e1f22\]:not(.theme-card-preview-dark):not(.theme-card-preview-light):not(.theme-card-preview-oled) {
+  background-color: #0a0a0a !important;
+}
+
+[data-theme="oled"] footer.bg-\[\#232428\],
+.theme-oled footer.bg-\[\#232428\],
+[data-theme="oled"] .bg-\[\#232428\],
+.theme-oled .bg-\[\#232428\] {
+  background-color: #080808 !important;
+}
+
+[data-theme="oled"] .bg-\[\#111214\],
+.theme-oled .bg-\[\#111214\] {
+  background-color: #0e0e0e !important;
+}
+
+/* OLED: Sidebar interna do Modal de Configurações */
+[data-theme="oled"] .w-60.bg-\[\#2b2d31\],
+.theme-oled .w-60.bg-\[\#2b2d31\] {
+  background-color: #0a0a0a !important;
+}
+
+/* OLED: Chat input bar */
+[data-theme="oled"] .bg-\[\#383a40\],
+.theme-oled .bg-\[\#383a40\] {
+  background-color: #121212 !important;
+}
+
+/* OLED: Hover & Active States */
+[data-theme="oled"] .hover\:bg-\[\#35373c\]:hover,
+.theme-oled .hover\:bg-\[\#35373c\]:hover,
+[data-theme="oled"] .bg-\[\#35373c\],
+.theme-oled .bg-\[\#35373c\] {
+  background-color: #161616 !important;
+}
+
+[data-theme="oled"] .hover\:bg-\[\#35373c\]\/50:hover,
+.theme-oled .hover\:bg-\[\#35373c\]\/50:hover {
+  background-color: rgba(22, 22, 22, 0.6) !important;
+}
+
+[data-theme="oled"] .bg-\[\#404249\],
+.theme-oled .bg-\[\#404249\] {
+  background-color: #202024 !important;
+}
+
+[data-theme="oled"] .theme-cat-header,
+.theme-oled .theme-cat-header,
+[data-theme="oled"] .theme-cat-header * {
+  color: #80848e !important;
+}
+
+/* OLED: Bordas Muito Discretas (#181818) */
+[data-theme="oled"] .border-\[\#1f2023\],
+.theme-oled .border-\[\#1f2023\],
+[data-theme="oled"] .border-\[\#202225\],
+.theme-oled .border-\[\#202225\],
+[data-theme="oled"] .border-\[\#28292d\],
+.theme-oled .border-\[\#28292d\],
+[data-theme="oled"] .border-\[\#35363c\],
+.theme-oled .border-\[\#35363c\],
+[data-theme="oled"] .border-\[\#3f4147\],
+.theme-oled .border-\[\#3f4147\] {
+  border-color: #181818 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   2. MODO CLARO (WHITE / DISCORD LIGHT MODE)
+   ══════════════════════════════════════════════════════════════════════ */
+[data-theme="light"],
+.theme-light {
+  --discord-rail: #e3e5e8;
+  --discord-sidebar: #f2f3f5;
+  --discord-profile: #ebedef;
+  --discord-chat: #ffffff;
+  --discord-input: #ebedef;
+  --discord-hover: #e0e2e5;
+  --discord-text-normal: #2e3338;
+  --discord-text-muted: #5c6370;
+  --discord-text-active: #060607;
+  --discord-border: #e3e5e8;
+
+  color-scheme: light;
+}
+
+/* Light: Fundo Branco Limpo (#ffffff) no Chat, Workspace e Conteúdo dos Modais */
+[data-theme="light"] .bg-\[\#313338\]:not(.theme-card-preview-dark):not(.theme-card-preview-oled),
+.theme-light .bg-\[\#313338\]:not(.theme-card-preview-dark):not(.theme-card-preview-oled) {
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-\[\#111214\],
+.theme-light .bg-\[\#111214\] {
+  background-color: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Light: Sidebars em Cinza Claro (#f2f3f5) */
+[data-theme="light"] aside.bg-\[\#2b2d31\],
+.theme-light aside.bg-\[\#2b2d31\],
+[data-theme="light"] .bg-\[\#2b2d31\]:not(.theme-card-preview-dark):not(.theme-card-preview-oled),
+.theme-light .bg-\[\#2b2d31\]:not(.theme-card-preview-dark):not(.theme-card-preview-oled) {
+  background-color: #f2f3f5 !important;
+}
+
+[data-theme="light"] .w-60.bg-\[\#2b2d31\],
+.theme-light .w-60.bg-\[\#2b2d31\] {
+  background-color: #f2f3f5 !important;
+}
+
+/* Light: Server Rail, Titlebar e Fundo Geral (#e3e5e8) */
+[data-theme="light"] nav.bg-\[\#1e1f22\],
+.theme-light nav.bg-\[\#1e1f22\],
+[data-theme="light"] header.bg-\[\#1e1f22\],
+.theme-light header.bg-\[\#1e1f22\],
+[data-theme="light"] .bg-\[\#1e1f22\]:not(.theme-card-preview-dark):not(.theme-card-preview-oled),
+.theme-light .bg-\[\#1e1f22\]:not(.theme-card-preview-dark):not(.theme-card-preview-oled) {
+  background-color: #e3e5e8 !important;
+}
+
+/* Light: User Profile Bottom Bar (#ebedef) */
+[data-theme="light"] footer.bg-\[\#232428\],
+.theme-light footer.bg-\[\#232428\],
+[data-theme="light"] .bg-\[\#232428\],
+.theme-light .bg-\[\#232428\] {
+  background-color: #ebedef !important;
+}
+
+/* Light: Chat Input Container (#ebedef) */
+[data-theme="light"] .bg-\[\#383a40\],
+.theme-light .bg-\[\#383a40\] {
+  background-color: #ebedef !important;
+}
+
+[data-theme="light"] input.text-\[\#f2f3f5\],
+.theme-light input.text-\[\#f2f3f5\] {
+  color: #2e3338 !important;
+}
+
+[data-theme="light"] input::placeholder,
+.theme-light input::placeholder {
+  color: #747f8d !important;
+}
+
+/* Light: Hover & Selected States */
+[data-theme="light"] .hover\:bg-\[\#35373c\]:hover,
+.theme-light .hover\:bg-\[\#35373c\]:hover,
+[data-theme="light"] .bg-\[\#35373c\],
+.theme-light .bg-\[\#35373c\] {
+  background-color: #e0e2e5 !important;
+}
+
+[data-theme="light"] .hover\:bg-\[\#35373c\]\/50:hover,
+.theme-light .hover\:bg-\[\#35373c\]\/50:hover,
+[data-theme="light"] .hover\:bg-\[\#35373c\]\/40:hover,
+.theme-light .hover\:bg-\[\#35373c\]\/40:hover {
+  background-color: rgba(224, 226, 229, 0.5) !important;
+}
+
+[data-theme="light"] .hover\:bg-black\/15:hover,
+.theme-light .hover\:bg-black\/15:hover,
+[data-theme="light"] .hover\:bg-white\/10:hover,
+.theme-light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .bg-\[\#404249\],
+.theme-light .bg-\[\#404249\] {
+  background-color: #d7d9dc !important;
+  color: #060607 !important;
+}
+
+[data-theme="light"] .bg-\[\#404249\] *,
+.theme-light .bg-\[\#404249\] * {
+  color: #060607 !important;
+}
+
+/* Light: Bordas Sutis (#e3e5e8) */
+[data-theme="light"] .border-\[\#1f2023\],
+.theme-light .border-\[\#1f2023\],
+[data-theme="light"] .border-\[\#202225\],
+.theme-light .border-\[\#202225\],
+[data-theme="light"] .border-\[\#28292d\],
+.theme-light .border-\[\#28292d\],
+[data-theme="light"] .border-\[\#35363c\],
+.theme-light .border-\[\#35363c\],
+[data-theme="light"] .border-\[\#3f4147\],
+.theme-light .border-\[\#3f4147\] {
+  border-color: #e3e5e8 !important;
+}
+
+/* Light: Tipografia e Textos Escuros */
+[data-theme="light"] .text-\[\#dbdee1\],
+.theme-light .text-\[\#dbdee1\] {
+  color: #2e3338 !important;
+}
+
+[data-theme="light"] .text-\[\#949ba4\],
+.theme-light .text-\[\#949ba4\] {
+  color: #5c6370 !important;
+}
+
+[data-theme="light"] .text-\[\#b5bac1\],
+.theme-light .text-\[\#b5bac1\] {
+  color: #4e5058 !important;
+}
+
+[data-theme="light"] .text-\[\#80848e\],
+.theme-light .text-\[\#80848e\] {
+  color: #747f8d !important;
+}
+
+[data-theme="light"] .text-\[\#f2f3f5\],
+.theme-light .text-\[\#f2f3f5\] {
+  color: #060607 !important;
+}
+
+/* Light: Títulos e Cabeçalhos para preto quase absoluto (#060607) */
+[data-theme="light"] h1,
+.theme-light h1,
+[data-theme="light"] h2,
+.theme-light h2,
+[data-theme="light"] h3,
+.theme-light h3,
+[data-theme="light"] h4,
+.theme-light h4 {
+  color: #060607 !important;
+}
+
+/* Light: Textos brancos gerais mudam para escuro, EXCETO elementos de ação (botões e badges com cores de destaque) */
+[data-theme="light"] .text-white:not(.theme-preserve-white):not([class*="bg-[#5865f2]"]):not([class*="bg-[#8B5CF6]"]):not([class*="bg-[#f23f43]"]):not([class*="bg-[#23a55a]"]):not(.bg-purple-600):not(.bg-indigo-600),
+.theme-light .text-white:not(.theme-preserve-white):not([class*="bg-[#5865f2]"]):not([class*="bg-[#8B5CF6]"]):not([class*="bg-[#f23f43]"]):not([class*="bg-[#23a55a]"]):not(.bg-purple-600):not(.bg-indigo-600) {
+  color: #060607 !important;
+}
+
+/* Light: Preservar texto branco em botões e badges coloridos */
+[data-theme="light"] .theme-preserve-white,
+.theme-light .theme-preserve-white,
+[data-theme="light"] .bg-\[\#5865f2\],
+.theme-light .bg-\[\#5865f2\],
+[data-theme="light"] .bg-\[\#8B5CF6\],
+.theme-light .bg-\[\#8B5CF6\],
+[data-theme="light"] .bg-\[\#f23f43\],
+.theme-light .bg-\[\#f23f43\],
+[data-theme="light"] .bg-\[\#23a55a\],
+.theme-light .bg-\[\#23a55a\],
+[data-theme="light"] .bg-\[\#5865f2\] *,
+.theme-light .bg-\[\#5865f2\] *,
+[data-theme="light"] .bg-\[\#8B5CF6\] *,
+.theme-light .bg-\[\#8B5CF6\] *,
+[data-theme="light"] .bg-\[\#f23f43\] *,
+.theme-light .bg-\[\#f23f43\] *,
+[data-theme="light"] .bg-\[\#23a55a\] *,
+.theme-light .bg-\[\#23a55a\] *,
+[data-theme="light"] .bg-gradient-to-r *,
+.theme-light .bg-gradient-to-r * {
+  color: #ffffff !important;
+}
+
+/* Scrollbars no modo claro */
+[data-theme="light"] ::-webkit-scrollbar-track,
+.theme-light ::-webkit-scrollbar-track {
+  background: #f2f3f5;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb,
+.theme-light ::-webkit-scrollbar-thumb {
+  background: #c4c9ce;
+  border-radius: 4px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover,
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #a3a8ae;
+}

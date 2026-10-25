@@ -57,25 +57,33 @@ export function useSocial(userId?: string) {
         { event: "*", schema: "public", table: "user_presence" },
         invalidate,
       );
-    void client.realtime
-      .setAuth()
-      .then(() => {
-        if (active)
-          channel.subscribe((status) => {
-            if (!active) return;
-            setConnection(
-              status === "SUBSCRIBED"
-                ? "Conectado"
-                : status === "CHANNEL_ERROR"
-                  ? "Reconectando…"
-                  : status,
-            );
-            if (status === "SUBSCRIBED") invalidate();
-          });
-      })
-      .catch((e) => {
-        if (active) setConnection(messageOf(e));
-      });
+    const initRealtime = async () => {
+      try {
+        const { data: sessionData } = await client.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (token) {
+          await client.realtime.setAuth(token);
+        } else {
+          await client.realtime.setAuth();
+        }
+      } catch {
+        await client.realtime.setAuth().catch(() => {});
+      }
+      if (active) {
+        channel.subscribe((status) => {
+          if (!active) return;
+          setConnection(
+            status === "SUBSCRIBED"
+              ? "Conectado"
+              : status === "CHANNEL_ERROR"
+                ? "Reconectando…"
+                : status,
+          );
+          if (status === "SUBSCRIBED") invalidate();
+        });
+      }
+    };
+    void initRealtime();
     const heartbeat = () =>
       void presenceAction("heartbeat", sessionId)
         .then((v) => {
@@ -130,7 +138,6 @@ export function useSocial(userId?: string) {
       }
     },
     refresh: async () => {
-      setRevision((r) => r + 1);
       await state.reload();
     },
   };

@@ -318,11 +318,20 @@
   box-shadow: 0 16px 48px #0009;
 }
 .profile-card-cover {
-  height: 72px;
+  height: 84px;
   background:
     radial-gradient(ellipse at 85% 0, #54448633, transparent 65%),
     linear-gradient(115deg, #11223b, #211936);
   border-radius: 7px 7px 4px 4px;
+  overflow: hidden;
+  position: relative;
+}
+.profile-card-cover img,
+.profile-card-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .profile-card-identity {
   padding: 0 12px 16px;
@@ -331,9 +340,11 @@
 }
 .profile-card-identity > .user-avatar-presence {
   display: inline-block;
-  margin-top: -28px;
+  margin-top: -30px;
   border: 5px solid #0b1120;
   border-radius: 50%;
+  position: relative;
+  z-index: 1;
 }
 .profile-card-identity > b {
   display: block;
@@ -721,3 +732,90 @@
     gap: 0;
   }
 }
+
+/* About and Auto-Updater Styles */
+.settings-about-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-about-branding {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.settings-about-branding h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.settings-version-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(88, 108, 255, 0.16);
+  color: #a5b4fc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-updater-card {
+  margin-top: 12px;
+  background: #111622;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 440px;
+}
+
+.settings-updater-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-updater-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.settings-updater-status {
+  font-size: 13px;
+  color: #9cb0ce;
+}
+
+.settings-updater-status.available,
+.settings-updater-status.downloading {
+  color: #fde047;
+}
+
+.settings-updater-status.downloaded {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.settings-updater-status.error {
+  color: #f87171;
+}
+
+.settings-restart-btn {
+  background: #22c55e !important;
+  color: #ffffff !important;
+}
+
+.settings-restart-btn:hover {
+  background: #16a34a !important;
+}
+

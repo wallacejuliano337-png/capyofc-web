@@ -10,10 +10,11 @@ const env = {
   ELECTRON_BUILDER_CACHE: path.join(root, ".cache/electron-builder"),
   ELECTRON_CACHE: path.join(root, ".cache/electron"),
   electron_config_cache: path.join(root, ".cache/electron"),
+  CSC_IDENTITY_AUTO_DISCOVERY: "false",
 };
 const child = spawn(
   process.execPath,
-  ["node_modules/electron-builder/cli.js", "--win", "nsis", "--x64"],
+  ["node_modules/electron-builder/cli.js", "--win", "nsis", "--x64", "--publish", "never"],
   { stdio: "inherit", env },
 );
 child.on("exit", (code) => process.exit(code ?? 1));

@@ -1,0 +1,19 @@
+:root {
+  /* Cores Principais - CapyChat */
+  --capy-primary: #8B5CF6;
+  --capy-secondary: #A78BFA;
+  --capy-bg-main: #0F0F14;
+  --capy-surface: #1F1F2E;
+  --capy-text: #E5E7EB;
+  --capy-white: #FFFFFF;
+
+  /* Cores Semânticas / Status */
+  --capy-highlight: #F59E0B;
+  --capy-accent: #EC4899;
+  --capy-success: #22C55E;
+  --capy-error: #EF4444;
+  --capy-info: #3B82F6;
+
+  /* Tipografia */
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}

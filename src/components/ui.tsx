@@ -1,6 +1,7 @@
 import { Component, type ReactNode, useState } from "react";
 import { X, AlertCircle, LoaderCircle } from "lucide-react";
 import { useAvatarUrl } from "../hooks/useAvatar";
+import { messageOf } from "../lib/supabase";
 export function Avatar({
   name,
   url,
@@ -40,10 +41,22 @@ export function Empty({
   );
 }
 export function ErrorNotice({ text }: { text: string }) {
-  return text ? (
+  if (text) {
+    console.error("[ErrorNotice RENDERED]:", text);
+  }
+  let display = text;
+  if (
+    display &&
+    (display.includes("TypeError") ||
+      display.includes("Failed to fetch") ||
+      display.includes("NetworkError"))
+  ) {
+    display = "Falha temporária de conexão com o servidor. Verifique sua conexão.";
+  }
+  return display ? (
     <div role="alert" className="error">
       <AlertCircle size={16} />
-      {text}
+      {display}
     </div>
   ) : null;
 }
@@ -59,10 +72,12 @@ export function Modal({
   title,
   children,
   onClose,
+  className,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  className?: string;
 }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -70,7 +85,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="modal"
+        className={`modal ${className || ""}`.trim()}
         onClick={(e) => e.stopPropagation()}
       >
         <header>
@@ -105,12 +120,14 @@ export class ErrorBoundary extends Component<
 export function Submit({
   children,
   busy,
+  disabled,
 }: {
   children: ReactNode;
   busy: boolean;
+  disabled?: boolean;
 }) {
   return (
-    <button type="submit" className="primary" disabled={busy}>
+    <button type="submit" className="primary" disabled={busy || disabled}>
       {busy ? "Aguarde…" : children}
     </button>
   );
@@ -128,11 +145,8 @@ export function useTask() {
       try {
         await fn();
       } catch (e) {
-        setError(
-          e instanceof Error
-            ? e.message
-            : String((e as { message?: string }).message || e),
-        );
+        console.error("[useTask CAUGHT ERROR]:", e);
+        setError(messageOf(e));
       } finally {
         setBusy(false);
       }

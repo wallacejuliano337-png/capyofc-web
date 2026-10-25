@@ -1,0 +1,175 @@
+[
+  {
+    "arquivo": "01_PNGs/ficha-lyc-plus.png",
+    "dimensoes": [
+      1305,
+      1206
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/ficha-lyc.png",
+    "dimensoes": [
+      1317,
+      1194
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/ficha-mascote.png",
+    "dimensoes": [
+      1283,
+      1226
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/ficha-diamante.png",
+    "dimensoes": [
+      1324,
+      1188
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/mascote-pilha.png",
+    "dimensoes": [
+      1312,
+      1199
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/mascote-jogando.png",
+    "dimensoes": [
+      1314,
+      1197
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/cartas-leque.png",
+    "dimensoes": [
+      1536,
+      1024
+    ],
+    "alpha": [
+      0,
+      254
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/dados.png",
+    "dimensoes": [
+      1536,
+      1024
+    ],
+    "alpha": [
+      0,
+      254
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/perfil.png",
+    "dimensoes": [
+      1536,
+      1024
+    ],
+    "alpha": [
+      0,
+      254
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/emoji-ficha.png",
+    "dimensoes": [
+      1180,
+      1333
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/emoji-cartas.png",
+    "dimensoes": [
+      1312,
+      1199
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/emoji-comemorando.png",
+    "dimensoes": [
+      1312,
+      1199
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/emoji-pilha.png",
+    "dimensoes": [
+      1374,
+      1145
+    ],
+    "alpha": [
+      0,
+      255
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/transmissao.png",
+    "dimensoes": [
+      1536,
+      1024
+    ],
+    "alpha": [
+      0,
+      254
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/mascote-cartas-extra.png",
+    "dimensoes": [
+      1536,
+      1024
+    ],
+    "alpha": [
+      0,
+      254
+    ]
+  },
+  {
+    "arquivo": "01_PNGs/hero-fundo-completo.png",
+    "dimensoes": [
+      1672,
+      941
+    ],
+    "alpha": null
+  }
+]
