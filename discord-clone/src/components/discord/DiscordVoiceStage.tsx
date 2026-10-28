@@ -42,8 +42,9 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
       }
     };
     play();
-    el.onloadedmetadata = play;
+    el.addEventListener('loadedmetadata', play);
     return () => {
+      el.removeEventListener('loadedmetadata', play);
       if (el) el.srcObject = null;
     };
   }, [stream]);
@@ -229,23 +230,26 @@ export const DiscordVoiceStage: React.FC = () => {
       playVideo();
 
       const videoTracks = activeStream.getVideoTracks();
+      const onTrackUnmute = () => playVideo();
+      const onTrackMute = () => {
+        if (videoEl && !currentSelectedShare) {
+          videoEl.srcObject = null;
+        }
+      };
+
       videoTracks.forEach((t) => {
         t.enabled = true;
-        t.onunmute = playVideo;
-        t.onmute = () => {
-          if (videoEl && !currentSelectedShare) {
-            videoEl.srcObject = null;
-          }
-        };
+        t.addEventListener('unmute', onTrackUnmute);
+        t.addEventListener('mute', onTrackMute);
       });
-      videoEl.onloadedmetadata = playVideo;
+      videoEl.addEventListener('loadedmetadata', playVideo);
 
       return () => {
         videoTracks.forEach((t) => {
-          if (t.onunmute === playVideo) t.onunmute = null;
-          if (t.onmute) t.onmute = null;
+          t.removeEventListener('unmute', onTrackUnmute);
+          t.removeEventListener('mute', onTrackMute);
         });
-        if (videoEl.onloadedmetadata === playVideo) videoEl.onloadedmetadata = null;
+        videoEl.removeEventListener('loadedmetadata', playVideo);
       };
     } else if (videoEl && !activeStream) {
       videoEl.srcObject = null;

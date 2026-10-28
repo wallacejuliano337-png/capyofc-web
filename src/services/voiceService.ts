@@ -653,20 +653,27 @@ class VoiceService {
           }));
         };
 
-        track.onmute = () => {
+        const handleTrackMute = () => {
           console.log(`[voiceService] Remote video track muted from peer ${peerId}`);
           syncVideoState(false);
         };
 
-        track.onunmute = () => {
+        const handleTrackUnmute = () => {
           console.log(`[voiceService] Remote video track unmuted from peer ${peerId}`);
           syncVideoState(true);
         };
 
-        track.onended = () => {
+        const handleTrackEnded = () => {
           console.log(`[voiceService] Remote video track ended from peer ${peerId}`);
           syncVideoState(false);
         };
+
+        track.addEventListener('mute', handleTrackMute);
+        track.addEventListener('unmute', handleTrackUnmute);
+        track.addEventListener('ended', handleTrackEnded);
+        track.onmute = handleTrackMute;
+        track.onunmute = handleTrackUnmute;
+        track.onended = handleTrackEnded;
 
         if (!track.muted) {
           syncVideoState(true);
