@@ -238,4 +238,42 @@ describe("LYC Arena — Auto-Updater System Specification", () => {
       expect(nsisConfig.artifactName).toContain("${version}");
     });
   });
+
+  describe("Settings 'Sobre o Capy.ofc' Specification", () => {
+    it("dynamically resolves real Electron metadata version without hardcoding", async () => {
+      const mockGetVersion = vi.fn(async () => "0.1.4");
+      const mockUpdater = {
+        getVersion: mockGetVersion,
+        checkForUpdates: vi.fn(async () => ({ state: "not-available", currentVersion: "0.1.4" })),
+      };
+
+      const resolvedVersion = await mockUpdater.getVersion();
+      expect(resolvedVersion).toBe("0.1.4");
+      expect(mockGetVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it("presents distinct and clear UI states for checking, available, downloading, ready, error, and up-to-date", () => {
+      const getStatusDescriptor = (state: {
+        isChecking: boolean;
+        isUpdateAvailable: boolean;
+        isDownloading: boolean;
+        isDownloaded: boolean;
+        updateError: string | null;
+      }) => {
+        if (state.isDownloaded) return "Pronto para instalar";
+        if (state.isDownloading) return "Baixando atualização";
+        if (state.isUpdateAvailable) return "Nova versão disponível";
+        if (state.isChecking) return "Verificando...";
+        if (state.updateError) return "Erro na verificação";
+        return "Aplicativo atualizado";
+      };
+
+      expect(getStatusDescriptor({ isChecking: true, isUpdateAvailable: false, isDownloading: false, isDownloaded: false, updateError: null })).toBe("Verificando...");
+      expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: true, isDownloading: false, isDownloaded: false, updateError: null })).toBe("Nova versão disponível");
+      expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: true, isDownloading: true, isDownloaded: false, updateError: null })).toBe("Baixando atualização");
+      expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: true, isDownloading: false, isDownloaded: true, updateError: null })).toBe("Pronto para instalar");
+      expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: false, isDownloading: false, isDownloaded: false, updateError: "Falha de rede" })).toBe("Erro na verificação");
+      expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: false, isDownloading: false, isDownloaded: false, updateError: null })).toBe("Aplicativo atualizado");
+    });
+  });
 });

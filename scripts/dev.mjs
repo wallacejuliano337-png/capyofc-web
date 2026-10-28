@@ -15,7 +15,7 @@ const child =
           env: {
             ...process.env,
             LYC_DEV_URL: "http://127.0.0.1:5173",
-            LYC_OPEN_ROLES: "1",
+            LYC_OPEN_ROLES: process.env.LYC_OPEN_ROLES || "0",
           },
         },
       )
@@ -24,7 +24,7 @@ const child =
         env: {
           ...process.env,
           LYC_DEV_URL: "http://127.0.0.1:5173",
-          LYC_OPEN_ROLES: "1",
+          LYC_OPEN_ROLES: process.env.LYC_OPEN_ROLES || "0",
         },
       });
 child.on("exit", async () => {

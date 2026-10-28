@@ -1,3 +1,5 @@
+import { getAssetUrl } from '../utils/assets';
+
 export type SettingsTab =
   | 'my-account'
   | 'profiles'
@@ -13,7 +15,8 @@ export type SettingsTab =
   | 'voice-video'
   | 'notifications'
   | 'keybinds'
-  | 'language';
+  | 'language'
+  | 'about';
 
 export type UserStatus = 'online' | 'idle' | 'dnd' | 'offline';
 
@@ -43,6 +46,11 @@ export interface User {
   activity?: UserActivity;
   isBot?: boolean;
   roleIds?: string[];
+  nameFont?: string;
+  nameEffect?: 'solid' | 'gradient' | 'neon' | 'cartoon' | 'pop' | 'gummy' | 'prism';
+  nameColor?: string;
+  themePrimaryColor?: string;
+  themeSecondaryColor?: string;
 }
 
 export interface SavedAccount {
@@ -55,15 +63,96 @@ export interface SavedAccount {
 }
 
 export interface RolePermissions {
-  viewChannels: boolean;
+  // Geral e administração do servidor
+  administrator: boolean;
+  manageCommunity?: boolean;
+  viewAuditLog?: boolean;
+
+  // Gerenciamento de cargos e canais
   manageChannels: boolean;
   manageRoles: boolean;
+
+  // Gerenciamento de membros e moderação
   kickMembers: boolean;
   banMembers: boolean;
+  timeoutMembers?: boolean;
+  manageNicknames?: boolean;
+  changeNickname?: boolean;
+
+  // Canais e mensagens
+  viewChannels: boolean;
+  sendMessages?: boolean;
+  manageMessages?: boolean;
+  embedLinks?: boolean;
+  attachFiles?: boolean;
+  addReactions?: boolean;
+  mentionEveryone?: boolean;
+
+  // Voz e chamadas
   connectVoice: boolean;
+  speak?: boolean;
+  video?: boolean;
   streamScreen: boolean;
-  administrator: boolean;
+  muteMembers?: boolean;
+  disconnectMembers?: boolean;
+
+  // Recursos de comunidade
+  createInvites?: boolean;
 }
+
+export const PERMISSION_KEY_MAP: Record<keyof RolePermissions, string> = {
+  administrator: 'administrator',
+  manageCommunity: 'manage_community',
+  viewAuditLog: 'view_audit_log',
+  manageChannels: 'manage_channels',
+  manageRoles: 'manage_roles',
+  kickMembers: 'kick_members',
+  banMembers: 'ban_members',
+  timeoutMembers: 'timeout_members',
+  manageNicknames: 'manage_nicknames',
+  changeNickname: 'change_nickname',
+  viewChannels: 'view_channels',
+  sendMessages: 'send_messages',
+  manageMessages: 'manage_messages',
+  embedLinks: 'embed_links',
+  attachFiles: 'attach_files',
+  addReactions: 'add_reactions',
+  mentionEveryone: 'mention_everyone',
+  connectVoice: 'connect_voice',
+  speak: 'speak',
+  video: 'video',
+  streamScreen: 'share_screen',
+  muteMembers: 'mute_members',
+  disconnectMembers: 'disconnect_members',
+  createInvites: 'create_invites',
+};
+
+export const DEFAULT_MEMBER_PERMISSIONS: RolePermissions = {
+  administrator: false,
+  manageCommunity: false,
+  viewAuditLog: false,
+  manageChannels: false,
+  manageRoles: false,
+  kickMembers: false,
+  banMembers: false,
+  timeoutMembers: false,
+  manageNicknames: false,
+  changeNickname: true,
+  viewChannels: true,
+  sendMessages: true,
+  manageMessages: false,
+  embedLinks: true,
+  attachFiles: true,
+  addReactions: true,
+  mentionEveryone: false,
+  connectVoice: true,
+  speak: true,
+  video: false,
+  streamScreen: true,
+  muteMembers: false,
+  disconnectMembers: false,
+  createInvites: true,
+};
 
 export interface Role {
   id: string;
@@ -75,6 +164,7 @@ export interface Role {
   memberCount?: number;
   onlineCount?: number;
   isDefault?: boolean;
+  base_role?: string;
 }
 
 export type ChannelType = 'text' | 'voice' | 'announcement' | 'forum';
@@ -359,6 +449,7 @@ export interface VoiceParticipant {
   isScreenSharing: boolean;
   isVideoOn: boolean;
   streamUrl?: string;
+  mediaStream?: MediaStream;
 }
 
 export interface VoiceConnectionState {
@@ -369,6 +460,7 @@ export interface VoiceConnectionState {
   channelName?: string;
   pingMs: number;
   participants: VoiceParticipant[];
+  error?: string;
 }
 
 export interface ShopItem {
@@ -413,10 +505,3 @@ export interface AuditLogEntry {
   details?: string;
 }
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      getScreenSources: () => Promise<ElectronScreenSource[]>;
-    };
-  }
-}

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { getAssetUrl } from '../../utils/assets';
 import {
   Crown,
   Gift,
@@ -36,7 +37,7 @@ export const DiscordUltraPassView: React.FC<Props> = ({ isSettingsTab = false })
         backgroundImage: `radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.28) 0%, transparent 50%),
                           radial-gradient(circle at 20% 60%, rgba(79, 70, 229, 0.2) 0%, transparent 50%),
                           radial-gradient(circle at 75% 85%, rgba(236, 72, 153, 0.22) 0%, transparent 50%),
-                          url('/assets/ultrapass/fundo.png')`,
+                          url('${getAssetUrl('assets/ultrapass/fundo.png')}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         backgroundRepeat: 'no-repeat',
@@ -142,7 +143,7 @@ export const DiscordUltraPassView: React.FC<Props> = ({ isSettingsTab = false })
 
             <div className="relative w-full flex items-center justify-center">
               <img
-                src="/assets/ultrapass/capy.png"
+                src={getAssetUrl('assets/ultrapass/capy.png')}
                 alt="Capivara Super-heroína Ultra Pass"
                 className={`w-full h-auto ${
                   isSettingsTab ? 'max-h-[260px]' : ''
@@ -152,7 +153,7 @@ export const DiscordUltraPassView: React.FC<Props> = ({ isSettingsTab = false })
               {/* Cristal flutuante no topo esquerdo */}
               <div className="absolute -top-3 -left-3 w-10 h-10 sm:w-14 sm:h-14 pointer-events-none animate-bounce duration-[3000ms] hidden sm:block">
                 <img
-                  src="/assets/ultrapass/cristal.png"
+                  src={getAssetUrl('assets/ultrapass/cristal.png')}
                   alt=""
                   className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.8)]"
                 />
@@ -161,7 +162,7 @@ export const DiscordUltraPassView: React.FC<Props> = ({ isSettingsTab = false })
               {/* Raios dourados na base direita */}
               <div className="absolute -bottom-2 right-2 w-10 h-10 sm:w-12 sm:h-12 pointer-events-none hidden sm:block">
                 <img
-                  src="/assets/ultrapass/raios.png"
+                  src={getAssetUrl('assets/ultrapass/raios.png')}
                   alt=""
                   className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]"
                 />
@@ -357,7 +358,7 @@ export const DiscordUltraPassView: React.FC<Props> = ({ isSettingsTab = false })
               }`}
             >
               <img
-                src="/assets/ultrapass/parte2/capy.png"
+                src={getAssetUrl('assets/ultrapass/parte2/capy.png')}
                 alt="Capivara Ultra Pass"
                 className="w-full h-auto object-contain drop-shadow-[0_12px_30px_rgba(139,92,246,0.65)]"
               />

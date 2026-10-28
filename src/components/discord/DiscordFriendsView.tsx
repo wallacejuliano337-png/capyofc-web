@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDiscord } from '../../store/discordStore';
 import { User } from '../../types/discord';
 import { DiscordUserContextMenu } from './DiscordUserContextMenu';
-import { getAvatarUrl } from '../../utils/avatar';
+import { getAvatarUrl, handleAvatarError } from '../../utils/avatar';
 import {
   Users,
   MessageSquare,
@@ -232,8 +232,9 @@ export const DiscordFriendsView: React.FC = () => {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <img
-                        src={req.user.avatar}
+                        src={getAvatarUrl(req.user.avatar)}
                         alt={req.user.name}
+                        onError={handleAvatarError}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                       <div className="flex flex-col min-w-0">

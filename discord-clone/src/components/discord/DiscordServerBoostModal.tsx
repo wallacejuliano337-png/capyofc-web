@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useDiscord, currentUser } from '../../store/discordStore';
 import { isOfficialCommunity } from '../../services/communityLevel';
+import { getAssetUrl } from '../../utils/assets';
 
 const PawIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4 text-[#c084fc]" }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -357,7 +358,7 @@ export const DiscordServerBoostModal: React.FC = () => {
           <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
             {/* 1. Fundo Cósmico das Montanhas */}
             <img
-              src="/assets/impulso/fundo.png"
+              src={getAssetUrl('assets/impulso/fundo.png')}
               alt="Fundo Cósmico"
               className="absolute inset-0 w-full h-full object-cover object-center opacity-95"
             />
@@ -369,7 +370,7 @@ export const DiscordServerBoostModal: React.FC = () => {
 
             {/* 3. Partículas e Efeitos de Brilho */}
             <img
-              src="/assets/impulso/efeito.png"
+              src={getAssetUrl('assets/impulso/efeito.png')}
               alt="Efeito de Brilho"
               className="absolute inset-0 w-full h-full object-cover object-center mix-blend-screen opacity-80"
             />
@@ -377,7 +378,7 @@ export const DiscordServerBoostModal: React.FC = () => {
             {/* 4. Grande Cristal Roxo Flutuante ao Fundo à Esquerda */}
             <div className="absolute -left-4 sm:-left-6 md:-left-8 lg:-left-10 xl:-left-12 top-1/2 -translate-y-[44%] w-64 sm:w-80 md:w-96 lg:w-[460px] xl:w-[510px] 2xl:w-[550px] max-w-[34vw] pointer-events-none transition-transform duration-700 hover:scale-105 z-10 flex items-center justify-center select-none">
               <img
-                src="/assets/impulso/cristal-principal.png"
+                src={getAssetUrl('assets/impulso/cristal-principal.png')}
                 alt="Cristal de Impulso Principal"
                 className="w-full h-auto object-contain drop-shadow-[0_0_65px_rgba(217,70,239,0.8)]"
               />
@@ -386,7 +387,7 @@ export const DiscordServerBoostModal: React.FC = () => {
             {/* 5. Mascote Capivara Gamer com Raio à Direita (Deslocada à Esquerda e Acomodada nas Rochas) */}
             <div className="absolute right-2 sm:right-4 md:right-6 lg:right-10 xl:right-14 2xl:right-18 top-1/2 -translate-y-[38%] w-64 sm:w-80 md:w-96 lg:w-[460px] xl:w-[510px] 2xl:w-[550px] max-w-[34vw] pointer-events-none transition-transform duration-700 hover:scale-105 z-10 flex items-center justify-center select-none">
               <img
-                src="/assets/impulso/capy.png"
+                src={getAssetUrl('assets/impulso/capy.png')}
                 alt="Capivara Gamer com Raio"
                 className="w-full h-auto object-contain drop-shadow-[0_0_65px_rgba(250,204,21,0.5)]"
               />
@@ -394,14 +395,14 @@ export const DiscordServerBoostModal: React.FC = () => {
 
             {/* 6. Formações Rochosas da Base e Laterais (Sobrepondo Pés da Mascote e Base dos Cristais) */}
             <img
-              src="/assets/impulso/pedras.png"
+              src={getAssetUrl('assets/impulso/pedras.png')}
               alt="Formações Rochosas"
               className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none z-14"
             />
 
             {/* 7. Cristais Menores Flutuantes no Céu */}
             <img
-              src="/assets/impulso/cristais-menores.png"
+              src={getAssetUrl('assets/impulso/cristais-menores.png')}
               alt="Cristais Menores"
               className="absolute inset-0 w-full h-full object-cover object-center mix-blend-screen opacity-90 pointer-events-none z-16"
             />
@@ -486,7 +487,7 @@ export const DiscordServerBoostModal: React.FC = () => {
             {/* 4. Player Central Ilustrativo (Cena Gamers) */}
             <div className="relative w-full max-w-lg lg:max-w-xl mx-auto rounded-2xl overflow-hidden border-2 border-[#8b5cf6]/60 shadow-[0_0_30px_rgba(139,92,246,0.3)] bg-[#0d0e15] aspect-[16/9.2] group cursor-pointer transition-transform hover:scale-[1.01] my-0.5">
               <img
-                src="/assets/impulso/capy-gamer.png"
+                src={getAssetUrl('assets/impulso/capy-gamer.png')}
                 alt="CapyChat Gamers"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
@@ -504,7 +505,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                 {/* Nível 1 */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img
-                    src="/assets/impulso/cristal-1.png"
+                    src={getAssetUrl('assets/impulso/cristal-1.png')}
                     alt="Nível 1"
                     className={`w-8 h-8 sm:w-10 sm:h-10 object-contain flex-shrink-0 transition-all duration-500 ${
                       boostCount >= 2 ? 'scale-110 drop-shadow-[0_0_14px_rgba(236,72,153,0.95)] opacity-100' : 'opacity-80'
@@ -536,7 +537,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                 {/* Nível 2 */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img
-                    src="/assets/impulso/cristal-2.png"
+                    src={getAssetUrl('assets/impulso/cristal-2.png')}
                     alt="Nível 2"
                     className={`w-8 h-8 sm:w-10 sm:h-10 object-contain flex-shrink-0 transition-all duration-500 ${
                       boostCount >= 7 ? 'scale-110 drop-shadow-[0_0_14px_rgba(168,85,247,0.95)] opacity-100' : 'opacity-80'
@@ -568,7 +569,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                 {/* Nível 3 */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <img
-                    src="/assets/impulso/cristal-3.png"
+                    src={getAssetUrl('assets/impulso/cristal-3.png')}
                     alt="Nível 3"
                     className={`w-8 h-8 sm:w-10 sm:h-10 object-contain flex-shrink-0 transition-all duration-500 ${
                       boostCount >= 14 ? 'scale-110 drop-shadow-[0_0_14px_rgba(234,179,8,0.95)] opacity-100' : 'opacity-80'
@@ -653,7 +654,7 @@ export const DiscordServerBoostModal: React.FC = () => {
           {/* Fundo sutil com gradiente roxo e brilho ambiente */}
           <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
             <img
-              src="/assets/impulso/parte2/fundo.png"
+              src={getAssetUrl('assets/impulso/parte2/fundo.png')}
               alt="Fundo Vantagens Extras"
               className="w-full h-full object-cover opacity-60 mix-blend-screen"
             />
@@ -693,12 +694,12 @@ export const DiscordServerBoostModal: React.FC = () => {
                 <div className="relative w-full h-40 sm:h-44 md:h-48 flex items-center justify-center">
                   <div className="flex items-center justify-center gap-2 sm:gap-3 transition-transform duration-300 group-hover:scale-105">
                     <img
-                      src="/assets/impulso/parte2/capy.png"
+                      src={getAssetUrl('assets/impulso/parte2/capy.png')}
                       alt="Capy Gamer"
                       className="h-28 sm:h-34 md:h-36 object-contain drop-shadow-[0_0_20px_rgba(168,85,247,0.45)]"
                     />
                     <img
-                      src="/assets/impulso/parte2/capylider.png"
+                      src={getAssetUrl('assets/impulso/parte2/capylider.png')}
                       alt="CapyLíder"
                       className="h-20 sm:h-24 md:h-26 object-contain drop-shadow-[0_0_25px_rgba(236,72,153,0.5)]"
                     />
@@ -730,7 +731,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                 {/* Ilustração Bloquinhos 3D */}
                 <div className="relative w-full h-40 sm:h-44 md:h-48 flex items-center justify-center">
                   <img
-                    src="/assets/impulso/parte2/bloquinhos.png"
+                    src={getAssetUrl('assets/impulso/parte2/bloquinhos.png')}
                     alt="Tags da Comunidade CAPY e LYC"
                     className="h-28 sm:h-34 md:h-36 object-contain drop-shadow-[0_0_25px_rgba(236,72,153,0.5)] transition-transform duration-300 group-hover:scale-105"
                   />
@@ -764,7 +765,7 @@ export const DiscordServerBoostModal: React.FC = () => {
           {/* Fundo imersivo com lago e caverna de cristais */}
           <div className="absolute inset-0 pointer-events-none select-none">
             <img
-              src="/assets/impulso/parte3/fundo.png"
+              src={getAssetUrl('assets/impulso/parte3/fundo.png')}
               alt="Cenário Caverna de Cristais"
               className="w-full h-full object-cover object-bottom opacity-80"
             />
@@ -787,7 +788,7 @@ export const DiscordServerBoostModal: React.FC = () => {
             <div className="relative w-full max-w-5xl">
               {/* Mascote Capivara debruçada apoiada com as patinhas na borda superior direita do card */}
               <img
-                src="/assets/impulso/parte3/capy.png"
+                src={getAssetUrl('assets/impulso/parte3/capy.png')}
                 alt="Capivara CapyChat"
                 className="absolute bottom-full translate-y-3 sm:translate-y-4 right-4 sm:right-8 md:right-12 w-44 sm:w-56 md:w-64 z-20 pointer-events-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.85)] object-contain"
               />
@@ -818,7 +819,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                         {/* Sem impulsos */}
                         <div className="flex flex-col items-center justify-center text-center">
                           <img
-                            src="/assets/impulso/parte3/bronze.png"
+                            src={getAssetUrl('assets/impulso/parte3/bronze.png')}
                             alt="Sem impulsos"
                             className="w-12 h-12 object-contain mb-2 drop-shadow-md"
                           />
@@ -829,7 +830,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                         {/* Nível 1 */}
                         <div className="flex flex-col items-center justify-center text-center">
                           <img
-                            src="/assets/impulso/parte3/prata.png"
+                            src={getAssetUrl('assets/impulso/parte3/prata.png')}
                             alt="Nível 1"
                             className="w-12 h-12 object-contain mb-2 drop-shadow-md"
                           />
@@ -840,7 +841,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                         {/* Nível 2 */}
                         <div className="flex flex-col items-center justify-center text-center relative z-20">
                           <img
-                            src="/assets/impulso/parte3/ouro.png"
+                            src={getAssetUrl('assets/impulso/parte3/ouro.png')}
                             alt="Nível 2"
                             className="w-12 h-12 object-contain mb-2 drop-shadow-md"
                           />
@@ -851,7 +852,7 @@ export const DiscordServerBoostModal: React.FC = () => {
                         {/* Nível 3 */}
                         <div className="flex flex-col items-center justify-center text-center">
                           <img
-                            src="/assets/impulso/parte3/esmeralda.png"
+                            src={getAssetUrl('assets/impulso/parte3/esmeralda.png')}
                             alt="Nível 3"
                             className="w-12 h-12 object-contain mb-2 drop-shadow-md"
                           />

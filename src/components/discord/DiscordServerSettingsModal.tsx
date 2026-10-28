@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDiscord, mockUsers, currentUser } from '../../store/discordStore';
-import { User, Role, resolveServerTagBadge, resolveServerTagColor, resolveServerTagBadgeIcon, SERVER_TAG_BADGES, ServerSticker } from '../../types/discord';
+import { User, Role, RolePermissions, resolveServerTagBadge, resolveServerTagColor, resolveServerTagBadgeIcon, SERVER_TAG_BADGES, ServerSticker } from '../../types/discord';
 import { LycVerifiedBadge } from './LycVerifiedBadge';
 import { DiscordDeleteServerModal } from './DiscordDeleteServerModal';
 import {
@@ -9,6 +9,7 @@ import {
   downloadTemplateAsJson,
 } from '../../services/server-templates';
 import { isOfficialCommunity } from '../../services/communityLevel';
+import { getAssetUrl } from '../../utils/assets';
 import {
   X,
   Shield,
@@ -107,6 +108,186 @@ const COLOR_GRADIENTS: ColorGradient[] = [
   { id: 'dark-gray', name: 'Cinza escuro', gradientClass: 'from-[#4e5058] to-[#2b2d31]', fromColor: '#4e5058', toColor: '#2b2d31' },
 ];
 
+interface RolePermissionItemDef {
+  key: keyof RolePermissions;
+  label: string;
+  desc: string;
+  isDanger?: boolean;
+  adminOnly?: boolean;
+}
+
+interface RolePermissionCategoryDef {
+  title: string;
+  description: string;
+  permissions: RolePermissionItemDef[];
+}
+
+const ROLE_PERMISSION_CATEGORIES: RolePermissionCategoryDef[] = [
+  {
+    title: 'Geral e Administração do Servidor',
+    description: 'Controle de privilégios e governança do servidor.',
+    permissions: [
+      {
+        key: 'administrator',
+        label: 'Administrador',
+        desc: 'Concede todas as permissões ao membro e contorna restrições de canais e cargos. Use com extrema cautela!',
+        isDanger: true,
+        adminOnly: true,
+      },
+      {
+        key: 'manageCommunity',
+        label: 'Gerenciar Servidor',
+        desc: 'Permite alterar o nome do servidor, ícone, banner, notificações e descrição.',
+        isDanger: true,
+      },
+      {
+        key: 'viewAuditLog',
+        label: 'Ver Registro de Auditoria',
+        desc: 'Permite visualizar o histórico detalhado de alterações e ações administrativas.',
+      },
+    ],
+  },
+  {
+    title: 'Cargos e Canais',
+    description: 'Estruturação de permissões e organização da comunidade.',
+    permissions: [
+      {
+        key: 'manageRoles',
+        label: 'Gerenciar Cargos',
+        desc: 'Permite criar novos cargos e editar ou excluir cargos abaixo deste na hierarquia.',
+        isDanger: true,
+      },
+      {
+        key: 'manageChannels',
+        label: 'Gerenciar Canais',
+        desc: 'Permite criar, editar, reordenar ou excluir canais de texto e voz.',
+        isDanger: true,
+      },
+    ],
+  },
+  {
+    title: 'Membros e Moderação',
+    description: 'Manutenção da ordem e convivência dos membros.',
+    permissions: [
+      {
+        key: 'kickMembers',
+        label: 'Expulsar Membros',
+        desc: 'Permite remover membros do servidor. Eles poderão retornar se convidados novamente.',
+        isDanger: true,
+      },
+      {
+        key: 'banMembers',
+        label: 'Banir Membros',
+        desc: 'Permite banir permanentemente membros do servidor, revogando o acesso.',
+        isDanger: true,
+      },
+      {
+        key: 'timeoutMembers',
+        label: 'Moderar / Silenciar Membros',
+        desc: 'Permite aplicar castigos temporários ou silenciamento preventivo.',
+        isDanger: true,
+      },
+      {
+        key: 'changeNickname',
+        label: 'Alterar Próprio Apelido',
+        desc: 'Permite que o usuário altere seu próprio apelido neste servidor.',
+      },
+      {
+        key: 'manageNicknames',
+        label: 'Gerenciar Apelidos',
+        desc: 'Permite alterar os apelidos de outros membros do servidor.',
+      },
+    ],
+  },
+  {
+    title: 'Canais e Mensagens',
+    description: 'Privilégios de envio, edição e interações textuais.',
+    permissions: [
+      {
+        key: 'viewChannels',
+        label: 'Ver Canais',
+        desc: 'Permite aos membros lerem o histórico e mensagens nos canais de texto.',
+      },
+      {
+        key: 'sendMessages',
+        label: 'Enviar Mensagens',
+        desc: 'Permite enviar mensagens nos canais de texto e tópicos.',
+      },
+      {
+        key: 'manageMessages',
+        label: 'Gerenciar Mensagens',
+        desc: 'Permite apagar ou fixar mensagens de outros membros.',
+        isDanger: true,
+      },
+      {
+        key: 'attachFiles',
+        label: 'Anexar Arquivos e Mídias',
+        desc: 'Permite enviar imagens, vídeos e arquivos nos canais.',
+      },
+      {
+        key: 'mentionEveryone',
+        label: 'Mencionar @everyone e @here',
+        desc: 'Permite emitir menções que notificam todos os membros da comunidade.',
+        isDanger: true,
+      },
+      {
+        key: 'addReactions',
+        label: 'Adicionar Reações',
+        desc: 'Permite adicionar novas reações com emojis às mensagens.',
+      },
+    ],
+  },
+  {
+    title: 'Voz e Chamadas',
+    description: 'Controle de áudio, microfone e transmissões.',
+    permissions: [
+      {
+        key: 'connectVoice',
+        label: 'Conectar à Voz',
+        desc: 'Permite entrar em canais de voz e escutar outros membros.',
+      },
+      {
+        key: 'speak',
+        label: 'Falar na Voz',
+        desc: 'Permite falar pelos microfones nos canais de voz.',
+      },
+      {
+        key: 'streamScreen',
+        label: 'Compartilhar Tela',
+        desc: 'Permite transmitir a tela ou aplicativos em canais de voz.',
+      },
+      {
+        key: 'video',
+        label: 'Vídeo / Transmissão de Câmera',
+        desc: 'Permite ligar a câmera em canais de voz.',
+      },
+      {
+        key: 'muteMembers',
+        label: 'Silenciar Membros na Voz',
+        desc: 'Permite silenciar o microfone de outros membros na chamada de voz.',
+        isDanger: true,
+      },
+      {
+        key: 'disconnectMembers',
+        label: 'Desconectar Membros',
+        desc: 'Permite desconectar outros usuários de um canal de voz.',
+        isDanger: true,
+      },
+    ],
+  },
+  {
+    title: 'Recursos de Comunidade',
+    description: 'Compartilhamento e atalhos de engajamento da comunidade.',
+    permissions: [
+      {
+        key: 'createInvites',
+        label: 'Criar Convites',
+        desc: 'Permite gerar links de convite para trazer novas pessoas ao servidor.',
+      },
+    ],
+  },
+];
+
 const DISCORD_ROLE_COLORS = [
   { name: 'Padrão', hex: '#99aab5' },
   { name: 'Verde', hex: '#2ecc71' },
@@ -154,7 +335,9 @@ export const DiscordServerSettingsModal: React.FC = () => {
     enableCommunity,
     disableCommunity,
     canUserModerate,
+    hasServerPermission,
     currentUser: storeCurrentUser,
+    isAuthenticated,
     getAuditLogs,
     addAuditLogEntry,
   } = useDiscord();
@@ -162,15 +345,84 @@ export const DiscordServerSettingsModal: React.FC = () => {
   const currentServer = servers.find((s) => s.id === activeServerId) || servers[0];
   const isOfficial = isOfficialCommunity(currentServer);
 
+  const isOwner = Boolean(
+    (!isAuthenticated && (storeCurrentUser?.id === 'user-ares' || (storeCurrentUser?.id === 'user-me' && currentServer && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+    (currentServer && storeCurrentUser?.id && currentServer.ownerId === storeCurrentUser.id) ||
+    (isOfficial && storeCurrentUser?.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+  );
+
+  const canManageCommunity = isOwner || hasServerPermission('administrator', currentServer?.id) || hasServerPermission('manageCommunity', currentServer?.id);
+  const canManageRoles = isOwner || hasServerPermission('administrator', currentServer?.id) || hasServerPermission('manageRoles', currentServer?.id);
+  const canManageChannels = isOwner || hasServerPermission('administrator', currentServer?.id) || hasServerPermission('manageChannels', currentServer?.id);
+  const canViewAuditLog = isOwner || hasServerPermission('administrator', currentServer?.id) || hasServerPermission('viewAuditLog', currentServer?.id);
+  const canModerate = isOwner || hasServerPermission('administrator', currentServer?.id) || hasServerPermission('kickMembers', currentServer?.id) || hasServerPermission('banMembers', currentServer?.id) || hasServerPermission('timeoutMembers', currentServer?.id);
+  const canManageExpressions = canManageCommunity;
+  const canCreateInvites = isOwner || hasServerPermission('administrator', currentServer?.id) || hasServerPermission('manageCommunity', currentServer?.id) || hasServerPermission('createInvites', currentServer?.id);
+  const canManageWebhooks = canManageCommunity;
+
+  const canAccessSettings = isOwner || canManageCommunity || canManageRoles || canManageChannels || canViewAuditLog || canModerate;
+
   const [activeTab, setActiveTab] = useState<string>(serverSettingsTab || 'server-profile');
   const [hasChanges, setHasChanges] = useState(false);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = useState(false);
+  const [roleSaveError, setRoleSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canAccessSettings) {
+      closeServerSettings();
+    }
+  }, [canAccessSettings, closeServerSettings]);
 
   useEffect(() => {
     if (serverSettingsTab) {
       setActiveTab(serverSettingsTab);
     }
   }, [serverSettingsTab]);
+
+  useEffect(() => {
+    const isTabPermitted = (tab: string) => {
+      switch (tab) {
+        case 'server-profile':
+        case 'server-tag':
+        case 'engagement':
+        case 'enable-community':
+        case 'server-template':
+        case 'security':
+        case 'automod':
+          return canManageCommunity;
+        case 'roles':
+          return canManageRoles;
+        case 'channels':
+          return canManageChannels;
+        case 'members':
+          return canModerate || canManageRoles || canManageCommunity;
+        case 'audit-log':
+          return canViewAuditLog;
+        case 'bans':
+          return canModerate;
+        case 'emoji':
+        case 'stickers':
+        case 'soundboard':
+          return canManageExpressions;
+        case 'invites':
+          return canCreateInvites;
+        case 'integrations':
+        case 'app-directory':
+          return canManageWebhooks;
+        default:
+          return canManageCommunity;
+      }
+    };
+
+    if (!isTabPermitted(activeTab)) {
+      if (canManageCommunity) setActiveTab('server-profile');
+      else if (canManageRoles) setActiveTab('roles');
+      else if (canModerate) setActiveTab('members');
+      else if (canViewAuditLog) setActiveTab('audit-log');
+      else if (canCreateInvites) setActiveTab('invites');
+      else if (canManageExpressions) setActiveTab('emoji');
+    }
+  }, [activeTab, canManageCommunity, canManageRoles, canManageChannels, canModerate, canViewAuditLog, canManageExpressions, canCreateInvites, canManageWebhooks]);
 
   // 1. Perfil do Servidor State
   const [serverName, setServerName] = useState(currentServer?.name || '');
@@ -523,46 +775,48 @@ export const DiscordServerSettingsModal: React.FC = () => {
   const currentTagColorObj = resolveServerTagColor(selectedTagColor);
 
   const handleSaveAll = () => {
-    updateServer(currentServer.id, {
-      name: serverName.trim() || currentServer.name,
-      icon: serverIcon,
-      bannerColor: selectedGradientId,
-      bannerImage,
-      banner: bannerImage || undefined,
-      traits: traits.filter((t) => t.trim().length > 0),
-      description: description.trim(),
-      serverTag: serverTag.trim(),
-      serverTagBadge: selectedBadge,
-      serverTagBadgeImage,
-      serverTagColor: selectedTagColor,
-      welcomeRandomMsg,
-      welcomeStickerPrompt,
-      boostSystemMsg,
-      tipsSystemMsg,
-      systemChannelId,
-      activityFeedEnabled,
-      defaultNotification,
-      afkChannelId,
-      afkTimeout,
-      showBoostProgressBar,
-      boostCount: serverBoostCount,
-      boostLevel: (serverBoostCount >= 14 ? 3 : serverBoostCount >= 7 ? 2 : serverBoostCount >= 2 ? 1 : 0) as 0 | 1 | 2 | 3,
-      accessMode,
-      isNsfw,
-      rules: rulesList,
-      verificationLevel,
-      require2FA,
-      restrictKicksToAdmin,
-      explicitContentFilter,
-      activityAlerts,
-      isVerified,
-      verifiedBadgeStyle,
-      memberCount: serverMemberCount,
-      createdAtDaysAgo: serverCreatedAtDaysAgo,
-      stickers: serverStickers,
-    });
+    if (canManageCommunity) {
+      updateServer(currentServer.id, {
+        name: serverName.trim() || currentServer.name,
+        icon: serverIcon,
+        bannerColor: selectedGradientId,
+        bannerImage,
+        banner: bannerImage || undefined,
+        traits: traits.filter((t) => t.trim().length > 0),
+        description: description.trim(),
+        serverTag: serverTag.trim(),
+        serverTagBadge: selectedBadge,
+        serverTagBadgeImage,
+        serverTagColor: selectedTagColor,
+        welcomeRandomMsg,
+        welcomeStickerPrompt,
+        boostSystemMsg,
+        tipsSystemMsg,
+        systemChannelId,
+        activityFeedEnabled,
+        defaultNotification,
+        afkChannelId,
+        afkTimeout,
+        showBoostProgressBar,
+        boostCount: serverBoostCount,
+        boostLevel: (serverBoostCount >= 14 ? 3 : serverBoostCount >= 7 ? 2 : serverBoostCount >= 2 ? 1 : 0) as 0 | 1 | 2 | 3,
+        accessMode,
+        isNsfw,
+        rules: rulesList,
+        verificationLevel,
+        require2FA,
+        restrictKicksToAdmin,
+        explicitContentFilter,
+        activityAlerts,
+        isVerified,
+        verifiedBadgeStyle,
+        memberCount: serverMemberCount,
+        createdAtDaysAgo: serverCreatedAtDaysAgo,
+        stickers: serverStickers,
+      });
+    }
 
-    if (editingRoleId) {
+    if (editingRoleId && canManageRoles) {
       updateRole(editingRoleId, {
         name: editingRoleName.trim() || 'novo cargo',
         color: editingRoleColor,
@@ -625,6 +879,11 @@ export const DiscordServerSettingsModal: React.FC = () => {
   };
 
   const handleCreateRole = () => {
+    if (!canManageRoles) {
+      setRoleSaveError('Você não tem permissão para criar cargos.');
+      setTimeout(() => setRoleSaveError(null), 3500);
+      return;
+    }
     const newRoleId = `role-${Date.now()}`;
     const newRole: Role = {
       id: newRoleId,
@@ -649,7 +908,7 @@ export const DiscordServerSettingsModal: React.FC = () => {
     setRoleSubTab('display');
   };
 
-  const toggleMemberRole = (userId: string, roleId: string) => {
+  const toggleMemberRole = async (userId: string, roleId: string) => {
     const currentRoles = userRoleMap[userId] || [];
     let updated: string[];
     if (currentRoles.includes(roleId)) {
@@ -657,7 +916,11 @@ export const DiscordServerSettingsModal: React.FC = () => {
     } else {
       updated = [...currentRoles, roleId];
     }
-    setUserRoles(userId, updated);
+    const res = await setUserRoles(userId, updated, currentServer.id);
+    if (res && !res.success && res.error) {
+      setRoleSaveError(res.error);
+      setTimeout(() => setRoleSaveError(null), 3500);
+    }
   };
 
   const handleAddRule = () => {
@@ -766,6 +1029,8 @@ export const DiscordServerSettingsModal: React.FC = () => {
   const everyoneRole = roles.find((r) => r.id === 'role-everyone') || roles[roles.length - 1];
   const currentEditingRole = roles.find((r) => r.id === editingRoleId);
 
+  if (!canAccessSettings) return null;
+
   return (
     <div className="fixed inset-0 z-50 bg-[#313338] flex select-none animate-in fade-in duration-150 overflow-hidden font-sans">
       {/* ── 1. SIDEBAR LATERAL ESQUERDA (Estrutura e seções oficiais) ───── */}
@@ -782,301 +1047,344 @@ export const DiscordServerSettingsModal: React.FC = () => {
           </div>
 
           {/* Itens Superiores */}
-          <div className="space-y-0.5">
-            <button
-              onClick={() => {
-                setActiveTab('server-profile');
-                setEditingRoleId(null);
-              }}
-              className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                activeTab === 'server-profile'
-                  ? 'bg-[#35373c] text-white font-semibold'
-                  : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-              }`}
-            >
-              <span>Perfil do servidor</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('server-tag');
-                setEditingRoleId(null);
-              }}
-              className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                activeTab === 'server-tag'
-                  ? 'bg-[#35373c] text-white font-semibold'
-                  : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-              }`}
-            >
-              <span>Tag do servidor</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('engagement');
-                setEditingRoleId(null);
-              }}
-              className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                activeTab === 'engagement'
-                  ? 'bg-[#35373c] text-white font-semibold'
-                  : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-              }`}
-            >
-              <span>Engajamento</span>
-            </button>
-          </div>
+          {canManageCommunity && (
+            <>
+              <div className="space-y-0.5">
+                <button
+                  onClick={() => {
+                    setActiveTab('server-profile');
+                    setEditingRoleId(null);
+                  }}
+                  className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                    activeTab === 'server-profile'
+                      ? 'bg-[#35373c] text-white font-semibold'
+                      : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                  }`}
+                >
+                  <span>Perfil do servidor</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('server-tag');
+                    setEditingRoleId(null);
+                  }}
+                  className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                    activeTab === 'server-tag'
+                      ? 'bg-[#35373c] text-white font-semibold'
+                      : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                  }`}
+                >
+                  <span>Tag do servidor</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('engagement');
+                    setEditingRoleId(null);
+                  }}
+                  className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                    activeTab === 'engagement'
+                      ? 'bg-[#35373c] text-white font-semibold'
+                      : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                  }`}
+                >
+                  <span>Engajamento</span>
+                </button>
+              </div>
 
-          <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+              <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+            </>
+          )}
 
           {/* Divisor e Seção EXPRESSÕES */}
-          <div>
-            <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
-              Expressões
-            </div>
-            <div className="space-y-0.5 mt-0.5">
-              <button
-                onClick={() => {
-                  setActiveTab('emoji');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'emoji'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Emoji</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('stickers');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'stickers'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Figurinhas</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('soundboard');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'soundboard'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Painel de efeitos sonoros</span>
-              </button>
-            </div>
-          </div>
+          {canManageExpressions && (
+            <>
+              <div>
+                <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
+                  Expressões
+                </div>
+                <div className="space-y-0.5 mt-0.5">
+                  <button
+                    onClick={() => {
+                      setActiveTab('emoji');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'emoji'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Emoji</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('stickers');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'stickers'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Figurinhas</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('soundboard');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'soundboard'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Painel de efeitos sonoros</span>
+                  </button>
+                </div>
+              </div>
 
-          <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+              <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+            </>
+          )}
 
           {/* Divisor e Seção PESSOAS */}
-          <div>
-            <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
-              Pessoas
+          {(canModerate || canManageRoles || canCreateInvites || canManageCommunity) && (
+            <div>
+              <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
+                Pessoas
+              </div>
+              <div className="space-y-0.5 mt-0.5">
+                {(canModerate || canManageRoles || canManageCommunity) && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('members');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'members'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Membros</span>
+                  </button>
+                )}
+                {canManageRoles && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('roles');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'roles'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Cargos</span>
+                  </button>
+                )}
+                {canCreateInvites && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('invites');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'invites'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Convites</span>
+                  </button>
+                )}
+                {canManageCommunity && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('access');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'access'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Acesso</span>
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="space-y-0.5 mt-0.5">
-              <button
-                onClick={() => {
-                  setActiveTab('members');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'members'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Membros</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('roles');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'roles'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Cargos</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('invites');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'invites'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Convites</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('access');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'access'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Acesso</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+          )}
 
           {/* Divisor e Seção APPS */}
-          <div>
-            <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
-              Apps
-            </div>
-            <div className="space-y-0.5 mt-0.5">
-              <button
-                onClick={() => {
-                  setActiveTab('integrations');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'integrations'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Integrações</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('app-directory');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'app-directory'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Diretório de Apps</span>
-                <ExternalLink className="w-3.5 h-3.5 text-[#949ba4]" />
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+          {canManageWebhooks && (
+            <>
+              <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+              <div>
+                <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
+                  Apps
+                </div>
+                <div className="space-y-0.5 mt-0.5">
+                  <button
+                    onClick={() => {
+                      setActiveTab('integrations');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'integrations'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Integrações</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('app-directory');
+                      setEditingRoleId(null);
+                    }}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                      activeTab === 'app-directory'
+                        ? 'bg-[#35373c] text-white font-semibold'
+                        : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                    }`}
+                  >
+                    <span>Diretório de Apps</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-[#949ba4]" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Divisor e Seção MODERAÇÃO */}
-          <div>
-            <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
-              Moderação
-            </div>
-            <div className="space-y-0.5 mt-0.5">
-              <button
-                onClick={() => {
-                  setActiveTab('security');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'security'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Configurações de Segurança</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('audit-log');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'audit-log'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Registro de auditoria</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('bans');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'bans'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>Banimentos</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('automod');
-                  setEditingRoleId(null);
-                }}
-                className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                  activeTab === 'automod'
-                    ? 'bg-[#35373c] text-white font-semibold'
-                    : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-                }`}
-              >
-                <span>AutoMod</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+          {(canManageCommunity || canViewAuditLog || canModerate) && (
+            <>
+              <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+              <div>
+                <div className="px-2 py-1 text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
+                  Moderação
+                </div>
+                <div className="space-y-0.5 mt-0.5">
+                  {canManageCommunity && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('security');
+                        setEditingRoleId(null);
+                      }}
+                      className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                        activeTab === 'security'
+                          ? 'bg-[#35373c] text-white font-semibold'
+                          : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                      }`}
+                    >
+                      <span>Configurações de Segurança</span>
+                    </button>
+                  )}
+                  {canViewAuditLog && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('audit-log');
+                        setEditingRoleId(null);
+                      }}
+                      className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                        activeTab === 'audit-log'
+                          ? 'bg-[#35373c] text-white font-semibold'
+                          : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                      }`}
+                    >
+                      <span>Registro de auditoria</span>
+                    </button>
+                  )}
+                  {canModerate && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('bans');
+                        setEditingRoleId(null);
+                      }}
+                      className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                        activeTab === 'bans'
+                          ? 'bg-[#35373c] text-white font-semibold'
+                          : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                      }`}
+                    >
+                      <span>Banimentos</span>
+                    </button>
+                  )}
+                  {canManageCommunity && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('automod');
+                        setEditingRoleId(null);
+                      }}
+                      className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                        activeTab === 'automod'
+                          ? 'bg-[#35373c] text-white font-semibold'
+                          : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                      }`}
+                    >
+                      <span>AutoMod</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Itens de rodapé */}
-          <div className="space-y-0.5">
-            <button
-              onClick={() => {
-                setActiveTab('enable-community');
-                setEditingRoleId(null);
-              }}
-              className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                activeTab === 'enable-community'
-                  ? 'bg-[#35373c] text-white font-semibold'
-                  : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-              }`}
-            >
-              <span>Habilitar comunidade</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('server-template');
-                setEditingRoleId(null);
-              }}
-              className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
-                activeTab === 'server-template'
-                  ? 'bg-[#35373c] text-white font-semibold'
-                  : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
-              }`}
-            >
-              <span>Modelo do servidor</span>
-            </button>
-            <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
-            <button
-              onClick={() => setIsDeleteServerModalOpen(true)}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] font-medium text-left text-[#f23f43] hover:bg-[#f23f43]/15 transition-colors cursor-pointer group"
-            >
-              <span>Excluir servidor</span>
-              <Trash2 className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
-            </button>
-          </div>
+          {(canManageCommunity || isOwner) && (
+            <>
+              <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+              <div className="space-y-0.5">
+                {canManageCommunity && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setActiveTab('enable-community');
+                        setEditingRoleId(null);
+                      }}
+                      className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                        activeTab === 'enable-community'
+                          ? 'bg-[#35373c] text-white font-semibold'
+                          : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                      }`}
+                    >
+                      <span>Habilitar comunidade</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('server-template');
+                        setEditingRoleId(null);
+                      }}
+                      className={`w-full flex items-center px-2 py-1.5 rounded-[4px] font-medium text-left transition-colors cursor-pointer ${
+                        activeTab === 'server-template'
+                          ? 'bg-[#35373c] text-white font-semibold'
+                          : 'text-[#949ba4] hover:bg-[#35373c]/40 hover:text-[#dbdee1]'
+                      }`}
+                    >
+                      <span>Modelo do servidor</span>
+                    </button>
+                  </>
+                )}
+                {isOwner && (
+                  <>
+                    <div className="h-[1px] bg-[#3f4147]/50 my-1 mx-2" />
+                    <button
+                      onClick={() => setIsDeleteServerModalOpen(true)}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] font-medium text-left text-[#f23f43] hover:bg-[#f23f43]/15 transition-colors cursor-pointer group"
+                    >
+                      <span>Excluir servidor</span>
+                      <Trash2 className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1984,14 +2292,10 @@ export const DiscordServerSettingsModal: React.FC = () => {
                           className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-sm text-white">
-                              {currentUser.displayName || currentUser.name}
-                            </span>
-
-                            {/* Tag Aplicada */}
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            {/* Tag Aplicada (à esquerda do nome) */}
                             <span
-                              className="inline-flex items-center gap-1.5 text-[11px] font-black px-2 py-0.5 rounded shadow-sm leading-none"
+                              className="inline-flex items-center gap-1.5 text-[11px] font-black px-2 py-0.5 rounded shadow-sm leading-none flex-shrink-0"
                               style={{
                                 backgroundColor: `${currentTagColorObj.hex}25`,
                                 color: currentTagColorObj.hex,
@@ -2005,6 +2309,10 @@ export const DiscordServerSettingsModal: React.FC = () => {
                                 style={{ imageRendering: 'pixelated' }}
                               />
                               <span className="leading-none">{serverTag || 'TAG'}</span>
+                            </span>
+
+                            <span className="font-bold text-sm text-white truncate min-w-0">
+                              {currentUser.displayName || currentUser.name}
                             </span>
 
                             <span className="text-[10px] text-[#949ba4]">Hoje às 14:20</span>
@@ -2444,7 +2752,7 @@ export const DiscordServerSettingsModal: React.FC = () => {
                                 <Pencil className="w-4 h-4" />
                               </button>
 
-                              {!isEveryone && (
+                              {!isEveryone && role.base_role !== 'OWNER' && (isOwner || (role.position ?? 0) < Math.max(0, ...roles.filter(r => (userRoleMap[storeCurrentUser?.id] || []).includes(r.id)).map(r => r.position ?? 0))) && (
                                 <button
                                   onClick={() => {
                                     if (confirm(`Excluir cargo "${role.name}"?`)) {
@@ -2738,66 +3046,98 @@ export const DiscordServerSettingsModal: React.FC = () => {
                 )}
 
                 {roleSubTab === 'permissions' && (
-                  <div className="space-y-4 max-w-xl">
+                  <div className="space-y-6 max-w-xl pb-8">
                     <p className="text-xs text-[#949ba4]">
-                      Configure quais privilégios os membros com este cargo terão em canais de texto e voz.
+                      Configure os privilégios granulares deste cargo para canais, mensagens, moderação e voz.
                     </p>
 
-                    <div className="space-y-3">
-                      {[
-                        { key: 'viewChannels', label: 'Ver canais', desc: 'Permite que os membros visualizem os canais de texto e voz por padrão.' },
-                        { key: 'manageChannels', label: 'Gerenciar canais', desc: 'Permite aos membros criar, editar ou excluir canais.' },
-                        { key: 'manageRoles', label: 'Gerenciar cargos', desc: 'Permite aos membros criar novos cargos e editar permissões de cargos abaixo deste.' },
-                        { key: 'kickMembers', label: 'Expulsar membros', desc: 'Permite expulsar membros do servidor.' },
-                        { key: 'banMembers', label: 'Banir membros', desc: 'Permite banir permanentemente membros do servidor.' },
-                        { key: 'connectVoice', label: 'Conectar na voz', desc: 'Permite aos membros falar e ouvir em canais de voz.' },
-                        { key: 'streamScreen', label: 'Transmitir tela', desc: 'Permite aos membros compartilhar tela no canal de voz ativo.' },
-                        { key: 'administrator', label: 'Administrador', desc: 'Concede todas as permissões e contorna permissões de canal. Use com cautela!', isDanger: true },
-                      ].map((perm) => {
-                        const isChecked = !!(editingRolePermissions as any)[perm.key];
-                        return (
-                          <div
-                            key={perm.key}
-                            className={`p-3 rounded-lg border transition-colors flex items-center justify-between ${
-                              perm.isDanger
-                                ? 'bg-[#f23f43]/10 border-[#f23f43]/30'
-                                : 'bg-[#2b2d31] border-[#232428]'
-                            }`}
-                          >
-                            <div className="pr-4">
-                              <h4
-                                className={`text-sm font-semibold ${
-                                  perm.isDanger ? 'text-[#f23f43]' : 'text-white'
-                                }`}
-                              >
-                                {perm.label}
-                              </h4>
-                              <p className="text-xs text-[#949ba4] mt-0.5">{perm.desc}</p>
-                            </div>
+                    {ROLE_PERMISSION_CATEGORIES.map((section) => {
+                      const userModeration = canUserModerate(storeCurrentUser.id, undefined, currentServer?.id);
+                      const isCurrentAdmin = isOwner || userModeration.isAdmin;
 
-                            <button
-                              onClick={() => {
-                                setEditingRolePermissions((prev) => ({
-                                  ...prev,
-                                  [perm.key]: !isChecked,
-                                }));
-                                setHasChanges(true);
-                              }}
-                              className={`w-11 h-6 rounded-full transition-colors p-0.5 cursor-pointer flex items-center ${
-                                isChecked ? 'bg-[#23a55a] justify-end' : 'bg-[#4e5058] justify-start'
-                              }`}
-                            >
-                              <div className="w-5 h-5 rounded-full bg-white shadow-md" />
-                            </button>
+                      return (
+                        <div key={section.title} className="space-y-3">
+                          <div className="border-b border-[#35363c] pb-1.5">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                              {section.title}
+                            </h3>
+                            <p className="text-[11px] text-[#949ba4] mt-0.5">{section.description}</p>
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          <div className="space-y-2">
+                            {section.permissions.map((perm) => {
+                              const isChecked = !!(editingRolePermissions as any)[perm.key];
+                              const canToggle = isOwner || (perm.key === 'administrator'
+                                ? (isCurrentAdmin && hasServerPermission('administrator', currentServer?.id))
+                                : (isCurrentAdmin || (!perm.adminOnly && hasServerPermission(perm.key, currentServer?.id))));
+
+                              return (
+                                <div
+                                  key={perm.key}
+                                  className={`p-3 rounded-lg border transition-colors flex items-center justify-between ${
+                                    perm.isDanger
+                                      ? 'bg-[#f23f43]/10 border-[#f23f43]/30'
+                                      : 'bg-[#2b2d31] border-[#232428]'
+                                  }`}
+                                >
+                                  <div className="pr-4">
+                                    <h4
+                                      className={`text-sm font-semibold flex items-center gap-2 ${
+                                        perm.isDanger ? 'text-[#f23f43]' : 'text-white'
+                                      }`}
+                                    >
+                                      <span>{perm.label}</span>
+                                      {perm.adminOnly && (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#f23f43]/20 text-[#f23f43] font-bold uppercase tracking-wider">
+                                          Admin
+                                        </span>
+                                      )}
+                                    </h4>
+                                    <p className="text-xs text-[#949ba4] mt-0.5">{perm.desc}</p>
+                                    {!canToggle && (
+                                      <p className="text-[10px] text-[#f23f43] mt-1 font-medium">
+                                        Você não possui permissão para conceder este privilégio.
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={!canToggle}
+                                    onClick={() => {
+                                      if (!canToggle) return;
+                                      setEditingRolePermissions((prev) => ({
+                                        ...prev,
+                                        [perm.key]: !isChecked,
+                                      }));
+                                      setHasChanges(true);
+                                    }}
+                                    title={!canToggle ? 'Permissão bloqueada por falta de privilégio' : undefined}
+                                    className={`w-11 h-6 rounded-full transition-colors p-0.5 flex items-center flex-shrink-0 ${
+                                      !canToggle ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                    } ${
+                                      isChecked ? 'bg-[#23a55a] justify-end' : 'bg-[#4e5058] justify-start'
+                                    }`}
+                                  >
+                                    <div className="w-5 h-5 rounded-full bg-white shadow-md" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
                 {roleSubTab === 'members' && (
                   <div className="space-y-4 max-w-xl">
+                    {roleSaveError && (
+                      <div className="p-3 bg-[#f23f43]/15 border border-[#f23f43]/30 rounded text-xs text-[#f23f43] font-medium">
+                        {roleSaveError}
+                      </div>
+                    )}
                     <p className="text-xs text-[#949ba4]">
                       Adicione ou remova membros deste cargo diretamente.
                     </p>
@@ -2871,6 +3211,11 @@ export const DiscordServerSettingsModal: React.FC = () => {
           {/* ========================================================================= */}
           {activeTab === 'members' && (
             <div className="space-y-6 animate-in fade-in duration-150">
+              {roleSaveError && (
+                <div className="p-3 bg-[#f23f43]/15 border border-[#f23f43]/30 rounded text-xs text-[#f23f43] font-medium">
+                  {roleSaveError}
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-white tracking-wide">
@@ -4101,7 +4446,7 @@ export const DiscordServerSettingsModal: React.FC = () => {
                   <div className="p-4 rounded-xl bg-[#2b2d31] border border-[#232428] flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <img
-                        src="/assets/logo-circular.png"
+                        src={getAssetUrl('assets/logo-circular.png')}
                         alt="Bot"
                         className="w-10 h-10 rounded-full object-cover bg-[#1e1f22]"
                       />
@@ -4365,7 +4710,7 @@ export const DiscordServerSettingsModal: React.FC = () => {
                       if (explicitAvatar) return explicitAvatar;
                       const found = mockUsers.find((u) => u.name === userName || u.displayName?.includes(userName));
                       if (found?.avatar) return found.avatar;
-                      if (userName.toLowerCase().includes('bot')) return '/assets/logo-circular.png';
+                      if (userName.toLowerCase().includes('bot')) return getAssetUrl('assets/logo-circular.png');
                       return 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80';
                     };
 

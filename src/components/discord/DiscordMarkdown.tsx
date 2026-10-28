@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { isInviteUrlOrCode, parseCapyInviteCode } from '../../lib/invite';
 
 interface DiscordMarkdownProps {
   content: string;
+  onInviteClick?: (code: string) => void;
 }
 
-export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content }) => {
+export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content, onInviteClick }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [revealedSpoilers, setRevealedSpoilers] = useState<Record<number, boolean>>({});
 
@@ -150,14 +152,26 @@ export const DiscordMarkdown: React.FC<DiscordMarkdownProps> = ({ content }) => 
           </span>
         );
       }
-      if (sub.startsWith('http://') || sub.startsWith('https://')) {
+      if (sub.startsWith('http://') || sub.startsWith('https://') || sub.startsWith('capychat://')) {
+        const isInvite = isInviteUrlOrCode(sub);
+        const inviteCode = isInvite ? parseCapyInviteCode(sub) : null;
+
         return (
           <a
             key={k}
-            href={sub}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#00a8fc] hover:underline"
+            href={isInvite ? '#' : sub}
+            target={isInvite ? undefined : '_blank'}
+            rel={isInvite ? undefined : 'noopener noreferrer'}
+            onClick={(e) => {
+              if (isInvite && inviteCode) {
+                e.preventDefault();
+                if (onInviteClick) {
+                  onInviteClick(inviteCode);
+                }
+              }
+            }}
+            className={`text-[#00a8fc] hover:underline ${isInvite ? 'font-medium cursor-pointer' : ''}`}
+            title={isInvite ? 'Clique para ver e entrar no servidor' : undefined}
           >
             {sub}
           </a>

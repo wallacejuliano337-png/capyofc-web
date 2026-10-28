@@ -2,9 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useDiscord } from '../../store/discordStore';
 import { Compass, Plus, Download, Folder, X } from 'lucide-react';
 import { Server, ServerFolder } from '../../types/discord';
+import { isOfficialCommunity } from '../../services/communityLevel';
 import { DiscordServerContextMenu } from './DiscordServerContextMenu';
 import { DiscordDeleteConfirmModal } from './DiscordDeleteConfirmModal';
 import { DiscordLeaveServerModal } from './DiscordLeaveServerModal';
+import { DiscordInviteModal } from './DiscordInviteModal';
+import { getAssetUrl, handleServerIconError } from '../../utils/assets';
 
 export const DiscordServersRail: React.FC = () => {
   const {
@@ -32,8 +35,10 @@ export const DiscordServersRail: React.FC = () => {
     deleteServer,
     leaveServer,
     roles,
+    serverRolesMap,
     userRoleMap,
     currentUser,
+    isAuthenticated,
   } = useDiscord();
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -81,18 +86,25 @@ export const DiscordServersRail: React.FC = () => {
   const isHomeActive = activeServerId === '@me';
 
   const checkServerPermissions = (srv: Server) => {
-    const userRoleIds = userRoleMap[currentUser.id] || [];
-    const userRoles = roles.filter((r) => userRoleIds.includes(r.id));
+    const isOwner = Boolean(
+      (!isAuthenticated && (currentUser?.id === 'user-ares' || (currentUser?.id === 'user-me' && srv.id !== 'server-lyc' && srv.ownerId === 'user-me'))) ||
+      (currentUser?.id && srv.ownerId === currentUser.id) ||
+      (isOfficialCommunity(srv) && currentUser?.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+    );
+    const userRoleIds = userRoleMap[currentUser?.id] || [];
+    const serverRoles = (serverRolesMap[srv.id] || (srv.communityId ? serverRolesMap[srv.communityId] : null) || (srv.id === 'server-lyc' ? serverRolesMap['server-lyc'] : null)) || [];
+    const userRoles = serverRoles.filter((r) => userRoleIds.includes(r.id));
     const hasAdminRole = userRoles.some(
       (r) =>
-        r.permissions.administrator ||
-        r.permissions.manageChannels ||
-        r.permissions.manageRoles ||
-        r.id === 'role-admin'
+        r.permissions?.administrator ||
+        r.permissions?.manageCommunity ||
+        r.permissions?.manageRoles ||
+        r.permissions?.manageChannels
     );
-    const isOwner = srv.ownerId === currentUser.id || (!srv.ownerId && srv.id === 'server-lyc');
+    const canManageChannels = isOwner || hasAdminRole || userRoles.some((r) => r.permissions?.manageChannels);
+    const canManageServer = isOwner || hasAdminRole || userRoles.some((r) => r.permissions?.manageCommunity || r.permissions?.manageRoles);
     const isAdmin = isOwner || hasAdminRole;
-    return { isAdmin, isOwner };
+    return { isAdmin, isOwner, canManageChannels, canManageServer };
   };
 
   // Ordered list of rail items (servers & folders)
@@ -277,16 +289,22 @@ export const DiscordServersRail: React.FC = () => {
             isActive
               ? 'rounded-[16px]'
               : 'rounded-[24px] hover:rounded-[16px]'
-          } ${!server.icon ? (isActive ? 'bg-[#5865f2] text-white' : 'bg-[#313338] text-[#dbdee1] hover:bg-[#5865f2] hover:text-white') : ''} ${
+          } ${isActive ? 'bg-[#5865f2] text-white' : 'bg-[#313338] text-[#dbdee1] hover:bg-[#5865f2] hover:text-white'} ${
             server.isMuted ? 'opacity-60' : ''
           }`}
         >
           {server.icon ? (
-            <img
-              src={server.icon}
-              alt={server.name}
-              className="w-full h-full object-cover block select-none pointer-events-none"
-            />
+            <>
+              <span className="text-sm font-bold select-none absolute inset-0 flex items-center justify-center">
+                {server.initials}
+              </span>
+              <img
+                src={getAssetUrl(server.icon)}
+                alt={server.name}
+                onError={handleServerIconError}
+                className="w-full h-full object-cover block select-none pointer-events-none relative z-10"
+              />
+            </>
           ) : (
             <span className="text-sm font-bold select-none">{server.initials}</span>
           )}
@@ -476,7 +494,7 @@ export const DiscordServersRail: React.FC = () => {
             }`}
           >
             <img
-              src="/logos/capy-white.png"
+              src={getAssetUrl('logos/capy-white.png')}
               alt="Home"
               className="w-7 h-7 object-contain block select-none pointer-events-none transition-transform duration-200 group-hover:scale-110"
             />
@@ -566,6 +584,8 @@ export const DiscordServersRail: React.FC = () => {
           position={serverContextMenu.position}
           isAdmin={checkServerPermissions(serverContextMenu.server).isAdmin}
           isOwner={checkServerPermissions(serverContextMenu.server).isOwner}
+          canManageChannels={checkServerPermissions(serverContextMenu.server).canManageChannels}
+          canManageServer={checkServerPermissions(serverContextMenu.server).canManageServer}
           onClose={() => setServerContextMenu(null)}
           onOpenServerBoost={() => {
             setActiveServer(serverContextMenu.server.id);
@@ -676,62 +696,14 @@ export const DiscordServersRail: React.FC = () => {
 
       {/* Server Invite Modal */}
       {isInviteModalOpen && inviteServer && (
-        <div
-          onClick={() => {
+        <DiscordInviteModal
+          isOpen={isInviteModalOpen}
+          onClose={() => {
             setIsInviteModalOpen(false);
             setInviteServer(null);
           }}
-          className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-100"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-[#313338] rounded-lg shadow-2xl border border-[#202225] p-6 space-y-4 animate-in zoom-in-95 duration-100"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-bold text-lg">Convidar amigos para {inviteServer.name}</h3>
-                <p className="text-xs text-[#949ba4]">Compartilhe o link abaixo para convidar pessoas para o servidor.</p>
-              </div>
-              <button
-                onClick={() => {
-                  setIsInviteModalOpen(false);
-                  setInviteServer(null);
-                }}
-                className="text-[#949ba4] hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#b5bac1] uppercase tracking-wider block">
-                Link de Convite do Servidor
-              </label>
-              <div className="flex items-center gap-2 bg-[#1e1f22] p-2 rounded border border-[#202225]">
-                <input
-                  type="text"
-                  readOnly
-                  value={`https://capy.ofc/invite/${inviteServer.id === 'server-lyc' ? 'capychat-oficial' : (inviteServer.name.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'capychat-oficial')}`}
-                  className="bg-transparent text-sm text-[#dbdee1] flex-1 outline-none select-all font-mono"
-                />
-                <button
-                  onClick={() => {
-                    const link = `https://capy.ofc/invite/${inviteServer.id === 'server-lyc' ? 'capychat-oficial' : (inviteServer.name.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'capychat-oficial')}`;
-                    navigator.clipboard.writeText(link).catch(() => {});
-                    setCopiedInvite(true);
-                    setTimeout(() => setCopiedInvite(false), 2000);
-                  }}
-                  className={`px-4 py-1.5 rounded text-xs font-semibold text-white transition-colors cursor-pointer ${
-                    copiedInvite ? 'bg-[#23a55a]' : 'bg-[#5865f2] hover:bg-[#4752c4]'
-                  }`}
-                >
-                  {copiedInvite ? 'Copiado!' : 'Copiar'}
-                </button>
-              </div>
-              <p className="text-[11px] text-[#80848e]">Seu link de convite está configurado para nunca expirar.</p>
-            </div>
-          </div>
-        </div>
+          server={inviteServer}
+        />
       )}
     </>
   );

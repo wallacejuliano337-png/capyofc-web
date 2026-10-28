@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, Check, Trophy, Target, Gift, Swords, ShieldCheck } from 'lucide-react';
+import { getAssetUrl } from '../../utils/assets';
 
 export const DiscordMissionsView: React.FC = () => {
   const [isNotified, setIsNotified] = useState(false);
@@ -13,14 +14,14 @@ export const DiscordMissionsView: React.FC = () => {
           <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#23a55a] via-[#34d399] to-[#10b981] p-0.5 shadow-2xl">
             <div className="w-full h-full bg-[#18191c]/90 rounded-[14px] flex items-center justify-center backdrop-blur-md p-3">
               <img
-                src="/assets/missão.png"
+                src={getAssetUrl('assets/missão.png')}
                 alt="Missões & Recompensas"
                 className="w-12 h-12 object-contain drop-shadow-[0_0_12px_rgba(35,165,90,0.8)] hover:scale-105 transition-transform"
                 onError={(e) => {
                   const target = e.currentTarget as HTMLImageElement;
                   if (!target.dataset.tried) {
                     target.dataset.tried = 'true';
-                    target.src = '/assets/missao.png';
+                    target.src = getAssetUrl('assets/missao.png');
                   }
                 }}
               />

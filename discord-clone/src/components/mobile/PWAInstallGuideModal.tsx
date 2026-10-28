@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Share, PlusSquare, Smartphone, Check } from 'lucide-react';
+import { getAssetUrl } from '../../utils/assets';
 
 interface Props {
   isOpen: boolean;
@@ -21,7 +22,7 @@ export const PWAInstallGuideModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between pb-3 border-b border-[#2b2d31]">
           <div className="flex items-center gap-3">
             <img
-              src="/logos/capy-white.png"
+              src={getAssetUrl('logos/capy-white.png')}
               alt="CapyChat"
               className="w-7 h-7 object-contain rounded-lg p-0.5 bg-[#5865f2]"
             />

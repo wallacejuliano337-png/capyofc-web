@@ -63,10 +63,21 @@ export function initAutoUpdater(
   };
 
   // Important options for safety and user experience:
-  // - Download updates automatically in the background
+  // - Do NOT download automatically without user consent (allows user to choose when to download)
   // - Do NOT automatically quit and install when app closes (avoids unexpected installs during calls)
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+
+  // Explicitly configure target release feed repository
+  try {
+    autoUpdater.setFeedURL({
+      provider: "github",
+      owner: "wallacejuliano337-png",
+      repo: "capyofc-releases",
+    });
+  } catch (feedErr) {
+    log(`Feed URL initialization notice: ${String(feedErr)}`);
+  }
 
   // Event handlers
   autoUpdater.on("checking-for-update", () => {
@@ -156,6 +167,7 @@ export function initAutoUpdater(
     ipcMain.removeHandler("app:version");
     ipcMain.removeHandler("updater:status");
     ipcMain.removeHandler("updater:check");
+    ipcMain.removeHandler("updater:download");
     ipcMain.removeHandler("updater:install");
     ipcMain.removeHandler("updater:open-modal");
   } catch {
@@ -168,6 +180,10 @@ export function initAutoUpdater(
 
   ipcMain.handle("updater:check", async () => {
     return await checkForUpdates(true);
+  });
+
+  ipcMain.handle("updater:download", async () => {
+    return await downloadUpdateNow();
   });
 
   ipcMain.handle("updater:install", () => {
@@ -223,6 +239,15 @@ export async function checkForUpdates(
     return currentStatus;
   }
 
+  const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE);
+  if (isPortable) {
+    log(`Portable executable detected: Auto-update is disabled for portable edition.`);
+    return {
+      state: "not-available",
+      currentVersion: app.getVersion(),
+    };
+  }
+
   if (!app.isPackaged) {
     log(`Dev mode: checkForUpdates (manual=${manual}) skipped.`);
     return {
@@ -254,6 +279,40 @@ export async function checkForUpdates(
     return errorPayload;
   } finally {
     isChecking = false;
+  }
+}
+
+export async function downloadUpdateNow(): Promise<boolean> {
+  const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE);
+  if (isPortable) {
+    log("downloadUpdateNow: Not supported for portable binaries.");
+    return false;
+  }
+  if (!app.isPackaged) {
+    log("downloadUpdateNow: Dev mode skipped.");
+    return false;
+  }
+
+  try {
+    log("Starting autoUpdater.downloadUpdate()...");
+    broadcastStatus({
+      state: "downloading",
+      currentVersion: app.getVersion(),
+      availableVersion: currentStatus.availableVersion,
+      progressPercent: 0,
+    });
+    await autoUpdater.downloadUpdate();
+    return true;
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    log(`downloadUpdate caught error: ${errMsg}`);
+    broadcastStatus({
+      state: "error",
+      currentVersion: app.getVersion(),
+      availableVersion: currentStatus.availableVersion,
+      error: errMsg,
+    });
+    return false;
   }
 }
 

@@ -8,6 +8,7 @@ import {
   BitrateMode,
 } from '../../store/voiceStreamStore';
 import { useDiscord } from '../../store/discordStore';
+import { getAssetUrl } from '../../utils/assets';
 import {
   X,
   Monitor,
@@ -158,7 +159,7 @@ export const DiscordScreenShareModal: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/assets/capy-avatar-screenshare.png"
+              src={getAssetUrl('assets/capy-avatar-screenshare.png')}
               alt="CapyChat Mascote"
               className="w-11 h-11 object-contain flex-shrink-0 drop-shadow-md"
             />

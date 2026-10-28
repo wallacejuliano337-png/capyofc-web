@@ -29,6 +29,8 @@ interface Props {
   position: { x: number; y: number };
   isAdmin: boolean;
   isOwner: boolean;
+  canManageChannels?: boolean;
+  canManageServer?: boolean;
   hideMutedChannels?: boolean;
   onClose: () => void;
   onOpenServerBoost?: () => void;
@@ -54,6 +56,8 @@ export const DiscordServerContextMenu: React.FC<Props> = ({
   position,
   isAdmin,
   isOwner,
+  canManageChannels = false,
+  canManageServer = false,
   hideMutedChannels = false,
   onClose,
   onOpenServerBoost,
@@ -262,55 +266,61 @@ export const DiscordServerContextMenu: React.FC<Props> = ({
       <div className="h-[1px] bg-[#222327] my-1" />
 
       {/* ── SEÇÃO CONDICIONAL POR PERMISSÃO ── */}
-      {isAdmin ? (
+      {/* Configurações do servidor (Apenas administradores/gerentes) */}
+      {(isAdmin || canManageServer) && (
+        <Item
+          icon={Settings}
+          label="Config. do servidor"
+          onClick={onOpenServerSettings}
+        />
+      )}
+
+      {/* Config. de privacidade */}
+      <Item
+        icon={Shield}
+        label="Config. de privacidade"
+        onClick={onOpenPrivacySettings}
+      />
+
+      {/* Editar perfil por servidor */}
+      <Item
+        icon={Pencil}
+        label="Editar perfil no servidor"
+        onClick={onEditServerProfile}
+      />
+
+      {/* Ações de canais (Apenas quem pode gerenciar canais) */}
+      {(isAdmin || canManageChannels) && (
         <>
-          {/* Admin: Config. do servidor */}
-          <Item
-            icon={Settings}
-            label="Config. do servidor"
-            onClick={onOpenServerSettings}
-          />
-
-          {/* Admin: Config. de privacidade */}
-          <Item
-            icon={Shield}
-            label="Config. de privacidade"
-            onClick={onOpenPrivacySettings}
-          />
-
-          {/* Admin: Editar perfil por servidor */}
-          <Item
-            icon={Pencil}
-            label="Editar perfil no servidor"
-            onClick={onEditServerProfile}
-          />
-
           <div className="h-[1px] bg-[#222327] my-1" />
 
-          {/* Admin: Criar canal */}
+          {/* Criar canal */}
           <Item
             icon={PlusCircle}
             label="Criar canal"
             onClick={onCreateChannel}
           />
 
-          {/* Admin: Criar categoria */}
+          {/* Criar categoria */}
           <Item
             icon={FolderPlus}
             label="Criar categoria"
             onClick={onCreateCategory}
           />
 
-          {/* Admin: Criar evento */}
+          {/* Criar evento */}
           <Item
             icon={Calendar}
             label="Criar evento"
             onClick={onCreateEvent}
           />
+        </>
+      )}
 
+      {/* Mover servidor (apenas admins ou quem organiza rail) */}
+      {(onMoveUp || onMoveDown) && (
+        <>
           <div className="h-[1px] bg-[#222327] my-1" />
-
-          {/* Mover servidor */}
           {onMoveUp && (
             <Item
               icon={ChevronUp}
@@ -325,21 +335,6 @@ export const DiscordServerContextMenu: React.FC<Props> = ({
               onClick={onMoveDown}
             />
           )}
-        </>
-      ) : (
-        <>
-          {/* Membro Comum: apenas privacidade e perfil */}
-          <Item
-            icon={Shield}
-            label="Config. de privacidade"
-            onClick={onOpenPrivacySettings}
-          />
-
-          <Item
-            icon={Pencil}
-            label="Editar perfil no servidor"
-            onClick={onEditServerProfile}
-          />
         </>
       )}
 

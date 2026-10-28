@@ -3,15 +3,19 @@ import { useDiscord, mockServers, currentUser } from '../../store/discordStore';
 import { getServerBannerGradient, User, Channel, ChannelCategory } from '../../types/discord';
 import { DiscordUserFooter } from './DiscordUserFooter';
 import { DiscordUserContextMenu } from './DiscordUserContextMenu';
-import { getAvatarUrl } from '../../utils/avatar';
+import { getAvatarUrl, handleAvatarError } from '../../utils/avatar';
+import { getAssetUrl, handleGenericImageError } from '../../utils/assets';
 import { DiscordChannelContextMenu } from './DiscordChannelContextMenu';
 import { DiscordCategoryContextMenu } from './DiscordCategoryContextMenu';
 import { DiscordDeleteConfirmModal } from './DiscordDeleteConfirmModal';
 import { DiscordEditChannelModal } from './DiscordEditChannelModal';
 import { DiscordEditCategoryModal } from './DiscordEditCategoryModal';
 import { DiscordLeaveServerModal } from './DiscordLeaveServerModal';
+import { DiscordInviteModal } from './DiscordInviteModal';
 import { LycVerifiedBadge } from './LycVerifiedBadge';
 import { getCommunityBoostLevel, getCommunityLevelMedal, isOfficialCommunity } from '../../services/communityLevel';
+import { communityAction } from '../../services/communities';
+import { db } from '../../lib/supabase';
 import {
   ChevronDown,
   ChevronUp,
@@ -53,6 +57,9 @@ export const DiscordChannelsSidebar: React.FC = () => {
     toggleCategory,
     voiceState,
     connectToVoice,
+    channelVoiceParticipants,
+    setFocusedParticipantId,
+    setActiveView,
     servers,
     folders,
     openServerSettings,
@@ -75,7 +82,9 @@ export const DiscordChannelsSidebar: React.FC = () => {
     moveCategory,
     communityMembers,
     currentUser: storeCurrentUser,
+    isAuthenticated,
     leaveServer,
+    hasServerPermission,
   } = useDiscord();
 
   const [isServerMenuOpen, setIsServerMenuOpen] = useState(false);
@@ -121,7 +130,11 @@ export const DiscordChannelsSidebar: React.FC = () => {
   } | null>(null);
   const [hideMutedChannels, setHideMutedChannels] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteTargetChannel, setInviteTargetChannel] = useState<Channel | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [copiedCodeOnly, setCopiedCodeOnly] = useState(false);
+  const [activeInviteCode, setActiveInviteCode] = useState<string>('');
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
   // Fechar menus de contexto ao clicar fora ou pressionar ESC
   useEffect(() => {
@@ -154,8 +167,84 @@ export const DiscordChannelsSidebar: React.FC = () => {
     (folders || []).flatMap((f) => f.servers).find((s) => s.id === activeServerId) ||
     servers[0];
 
+  const canManageChannels = isHome || hasServerPermission('manageChannels', currentServer?.id);
+  const canCreateInvites = isHome || hasServerPermission('createInvites', currentServer?.id);
+
+  const isServerOwner = Boolean(
+    (!isAuthenticated && (storeCurrentUser?.id === 'user-ares' || (storeCurrentUser?.id === 'user-me' && currentServer && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+    (currentServer && storeCurrentUser?.id && currentServer.ownerId === storeCurrentUser.id) ||
+    (isOfficialCommunity(currentServer) && storeCurrentUser?.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+  );
+
+  const canOpenServerSettings = isHome || isServerOwner ||
+    hasServerPermission('administrator', currentServer?.id) ||
+    hasServerPermission('manageCommunity', currentServer?.id) ||
+    hasServerPermission('manageRoles', currentServer?.id) ||
+    hasServerPermission('manageChannels', currentServer?.id) ||
+    hasServerPermission('viewAuditLog', currentServer?.id) ||
+    hasServerPermission('kickMembers', currentServer?.id) ||
+    hasServerPermission('banMembers', currentServer?.id) ||
+    hasServerPermission('timeoutMembers', currentServer?.id);
+
+  useEffect(() => {
+    if (!isInviteModalOpen || !currentServer) return;
+    if (currentServer.id === 'server-lyc' || currentServer.communityId === 'd3f2173f-79f0-4362-b60a-ad079f724b54') {
+      setActiveInviteCode('capychat-oficial');
+      return;
+    }
+
+    const commId = currentServer.communityId || currentServer.id;
+    let isCancelled = false;
+    setIsGeneratingInvite(true);
+
+    const resolveInvite = async () => {
+      try {
+        const { data: existing } = await db()
+          .from('community_invites')
+          .select('code')
+          .eq('community_id', commId)
+          .is('revoked_at', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!isCancelled && existing?.code) {
+          setActiveInviteCode(existing.code);
+          setIsGeneratingInvite(false);
+          return;
+        }
+
+        const res = await communityAction<any>('create_invite', {
+          community_id: commId,
+        });
+
+        if (!isCancelled && res?.code) {
+          setActiveInviteCode(res.code);
+          setIsGeneratingInvite(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('[DiscordChannelsSidebar] Failed to generate/fetch invite code:', err);
+      }
+
+      if (!isCancelled) {
+        setIsGeneratingInvite(false);
+      }
+    };
+
+    void resolveInvite();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isInviteModalOpen, currentServer?.id, currentServer?.communityId]);
+
   const handleChannelClick = (channel: any) => {
     if (channel.type === 'voice') {
+      const canConnectVoice = isHome || hasServerPermission('connectVoice', currentServer?.id, channel.id);
+      if (!canConnectVoice) {
+        return;
+      }
       // Connect to voice immediately and open voice stage
       connectToVoice(channel.id, channel.name, currentServer.id, currentServer.name);
     } else {
@@ -183,8 +272,9 @@ export const DiscordChannelsSidebar: React.FC = () => {
           {currentServer.bannerImage || currentServer.banner ? (
             <div className="w-full h-32 relative overflow-hidden flex flex-col justify-end">
               <img
-                src={(currentServer.bannerImage || currentServer.banner) as string}
+                src={getAssetUrl((currentServer.bannerImage || currentServer.banner) as string)}
                 alt={currentServer.name}
+                onError={handleGenericImageError}
                 className="absolute inset-0 w-full h-32 object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#2b2d31] via-[#2b2d31]/30 to-black/20 pointer-events-none" />
@@ -253,46 +343,54 @@ export const DiscordChannelsSidebar: React.FC = () => {
                 )}
               </button>
               <div className="h-[1px] bg-[#232428] my-1" />
-              <button
-                onClick={() => {
-                  setIsServerMenuOpen(false);
-                  setIsInviteModalOpen(true);
-                }}
-                className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
-              >
-                <span>Convidar Pessoas</span>
-                <UserPlus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsServerMenuOpen(false);
-                  openServerSettings();
-                }}
-                className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
-              >
-                <span>Configurações do Servidor</span>
-                <Settings className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsServerMenuOpen(false);
-                  openCreateChannel();
-                }}
-                className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
-              >
-                <span>Criar Canal</span>
-                <Plus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsServerMenuOpen(false);
-                  openCreateCategory();
-                }}
-                className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
-              >
-                <span>Criar Categoria</span>
-                <FolderPlus className="w-4 h-4" />
-              </button>
+              {canCreateInvites && (
+                <button
+                  onClick={() => {
+                    setIsServerMenuOpen(false);
+                    setIsInviteModalOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
+                >
+                  <span>Convidar Pessoas</span>
+                  <UserPlus className="w-4 h-4" />
+                </button>
+              )}
+              {canOpenServerSettings && (
+                <button
+                  onClick={() => {
+                    setIsServerMenuOpen(false);
+                    openServerSettings();
+                  }}
+                  className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
+                >
+                  <span>Configurações do Servidor</span>
+                  <Settings className="w-4 h-4" />
+                </button>
+              )}
+              {canManageChannels && (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsServerMenuOpen(false);
+                      openCreateChannel();
+                    }}
+                    className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
+                  >
+                    <span>Criar Canal</span>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsServerMenuOpen(false);
+                      openCreateCategory();
+                    }}
+                    className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer"
+                  >
+                    <span>Criar Categoria</span>
+                    <FolderPlus className="w-4 h-4" />
+                  </button>
+                </>
+              )}
               <div className="h-[1px] bg-[#232428] my-1" />
               <button className="w-full flex items-center justify-between px-2 py-2 rounded text-[#949ba4] hover:bg-[#5865f2] hover:text-white transition-colors cursor-pointer">
                 <span>Config. de Notificações</span>
@@ -344,14 +442,14 @@ export const DiscordChannelsSidebar: React.FC = () => {
               >
                 <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
                   <img
-                    src="/amigos.svg"
+                    src={getAssetUrl('amigos.svg')}
                     alt="Amigos"
                     className="w-6 h-6 object-contain transition-transform duration-200 group-hover:scale-110 drop-shadow-sm"
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.dataset.fallback) {
                         target.dataset.fallback = '1';
-                        target.src = '/brand/03_UI_Icons_SVG/icon_amigos.svg';
+                        target.src = getAssetUrl('brand/03_UI_Icons_SVG/icon_amigos.svg');
                       }
                     }}
                   />
@@ -395,14 +493,14 @@ export const DiscordChannelsSidebar: React.FC = () => {
               >
                 <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
                   <img
-                    src="/loja.svg"
+                    src={getAssetUrl('loja.svg')}
                     alt="Loja"
                     className="w-6 h-6 object-contain transition-transform duration-200 group-hover:scale-110 drop-shadow-sm"
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.dataset.fallback) {
                         target.dataset.fallback = '1';
-                        target.src = '/brand/03_UI_Icons_SVG/icon_loja.svg';
+                        target.src = getAssetUrl('brand/03_UI_Icons_SVG/icon_loja.svg');
                       }
                     }}
                   />
@@ -422,14 +520,14 @@ export const DiscordChannelsSidebar: React.FC = () => {
               >
                 <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
                   <img
-                    src="/missoes.svg"
+                    src={getAssetUrl('missoes.svg')}
                     alt="Missões"
                     className="w-6 h-6 object-contain transition-transform duration-200 group-hover:scale-110 drop-shadow-sm"
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.dataset.fallback) {
                         target.dataset.fallback = '1';
-                        target.src = '/brand/03_UI_Icons_SVG/icon_missoes.svg';
+                        target.src = getAssetUrl('brand/03_UI_Icons_SVG/icon_missoes.svg');
                       }
                     }}
                   />
@@ -478,6 +576,7 @@ export const DiscordChannelsSidebar: React.FC = () => {
                           <img
                             src={getAvatarUrl(user.avatar)}
                             alt={user.name}
+                            onError={handleAvatarError}
                             className="w-7 h-7 rounded-full object-cover"
                           />
                           <span
@@ -698,16 +797,31 @@ export const DiscordChannelsSidebar: React.FC = () => {
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCreateChannel(category.id);
-                      }}
-                      title="Criar canal"
-                      className="p-0.5 hover:text-[#dbdee1] rounded transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+                    {canCreateInvites && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInviteTargetChannel(null);
+                          setIsInviteModalOpen(true);
+                        }}
+                        title="Convidar pessoas"
+                        className="p-0.5 hover:text-[#dbdee1] rounded transition-all cursor-pointer"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {canManageChannels && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCreateChannel(category.id);
+                        }}
+                        title="Criar canal"
+                        className="p-0.5 hover:text-[#dbdee1] rounded transition-all cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -884,38 +998,57 @@ export const DiscordChannelsSidebar: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              {/* Reorder Buttons on hover */}
+                              {/* Action Buttons on hover */}
                               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    reorderChannels(currentServer.id, category.id, channel.id, 'up');
-                                  }}
-                                  title="Mover canal para cima"
-                                  className="p-0.5 hover:text-white text-[#949ba4] cursor-pointer"
-                                >
-                                  <ChevronUp className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    reorderChannels(currentServer.id, category.id, channel.id, 'down');
-                                  }}
-                                  title="Mover canal para baixo"
-                                  className="p-0.5 hover:text-white text-[#949ba4] cursor-pointer"
-                                >
-                                  <ChevronDown className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingChannel({ channel, categoryId: category.id });
-                                  }}
-                                  title="Editar canal"
-                                  className="p-0.5 hover:text-white text-[#949ba4] transition-colors cursor-pointer"
-                                >
-                                  <Settings className="w-3.5 h-3.5" />
-                                </button>
+                                {canManageChannels && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        reorderChannels(currentServer.id, category.id, channel.id, 'up');
+                                      }}
+                                      title="Mover canal para cima"
+                                      className="p-0.5 hover:text-white text-[#949ba4] cursor-pointer"
+                                    >
+                                      <ChevronUp className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        reorderChannels(currentServer.id, category.id, channel.id, 'down');
+                                      }}
+                                      title="Mover canal para baixo"
+                                      className="p-0.5 hover:text-white text-[#949ba4] cursor-pointer"
+                                    >
+                                      <ChevronDown className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                )}
+                                {canCreateInvites && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInviteTargetChannel(channel);
+                                      setIsInviteModalOpen(true);
+                                    }}
+                                    title="Criar convite"
+                                    className="p-0.5 hover:text-white text-[#949ba4] transition-colors cursor-pointer"
+                                  >
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {canManageChannels && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingChannel({ channel, categoryId: category.id });
+                                    }}
+                                    title="Editar canal"
+                                    className="p-0.5 hover:text-white text-[#949ba4] transition-colors cursor-pointer"
+                                  >
+                                    <Settings className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
 
                               {/* Muted Icon */}
@@ -940,58 +1073,79 @@ export const DiscordChannelsSidebar: React.FC = () => {
                           )}
 
                           {/* 2.3 Connected Voice Participants List inside Voice Channel */}
-                          {isVoiceConnectedHere && (
-                            <div className="pl-6 pr-1 py-1 space-y-1">
-                              {voiceState.participants.map((p) => (
-                                <div
-                                  key={p.user.id}
-                                  onContextMenu={(e) => {
-                                    e.preventDefault();
-                                    setVoiceContextMenu({
-                                      user: p.user,
-                                      position: { x: e.clientX, y: e.clientY },
-                                    });
-                                  }}
-                                  className="flex items-center justify-between py-1 px-2 rounded-[4px] hover:bg-[#35373c]/40 text-xs transition-colors cursor-pointer group/vp"
-                                >
-                                  <div className="flex items-center gap-2 truncate">
-                                    <div className="relative">
-                                      <img
-                                        src={getAvatarUrl(p.user.avatar)}
-                                        alt={p.user.name}
-                                        className={`w-6 h-6 rounded-full object-cover ${
-                                          p.isSpeaking
-                                            ? 'ring-2 ring-[#23a55a] shadow-[0_0_8px_rgba(35,165,90,0.5)]'
-                                            : ''
-                                        }`}
-                                      />
-                                    </div>
-                                    <span
-                                      className={`truncate font-medium ${
-                                        p.isSpeaking
-                                          ? 'text-[#23a55a]'
-                                          : 'text-[#dbdee1]'
-                                      }`}
-                                    >
-                                      {p.user.displayName || p.user.name}
-                                    </span>
-                                  </div>
+                          {(() => {
+                            const channelParticipants = isVoiceConnectedHere
+                              ? voiceState.participants
+                              : (channelVoiceParticipants?.[channel.id] || []);
+                            const hasParticipants = isVoice && channelParticipants.length > 0;
 
-                                  <div className="flex items-center gap-1 text-[#80848e]">
-                                    {p.isScreenSharing && (
-                                      <span className="bg-[#5865f2] text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                        <Monitor className="w-2.5 h-2.5" />
-                                        AO VIVO
+                            if (!hasParticipants) return null;
+
+                            return (
+                              <div className="pl-6 pr-1 py-1 space-y-1">
+                                {channelParticipants.map((p) => (
+                                  <div
+                                    key={p.user.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isVoiceConnectedHere) {
+                                        connectToVoice(channel.id, channel.name, currentServer.id, currentServer.name);
+                                      }
+                                      if (p.isScreenSharing) {
+                                        setFocusedParticipantId(p.user.id);
+                                      }
+                                      setActiveView('voice-stage');
+                                    }}
+                                    onContextMenu={(e) => {
+                                      e.preventDefault();
+                                      setVoiceContextMenu({
+                                        user: p.user,
+                                        position: { x: e.clientX, y: e.clientY },
+                                      });
+                                    }}
+                                    className="flex items-center justify-between py-1 px-2 rounded-[4px] hover:bg-[#35373c]/40 text-xs transition-colors cursor-pointer group/vp"
+                                    title={p.isScreenSharing ? 'Clique para assistir à transmissão' : 'Clique para entrar na sala'}
+                                  >
+                                    <div className="flex items-center gap-2 truncate">
+                                      <div className="relative">
+                                        <img
+                                          src={getAvatarUrl(p.user.avatar)}
+                                          alt={p.user.name}
+                                          onError={handleAvatarError}
+                                          className={`w-6 h-6 rounded-full object-cover ${
+                                            p.isSpeaking
+                                              ? 'ring-2 ring-[#23a55a] shadow-[0_0_8px_rgba(35,165,90,0.5)]'
+                                              : ''
+                                          }`}
+                                        />
+                                      </div>
+                                      <span
+                                        className={`truncate font-medium ${
+                                          p.isSpeaking
+                                            ? 'text-[#23a55a]'
+                                            : 'text-[#dbdee1]'
+                                        }`}
+                                      >
+                                        {p.user.displayName || p.user.name}
                                       </span>
-                                    )}
-                                    {p.isMuted && (
-                                      <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />
-                                    )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1 text-[#80848e]">
+                                      {p.isScreenSharing && (
+                                        <span className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm">
+                                          <Monitor className="w-2.5 h-2.5" />
+                                          AO VIVO
+                                        </span>
+                                      )}
+                                      {p.isMuted && (
+                                        <MicOff className="w-3.5 h-3.5 text-[#f23f43]" />
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -1066,6 +1220,8 @@ export const DiscordChannelsSidebar: React.FC = () => {
           channel={channelContextMenu.channel}
           categoryId={channelContextMenu.channel.categoryId}
           position={channelContextMenu.position}
+          canManageChannels={canManageChannels}
+          canCreateInvites={canCreateInvites}
           onClose={() => setChannelContextMenu(null)}
           onMarkAsRead={() => {
             markChannelAsRead(
@@ -1084,6 +1240,7 @@ export const DiscordChannelsSidebar: React.FC = () => {
             setChannelContextMenu(null);
           }}
           onInvite={() => {
+            setInviteTargetChannel(channelContextMenu.channel);
             setIsInviteModalOpen(true);
             setChannelContextMenu(null);
           }}
@@ -1147,6 +1304,7 @@ export const DiscordChannelsSidebar: React.FC = () => {
           category={categoryContextMenu.category}
           isCollapsed={!!collapsedCategories[categoryContextMenu.category.id]}
           position={categoryContextMenu.position}
+          canManageChannels={canManageChannels}
           onClose={() => setCategoryContextMenu(null)}
           onMarkAsRead={() => {
             markCategoryAsRead(currentServer.id, categoryContextMenu.category.id);
@@ -1311,58 +1469,15 @@ export const DiscordChannelsSidebar: React.FC = () => {
       )}
 
       {/* 8. Modal de Convite para o Servidor */}
-      {isInviteModalOpen && (
-        <div
-          onClick={() => setIsInviteModalOpen(false)}
-          className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-100"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-[#313338] rounded-lg shadow-2xl border border-[#202225] p-6 space-y-4 animate-in zoom-in-95 duration-100"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-bold text-lg">Convidar amigos para {currentServer.name}</h3>
-                <p className="text-xs text-[#949ba4]">Compartilhe o link abaixo para convidar pessoas para o servidor.</p>
-              </div>
-              <button
-                onClick={() => setIsInviteModalOpen(false)}
-                className="text-[#949ba4] hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#b5bac1] uppercase tracking-wider block">
-                Link de Convite do Servidor
-              </label>
-              <div className="flex items-center gap-2 bg-[#1e1f22] p-2 rounded border border-[#202225]">
-                <input
-                  type="text"
-                  readOnly
-                  value={`https://capy.ofc/invite/${currentServer.id === 'server-lyc' ? 'capychat-oficial' : (currentServer.name.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'capychat-oficial')}`}
-                  className="bg-transparent text-sm text-[#dbdee1] flex-1 outline-none select-all font-mono"
-                />
-                <button
-                  onClick={() => {
-                    const link = `https://capy.ofc/invite/${currentServer.id === 'server-lyc' ? 'capychat-oficial' : (currentServer.name.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'capychat-oficial')}`;
-                    navigator.clipboard.writeText(link).catch(() => {});
-                    setCopiedInvite(true);
-                    setTimeout(() => setCopiedInvite(false), 2000);
-                  }}
-                  className={`px-4 py-1.5 rounded text-xs font-semibold text-white transition-colors cursor-pointer ${
-                    copiedInvite ? 'bg-[#23a55a]' : 'bg-[#5865f2] hover:bg-[#4752c4]'
-                  }`}
-                >
-                  {copiedInvite ? 'Copiado!' : 'Copiar'}
-                </button>
-              </div>
-              <p className="text-[11px] text-[#80848e]">Seu link de convite está configurado para nunca expirar.</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <DiscordInviteModal
+        isOpen={isInviteModalOpen}
+        onClose={() => {
+          setIsInviteModalOpen(false);
+          setInviteTargetChannel(null);
+        }}
+        server={currentServer}
+        channel={inviteTargetChannel}
+      />
 
       {/* 9. Modal de Confirmação para Sair do Servidor */}
       <DiscordLeaveServerModal

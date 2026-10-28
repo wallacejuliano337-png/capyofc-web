@@ -3,6 +3,7 @@ import { Mail, Lock, Eye, EyeOff, User as UserIcon, Sparkles, Loader2, AlertCirc
 import { User } from '../../types/discord';
 import { supabase, db, messageOf } from '../../lib/supabase';
 import { DEFAULT_AVATAR, getAvatarUrl } from '../../utils/avatar';
+import { getAssetUrl } from '../../utils/assets';
 
 interface Props {
   onLogin: (updates?: Partial<User>) => void;
@@ -213,7 +214,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       style={{
         backgroundImage: `radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.28) 0%, transparent 55%),
                           radial-gradient(circle at 25% 65%, rgba(88, 101, 242, 0.25) 0%, transparent 55%),
-                          url('/assets/login/fundo.png')`,
+                          url('${getAssetUrl('assets/login/fundo.png')}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center bottom',
         backgroundRepeat: 'no-repeat',
@@ -222,7 +223,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       {/* ── 1. LOGOTIPO CAPYCHAT (TOPO ESQUERDO DESTACADO E NÍTIDO CONFORME EXEMPLO) ── */}
       <header className="absolute top-4 sm:top-9 left-4 sm:left-10 lg:left-12 z-40 pointer-events-none">
         <img
-          src="/assets/login/capychat-tight.png"
+          src={getAssetUrl('assets/login/capychat-tight.png')}
           alt="CapyChat"
           className="h-8 sm:h-11 lg:h-12 w-auto object-contain drop-shadow-[0_0_20px_rgba(139,92,246,0.5)]"
         />
@@ -232,7 +233,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       {/* Cristal flutuante superior esquerdo (profundidade / bokeh no céu cósmico) */}
       <div className="absolute top-[10vh] left-[23vw] w-[8vw] min-w-[85px] max-w-[130px] h-auto pointer-events-none select-none z-10 hidden sm:block">
         <img
-          src="/assets/login/dado-topo-esq.png"
+          src={getAssetUrl('assets/login/dado-topo-esq.png')}
           alt=""
           className="w-full h-full object-contain filter blur-[0.6px] opacity-80 drop-shadow-[0_0_20px_rgba(168,85,247,0.7)]"
         />
@@ -241,7 +242,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       {/* Cristal nítido com pata no chão reflexivo (ao lado da pata esquerda da capivara) */}
       <div className="absolute bottom-[3.5vh] left-[2.5vw] w-[10.5vw] min-w-[110px] max-w-[160px] h-auto pointer-events-none select-none z-30 hidden sm:block">
         <img
-          src="/assets/login/cristal-dado.png"
+          src={getAssetUrl('assets/login/cristal-dado.png')}
           alt=""
           className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(168,85,247,0.95)]"
         />
@@ -250,7 +251,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       {/* Cristal flutuante superior direito */}
       <div className="absolute top-[8vh] right-[4vw] w-[8.5vw] min-w-[90px] max-w-[140px] h-auto pointer-events-none select-none filter blur-[0.8px] opacity-75 hidden md:block z-10">
         <img
-          src="/assets/login/cristal-bokeh-right.png"
+          src={getAssetUrl('assets/login/cristal-bokeh-right.png')}
           alt=""
           className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(168,85,247,0.6)]"
         />
@@ -259,7 +260,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
       {/* Cristal na base inferior direita */}
       <div className="absolute -bottom-[2vh] -right-[1vw] w-[15vw] min-w-[160px] max-w-[250px] h-auto pointer-events-none select-none filter blur-[1.5px] opacity-60 hidden sm:block z-10">
         <img
-          src="/assets/login/cristal-bokeh-right.png"
+          src={getAssetUrl('assets/login/cristal-bokeh-right.png')}
           alt=""
           className="w-full h-full object-contain"
         />
@@ -279,7 +280,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
               {/* Brilho suave difuso atrás da capivara */}
               <div className="absolute inset-x-0 bottom-2 md:bottom-4 h-3/4 bg-gradient-to-tr from-[#7c3aed]/35 via-[#ec4899]/18 to-transparent rounded-full blur-2xl md:blur-3xl scale-95 pointer-events-none" />
               <img
-                src="/assets/login/capylogin.png"
+                src={getAssetUrl('assets/login/capylogin.png')}
                 alt="Mascote CapyChat"
                 className="h-full w-full object-contain object-bottom drop-shadow-[0_10px_25px_rgba(0,0,0,0.65)] md:drop-shadow-[0_20px_45px_rgba(0,0,0,0.65)] select-none pointer-events-none transform transition-transform duration-700 hover:scale-[1.01]"
               />
@@ -473,7 +474,7 @@ export const DiscordLoginView: React.FC<Props> = ({ onLogin }) => {
                   aria-hidden="true"
                 >
                   <img
-                    src="/assets/login/qrcode.png"
+                    src={getAssetUrl('assets/login/qrcode.png')}
                     alt=""
                     className="w-full h-full object-contain filter grayscale-[30%] opacity-85"
                   />

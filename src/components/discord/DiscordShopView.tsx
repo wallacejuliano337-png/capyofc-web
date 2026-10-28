@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, Check, Sparkles, Palette, ShieldCheck, Gem, Flame } from 'lucide-react';
+import { getAssetUrl } from '../../utils/assets';
 
 export const DiscordShopView: React.FC = () => {
   const [isNotified, setIsNotified] = useState(false);
@@ -13,14 +14,14 @@ export const DiscordShopView: React.FC = () => {
           <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#00a8fc] via-[#38bdf8] to-[#5865f2] p-0.5 shadow-2xl">
             <div className="w-full h-full bg-[#18191c]/90 rounded-[14px] flex items-center justify-center backdrop-blur-md">
               <img
-                src="/loja.svg"
+                src={getAssetUrl('loja.svg')}
                 alt="Loja CapyChat"
                 className="w-11 h-11 object-contain drop-shadow-[0_0_12px_rgba(0,168,252,0.7)]"
                 onError={(e) => {
                   const target = e.currentTarget;
                   if (!target.dataset.fallback) {
                     target.dataset.fallback = '1';
-                    target.src = '/brand/03_UI_Icons_SVG/icon_loja.svg';
+                    target.src = getAssetUrl('brand/03_UI_Icons_SVG/icon_loja.svg');
                   }
                 }}
               />

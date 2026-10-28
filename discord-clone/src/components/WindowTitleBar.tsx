@@ -3,6 +3,7 @@ import { Minus, Square, X, Sparkles, ArrowDown, ChevronLeft, ChevronRight } from
 import { useDiscord } from '../store/discordStore';
 import { useAutoUpdate } from '../services/autoUpdateService';
 import type { UpdateInfoPayload } from '../types';
+import { getAssetUrl } from '../utils/assets';
 
 export interface WindowTitleBarProps {
   title?: string;
@@ -34,7 +35,7 @@ export function WindowTitleBar({
     (folders || []).flatMap((f) => f.servers).find((s) => s.id === activeServerId) ||
     servers[0];
   const dynamicTitle =
-    title || (isHome ? 'Mensagens diretas' : currentServer?.name || 'CapyChat Oficial');
+    title || (isHome ? 'Mensagens diretas' : currentServer?.name || 'Capy.ofc');
 
   return (
     <header
@@ -72,7 +73,7 @@ export function WindowTitleBar({
       {/* Center: Brand Icon (capy-white.png) + Dynamic Screen Name */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
-          src="/logos/capy-white.png"
+          src={getAssetUrl('logos/capy-white.png')}
           alt=""
           className="w-3.5 h-3.5 object-contain mr-1.5"
         />

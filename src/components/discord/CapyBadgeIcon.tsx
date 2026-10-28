@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CapyBadge, BADGE_MAP } from '../../types/badges';
+import React, { useState, useRef, useLayoutEffect } from 'react';
+import { BADGE_MAP } from '../../types/badges';
 import { Lock } from 'lucide-react';
 
 interface Props {
@@ -7,6 +7,7 @@ interface Props {
   size?: number;
   isLocked?: boolean;
   showTooltip?: boolean;
+  tooltipPlacement?: 'top' | 'bottom' | 'auto';
   className?: string;
 }
 
@@ -15,209 +16,287 @@ export const CapyBadgeIcon: React.FC<Props> = ({
   size = 16,
   isLocked = false,
   showTooltip = true,
+  tooltipPlacement = 'auto',
   className = '',
 }) => {
   const badge = BADGE_MAP[badgeId];
   const [isHovered, setIsHovered] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const [computedPlacement, setComputedPlacement] = useState<'top' | 'bottom'>('top');
+  const [alignMode, setAlignMode] = useState<'center' | 'left' | 'right'>('center');
+
+  useLayoutEffect(() => {
+    if (!isHovered || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    if (tooltipPlacement === 'auto') {
+      // If close to the top of the viewport or parent, flip downwards
+      if (rect.top < 110) {
+        setComputedPlacement('bottom');
+      } else {
+        setComputedPlacement('top');
+      }
+    } else {
+      setComputedPlacement(tooltipPlacement);
+    }
+
+    if (rect.left + 140 > window.innerWidth - 16) {
+      setAlignMode('right');
+    } else if (rect.left - 100 < 16) {
+      setAlignMode('left');
+    } else {
+      setAlignMode('center');
+    }
+  }, [isHovered, tooltipPlacement]);
 
   if (!badge) return null;
 
   const renderSvg = () => {
     switch (badge.iconType) {
       case 'founder':
-        // Golden royal crown with jewel
+        // Discord-grade Royal Founder Crown (Gold & Gems)
         return (
           <svg
-            viewBox="0 0 24 24"
+            viewBox="0 0 16 16"
             width={size}
             height={size}
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className="flex-shrink-0"
+            style={{ imageRendering: 'crisp-edges' }}
           >
             <defs>
-              <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="capy-founder-grad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#fff3a8" />
                 <stop offset="50%" stopColor="#f1c40f" />
                 <stop offset="100%" stopColor="#d48806" />
               </linearGradient>
-              <filter id="gold-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#f1c40f" floodOpacity="0.4" />
-              </filter>
+              <linearGradient id="capy-founder-dark" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#f1c40f" />
+                <stop offset="100%" stopColor="#b77900" />
+              </linearGradient>
             </defs>
             <path
-              d="M3 17.5L4.5 7.5L8.5 12.5L12 5.5L15.5 12.5L19.5 7.5L21 17.5H3Z"
-              fill="url(#gold-grad)"
-              filter={isLocked ? undefined : 'url(#gold-glow)'}
-              stroke="#874d00"
-              strokeWidth="0.8"
+              d="M2 11.5L2.8 5L5.8 7.8L8 2.5L10.2 7.8L13.2 5L14 11.5H2Z"
+              fill="url(#capy-founder-grad)"
+              stroke="#7a5200"
+              strokeWidth="0.75"
               strokeLinejoin="round"
             />
-            <rect x="3" y="18.5" width="18" height="2" rx="1" fill="#d48806" />
-            <circle cx="12" cy="14" r="1.3" fill="#ffffff" />
-            <circle cx="7" cy="15" r="1" fill="#fff3a8" />
-            <circle cx="17" cy="15" r="1" fill="#fff3a8" />
+            <rect
+              x="2"
+              y="11.8"
+              width="12"
+              height="1.8"
+              rx="0.6"
+              fill="url(#capy-founder-dark)"
+              stroke="#7a5200"
+              strokeWidth="0.75"
+            />
+            <path d="M8 5.2L9.2 7.8L8 9.5L6.8 7.8L8 5.2Z" fill="#ffffff" fillOpacity="0.9" />
+            <circle cx="4.5" cy="12.7" r="0.6" fill="#fff3a8" />
+            <circle cx="8" cy="12.7" r="0.7" fill="#ffffff" />
+            <circle cx="11.5" cy="12.7" r="0.6" fill="#fff3a8" />
           </svg>
         );
 
       case 'staff':
-        // Sleek CapyChat Staff emblem (Shield with wrench / star)
+        // Discord-grade Staff Hexagonal Tech Emblem (Blurple)
         return (
           <svg
-            viewBox="0 0 24 24"
+            viewBox="0 0 16 16"
             width={size}
             height={size}
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className="flex-shrink-0"
+            style={{ imageRendering: 'crisp-edges' }}
           >
             <defs>
-              <linearGradient id="staff-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#8ea1ff" />
-                <stop offset="50%" stopColor="#5865f2" />
+              <linearGradient id="capy-staff-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#7983f5" />
+                <stop offset="60%" stopColor="#5865f2" />
                 <stop offset="100%" stopColor="#3c45a5" />
               </linearGradient>
             </defs>
             <path
-              d="M12 2L4 5.5V11.5C4 16.5 7.4 21.1 12 22C16.6 21.1 20 16.5 20 11.5V5.5L12 2Z"
-              fill="url(#staff-grad)"
+              d="M8 1.5L14 4.5V10.5L8 14.5L2 10.5V4.5L8 1.5Z"
+              fill="url(#capy-staff-grad)"
               stroke="#2c3275"
-              strokeWidth="0.8"
+              strokeWidth="0.75"
+              strokeLinejoin="round"
             />
             <path
-              d="M12 6.5L13.5 10.5H17.5L14.2 13L15.5 17L12 14.5L8.5 17L9.8 13L6.5 10.5H10.5L12 6.5Z"
+              d="M8 4.2L9.2 6.8H11.8L9.7 8.4L10.5 11L8 9.3L5.5 11L6.3 8.4L4.2 6.8H6.8L8 4.2Z"
               fill="#ffffff"
             />
+            <circle cx="8" cy="7.8" r="1.1" fill="#5865f2" />
           </svg>
         );
 
       case 'moderator':
-        // Emerald Guardian Shield
+        // Certified Guardian Shield (Emerald)
         return (
           <svg
-            viewBox="0 0 24 24"
+            viewBox="0 0 16 16"
             width={size}
             height={size}
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className="flex-shrink-0"
+            style={{ imageRendering: 'crisp-edges' }}
           >
             <defs>
-              <linearGradient id="mod-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#72f1a6" />
-                <stop offset="50%" stopColor="#2ecc71" />
+              <linearGradient id="capy-mod-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#48e58a" />
+                <stop offset="60%" stopColor="#2ecc71" />
                 <stop offset="100%" stopColor="#1e8449" />
               </linearGradient>
             </defs>
             <path
-              d="M12 2L3 6V12C3 17.5 6.8 21.6 12 23C17.2 21.6 21 17.5 21 12V6L12 2Z"
-              fill="url(#mod-grad)"
+              d="M8 1.5L13.5 3.8V8.5C13.5 11.8 11 14 8 14.8C5 14 2.5 11.8 2.5 8.5V3.8L8 1.5Z"
+              fill="url(#capy-mod-grad)"
               stroke="#145a32"
-              strokeWidth="0.8"
+              strokeWidth="0.75"
+              strokeLinejoin="round"
             />
             <path
-              d="M10 15.5L6.5 12L7.9 10.6L10 12.7L16.1 6.6L17.5 8L10 15.5Z"
+              d="M8 1.8V14.4C10.7 13.6 13.1 11.6 13.1 8.5V4.1L8 1.8Z"
+              fill="#000000"
+              fillOpacity="0.12"
+            />
+            <path
+              d="M6.8 11.2L4.2 8.6L5.3 7.5L6.8 9L10.7 5.1L11.8 6.2L6.8 11.2Z"
               fill="#ffffff"
             />
           </svg>
         );
 
       case 'supporter':
-        // Glowing Pink / Magenta Diamond Crystal
+        // Faceted Brilliant Diamond Gem (Neon Magenta)
         return (
           <svg
-            viewBox="0 0 24 24"
+            viewBox="0 0 16 16"
             width={size}
             height={size}
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className="flex-shrink-0"
+            style={{ imageRendering: 'crisp-edges' }}
           >
             <defs>
-              <linearGradient id="sup-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="capy-sup-grad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#ff8adc" />
                 <stop offset="50%" stopColor="#eb459e" />
                 <stop offset="100%" stopColor="#a31d68" />
               </linearGradient>
             </defs>
             <path
-              d="M12 2L20.5 8.5L12 22L3.5 8.5L12 2Z"
-              fill="url(#sup-grad)"
-              stroke="#7a144d"
-              strokeWidth="0.8"
+              d="M5 2.5H11L14.2 6.5L8 14.2L1.8 6.5L5 2.5Z"
+              fill="url(#capy-sup-grad)"
+              stroke="#6f0e44"
+              strokeWidth="0.75"
+              strokeLinejoin="round"
             />
-            <path
-              d="M12 2L15.5 8.5L12 22L8.5 8.5L12 2Z"
-              fill="#ffffff"
-              fillOpacity="0.3"
-            />
-            <circle cx="12" cy="8.5" r="1.5" fill="#ffffff" />
+            <path d="M5 2.5H11L9.2 6.5H6.8L5 2.5Z" fill="#ffb3ea" fillOpacity="0.8" />
+            <path d="M5 2.5L1.8 6.5H6.8L5 2.5Z" fill="#eb459e" />
+            <path d="M11 2.5L14.2 6.5H9.2L11 2.5Z" fill="#c41a77" />
+            <path d="M6.8 6.5H9.2L8 14.2L6.8 6.5Z" fill="#ffffff" fillOpacity="0.45" />
+            <circle cx="8" cy="6.5" r="1.1" fill="#ffffff" />
           </svg>
         );
 
       case 'community':
-        // Cyan Spirit Capy Badge
+        // Stylized Capy Community Crest (Electric Cyan & Headset Silhouette)
         return (
           <svg
-            viewBox="0 0 24 24"
+            viewBox="0 0 16 16"
             width={size}
             height={size}
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className="flex-shrink-0"
+            style={{ imageRendering: 'crisp-edges' }}
           >
             <defs>
-              <linearGradient id="comm-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#76d7ea" />
-                <stop offset="50%" stopColor="#3498db" />
-                <stop offset="100%" stopColor="#1b4f72" />
+              <linearGradient id="capy-comm-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="60%" stopColor="#0284c7" />
+                <stop offset="100%" stopColor="#0369a1" />
               </linearGradient>
             </defs>
-            <circle cx="12" cy="12" r="9.5" fill="url(#comm-grad)" stroke="#154360" strokeWidth="0.8" />
             <path
-              d="M8.5 9.5C9.3 9.5 10 8.8 10 8C10 7.2 9.3 6.5 8.5 6.5C7.7 6.5 7 7.2 7 8C7 8.8 7.7 9.5 8.5 9.5Z"
-              fill="#ffffff"
+              d="M8 1.5L13.8 4.2V9.2C13.8 12.2 11.2 14.2 8 15C4.8 14.2 2.2 12.2 2.2 9.2V4.2L8 1.5Z"
+              fill="url(#capy-comm-grad)"
+              stroke="#0c4a6e"
+              strokeWidth="0.75"
+              strokeLinejoin="round"
             />
             <path
-              d="M15.5 9.5C16.3 9.5 17 8.8 17 8C17 7.2 16.3 6.5 15.5 6.5C14.7 6.5 14 7.2 14 8C14 8.8 14.7 9.5 15.5 9.5Z"
-              fill="#ffffff"
+              d="M8 1.8V14.6C10.8 13.8 13.4 12 13.4 9.2V4.4L8 1.8Z"
+              fill="#000000"
+              fillOpacity="0.12"
             />
+            {/* Headset Arc */}
             <path
-              d="M12 17C14.5 17 16 15 16 13.5C16 12 14.2 11 12 11C9.8 11 8 12 8 13.5C8 15 9.5 17 12 17Z"
+              d="M5.5 6C5.5 4.6 6.6 3.6 8 3.6C9.4 3.6 10.5 4.6 10.5 6"
+              stroke="#ffffff"
+              strokeWidth="0.9"
+              strokeLinecap="round"
+            />
+            {/* Earcups */}
+            <rect x="4.8" y="5.6" width="1.2" height="2.2" rx="0.5" fill="#ffffff" />
+            <rect x="10" y="5.6" width="1.2" height="2.2" rx="0.5" fill="#ffffff" />
+            {/* Stylized Capy Silhouette */}
+            <path
+              d="M6.5 6.6H9.5C10.2 6.6 10.7 7.2 10.5 7.9L10 9.8C9.8 10.4 9.2 10.8 8.5 10.8H7.5C6.8 10.8 6.2 10.4 6 9.8L5.5 7.9C5.3 7.2 5.8 6.6 6.5 6.6Z"
               fill="#ffffff"
             />
-            <circle cx="12" cy="13" r="1.2" fill="#1b4f72" />
+            <circle cx="8" cy="9" r="0.6" fill="#0369a1" />
           </svg>
         );
 
       case 'events':
-        // Amber/Bronze Tournament Flame Trophy
+        // Tournament Trophy Cup (Amber / Gold)
         return (
           <svg
-            viewBox="0 0 24 24"
+            viewBox="0 0 16 16"
             width={size}
             height={size}
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             className="flex-shrink-0"
+            style={{ imageRendering: 'crisp-edges' }}
           >
             <defs>
-              <linearGradient id="ev-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f8c471" />
-                <stop offset="50%" stopColor="#e67e22" />
-                <stop offset="100%" stopColor="#935116" />
+              <linearGradient id="capy-ev-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fcd34d" />
+                <stop offset="50%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#b45309" />
               </linearGradient>
             </defs>
             <path
-              d="M5 4H19V8C19 11.9 15.9 15 12 15C8.1 15 5 11.9 5 8V4Z"
-              fill="url(#ev-grad)"
-              stroke="#784212"
-              strokeWidth="0.8"
+              d="M4.5 2.5H11.5V6.8C11.5 8.8 9.9 10.2 8 10.2C6.1 10.2 4.5 8.8 4.5 6.8V2.5Z"
+              fill="url(#capy-ev-grad)"
+              stroke="#78350f"
+              strokeWidth="0.75"
+              strokeLinejoin="round"
             />
-            <path d="M12 15V19M8 21H16" stroke="#e67e22" strokeWidth="2" strokeLinecap="round" />
-            <path d="M3 5H5V8C5 9.5 6 10.7 7.3 11.2C6 9.8 5 8 5 6V5H3Z" fill="#f8c471" />
-            <path d="M21 5H19V8C19 9.5 18 10.7 16.7 11.2C18 9.8 19 8 19 6V5H21Z" fill="#f8c471" />
-            <circle cx="12" cy="8.5" r="2" fill="#ffffff" />
+            <path
+              d="M4.5 3.8H3C2.4 3.8 2 4.3 2 5C2 6.2 3 7.2 4.5 7.2M11.5 3.8H13C13.6 3.8 14 4.3 14 5C14 6.2 13 7.2 11.5 7.2"
+              stroke="#d97706"
+              strokeWidth="0.85"
+              strokeLinecap="round"
+            />
+            <path
+              d="M7.4 10.2H8.6V12.2H6V13.8H10V12.2H8.6V10.2"
+              fill="#b45309"
+              stroke="#78350f"
+              strokeWidth="0.75"
+            />
+            <path
+              d="M8 4.2L8.6 5.5L10 5.6L8.9 6.6L9.2 8L8 7.3L6.8 8L7.1 6.6L6 5.6L7.4 5.5L8 4.2Z"
+              fill="#ffffff"
+            />
           </svg>
         );
 
@@ -228,25 +307,21 @@ export const CapyBadgeIcon: React.FC<Props> = ({
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center select-none cursor-pointer group ${className}`}
+      ref={triggerRef}
+      className={`relative inline-flex items-center justify-center select-none cursor-pointer group leading-none ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => setIsHovered((prev) => !prev)}
       tabIndex={0}
       role="img"
       aria-label={`${badge.name}: ${badge.description}`}
+      title={badge.name}
     >
       <div
-        className={`transition-all duration-200 ${
+        className={`flex items-center justify-center transition-transform duration-150 ${
           isLocked
-            ? 'grayscale opacity-35 filter contrast-75'
-            : 'hover:scale-105 active:scale-95'
+            ? 'grayscale opacity-35 contrast-75'
+            : 'hover:scale-110 active:scale-95'
         }`}
-        style={{
-          filter: isLocked
-            ? 'grayscale(100%) opacity(0.35)'
-            : `drop-shadow(0 0 2px ${badge.glowColor})`,
-        }}
       >
         {renderSvg()}
       </div>
@@ -260,33 +335,54 @@ export const CapyBadgeIcon: React.FC<Props> = ({
         </span>
       )}
 
-      {/* Tooltip */}
+      {/* Explanatory Badge Card / Tooltip */}
       {showTooltip && isHovered && (
         <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[99999] pointer-events-none animate-in fade-in zoom-in-95 duration-100"
-          style={{ minWidth: '160px', maxWidth: '240px' }}
+          className={`absolute ${
+            computedPlacement === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
+          } ${
+            alignMode === 'right'
+              ? 'right-0'
+              : alignMode === 'left'
+              ? 'left-0'
+              : 'left-1/2 -translate-x-1/2'
+          } z-[99999] pointer-events-none animate-in fade-in zoom-in-95 duration-100 min-w-[160px] max-w-[240px]`}
         >
-          <div className="bg-[#111214] text-white p-2.5 rounded-md shadow-2xl border border-[#2b2d31] text-left">
-            <div className="flex items-center gap-1.5 mb-1">
+          {computedPlacement === 'bottom' && (
+            <div
+              className={`w-2 h-2 bg-[#111214] border-l border-t border-[#2b2d31] rotate-45 mb-[-4px] z-10 relative ${
+                alignMode === 'right' ? 'mr-3 ml-auto' : alignMode === 'left' ? 'ml-3' : 'mx-auto'
+              }`}
+            />
+          )}
+
+          <div className="bg-[#111214] text-white px-2.5 py-2 rounded-[5px] shadow-2xl border border-[#2b2d31] text-left break-words [overflow-wrap:anywhere]">
+            <div className="flex items-center gap-1.5 mb-1 min-w-0">
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ backgroundColor: badge.color }}
               />
-              <span className="font-bold text-xs text-white leading-tight">
+              <span className="font-semibold text-xs text-white leading-tight truncate">
                 {badge.name}
               </span>
               {isLocked && (
-                <span className="text-[10px] text-[#f23f43] font-semibold ml-auto flex items-center gap-0.5">
+                <span className="text-[10px] text-[#f23f43] font-semibold ml-auto flex-shrink-0 flex items-center gap-0.5">
                   <Lock className="w-2.5 h-2.5" /> Bloqueada
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[#b5bac1] leading-relaxed">
+            <p className="text-[11px] text-[#dbdee1] leading-snug">
               {badge.description}
             </p>
           </div>
-          {/* Tooltip beak */}
-          <div className="w-2 h-2 bg-[#111214] border-r border-b border-[#2b2d31] rotate-45 mx-auto -mt-1" />
+
+          {computedPlacement === 'top' && (
+            <div
+              className={`w-2 h-2 bg-[#111214] border-r border-b border-[#2b2d31] rotate-45 mt-[-4px] z-10 relative ${
+                alignMode === 'right' ? 'mr-3 ml-auto' : alignMode === 'left' ? 'ml-3' : 'mx-auto'
+              }`}
+            />
+          )}
         </div>
       )}
     </div>

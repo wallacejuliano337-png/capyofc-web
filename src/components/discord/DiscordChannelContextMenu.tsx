@@ -24,6 +24,8 @@ interface Props {
   channel: Channel;
   categoryId: string;
   position: { x: number; y: number };
+  canManageChannels?: boolean;
+  canCreateInvites?: boolean;
   onClose: () => void;
   onMarkAsRead: () => void;
   onInvite: () => void;
@@ -41,6 +43,8 @@ interface Props {
 export const DiscordChannelContextMenu: React.FC<Props> = ({
   channel,
   position,
+  canManageChannels = false,
+  canCreateInvites = false,
   onClose,
   onMarkAsRead,
   onInvite,
@@ -160,15 +164,18 @@ export const DiscordChannelContextMenu: React.FC<Props> = ({
         onClick={onToggleMute}
       />
 
-      <div className="h-[1px] bg-[#222327] my-1" />
-
       {/* 3. Convidar para o canal */}
-      <Item
-        icon={UserPlus}
-        label={channel.type === 'voice' ? 'Convidar para a voz' : 'Convidar para o canal'}
-        onClick={onInvite}
-        highlight
-      />
+      {canCreateInvites && (
+        <>
+          <div className="h-[1px] bg-[#222327] my-1" />
+          <Item
+            icon={UserPlus}
+            label={channel.type === 'voice' ? 'Convidar para a voz' : 'Convidar para o canal'}
+            onClick={onInvite}
+            highlight
+          />
+        </>
+      )}
 
       {/* 4. Copiar link do canal */}
       <Item
@@ -184,56 +191,61 @@ export const DiscordChannelContextMenu: React.FC<Props> = ({
         onClick={onCopyId}
       />
 
-      <div className="h-[1px] bg-[#222327] my-1" />
+      {/* Ações administrativas do canal */}
+      {canManageChannels && (
+        <>
+          <div className="h-[1px] bg-[#222327] my-1" />
 
-      {/* 6. Criar canal */}
-      <Item
-        icon={PlusCircle}
-        label="Criar canal"
-        onClick={onCreateChannel}
-      />
+          {/* 6. Criar canal */}
+          <Item
+            icon={PlusCircle}
+            label="Criar canal"
+            onClick={onCreateChannel}
+          />
 
-      {/* 7. Duplicar canal */}
-      <Item
-        icon={CopyPlus}
-        label="Duplicar canal"
-        onClick={onDuplicate}
-      />
+          {/* 7. Duplicar canal */}
+          <Item
+            icon={CopyPlus}
+            label="Duplicar canal"
+            onClick={onDuplicate}
+          />
 
-      {/* 8. Reordenar canal */}
-      {onMoveUp && (
-        <Item
-          icon={ChevronUp}
-          label="Mover para cima"
-          onClick={onMoveUp}
-        />
+          {/* 8. Reordenar canal */}
+          {onMoveUp && (
+            <Item
+              icon={ChevronUp}
+              label="Mover para cima"
+              onClick={onMoveUp}
+            />
+          )}
+          {onMoveDown && (
+            <Item
+              icon={ChevronDown}
+              label="Mover para baixo"
+              onClick={onMoveDown}
+            />
+          )}
+
+          <div className="h-[1px] bg-[#222327] my-1" />
+
+          {/* 9. Editar canal */}
+          <Item
+            icon={Settings}
+            label="Editar canal"
+            onClick={onEdit}
+          />
+
+          <div className="h-[1px] bg-[#222327] my-1" />
+
+          {/* 10. Excluir canal */}
+          <Item
+            icon={Trash2}
+            label="Excluir canal"
+            onClick={onDelete}
+            danger
+          />
+        </>
       )}
-      {onMoveDown && (
-        <Item
-          icon={ChevronDown}
-          label="Mover para baixo"
-          onClick={onMoveDown}
-        />
-      )}
-
-      <div className="h-[1px] bg-[#222327] my-1" />
-
-      {/* 9. Editar canal */}
-      <Item
-        icon={Settings}
-        label="Editar canal"
-        onClick={onEdit}
-      />
-
-      <div className="h-[1px] bg-[#222327] my-1" />
-
-      {/* 10. Excluir canal */}
-      <Item
-        icon={Trash2}
-        label="Excluir canal"
-        onClick={onDelete}
-        danger
-      />
     </div>
   );
 };

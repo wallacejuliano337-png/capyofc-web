@@ -18,11 +18,13 @@ if (!fs.existsSync(releaseDir)) {
   process.exit(1);
 }
 
-const exeName = `CapyChat-Setup-${version}.exe`;
+const exeName = `Capy.ofc-Setup-${version}.exe`;
+const portableName = `Capy.ofc-Portable-${version}.exe`;
 const blockmapName = `${exeName}.blockmap`;
 const ymlName = `latest.yml`;
 
 const exePath = path.join(releaseDir, exeName);
+const portablePath = path.join(releaseDir, portableName);
 const blockmapPath = path.join(releaseDir, blockmapName);
 const ymlPath = path.join(releaseDir, ymlName);
 
@@ -38,6 +40,15 @@ if (fs.existsSync(exePath)) {
 } else {
   console.error(`[FALHA] Instalador '${exeName}' não encontrado em ${releaseDir}.`);
   hasErrors = true;
+}
+
+// 1.1 Verificar versão portátil (se gerada)
+if (fs.existsSync(portablePath)) {
+  const stat = fs.statSync(portablePath);
+  const sizeMb = (stat.size / (1024 * 1024)).toFixed(2);
+  console.log(`[OK] Executável Portátil (Diagnóstico) encontrado:`);
+  console.log(`     Arquivo: ${portableName}`);
+  console.log(`     Tamanho: ${sizeMb} MB (${stat.size} bytes)`);
 }
 
 // 2. Verificar mapa de blocos diferenciais (.blockmap)

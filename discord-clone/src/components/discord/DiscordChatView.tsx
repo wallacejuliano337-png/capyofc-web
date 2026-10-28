@@ -5,7 +5,10 @@ import { MessageAttachment, SERVER_TAG_BADGES, SERVER_TAG_COLORS, resolveServerT
 import { DiscordMarkdown } from './DiscordMarkdown';
 import { DiscordEmojiPicker } from './DiscordEmojiPicker';
 import { DiscordUserContextMenu } from './DiscordUserContextMenu';
-import { getAvatarUrl } from '../../utils/avatar';
+import { DiscordInviteEmbed } from './DiscordInviteEmbed';
+import { extractInviteCodes, joinByInviteCode } from '../../lib/invite';
+import { getAvatarUrl, handleAvatarError } from '../../utils/avatar';
+import { getStyledNameCSS, getFontClassName } from '../../utils/nameStyle';
 import { playNotificationSound } from '../../services/notification-sounds';
 import {
   Hash,
@@ -62,6 +65,9 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
     currentUser,
     communityMembers,
     canUserModerate,
+    hasServerPermission,
+    setActiveServer,
+    joinCommunityServer,
   } = useDiscord();
 
   const { theme } = useTheme();
@@ -102,6 +108,10 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
   let currentCategoryId = '';
 
   const isDm = activeServerId === '@me';
+  const canSendMessages = isDm || hasServerPermission('sendMessages', activeServerId, activeChannelId);
+  const canAttachFiles = isDm || hasServerPermission('attachFiles', activeServerId, activeChannelId);
+  const canManageMessages = isDm || hasServerPermission('manageMessages', activeServerId, activeChannelId);
+  const canMentionEveryone = isDm || hasServerPermission('mentionEveryone', activeServerId, activeChannelId);
 
   if (isDm) {
     const friendId = activeChannelId.replace('dm-', '');
@@ -123,6 +133,21 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
 
   const channelMessages = messages[activeChannelId] || [];
   const pinnedMessages = channelMessages.filter((m) => m.isPinned);
+
+  const handleInviteLinkClick = async (code: string) => {
+    const store = useDiscord.getState();
+    const existing = store.servers.find(
+      (s) => s.id === code || s.communityId === code || (code === 'capychat-oficial' && s.id === 'server-lyc')
+    );
+    if (existing) {
+      setActiveServer(existing.id);
+      return;
+    }
+    const res = await joinByInviteCode(code);
+    if (res.success && res.communityId) {
+      await joinCommunityServer(res.communityId);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -151,8 +176,10 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
   }, [msgContextMenu]);
 
   const handleSendMessage = () => {
+    if (!canSendMessages) return;
     if (!inputText.trim() && pendingAttachments.length === 0) return;
-    const isPing = inputText.includes('@everyone') || inputText.includes('@here') || inputText.includes('@');
+    if (pendingAttachments.length > 0 && !canAttachFiles) return;
+    const isPing = (inputText.includes('@everyone') || inputText.includes('@here')) ? canMentionEveryone : inputText.includes('@');
     if (isPing) {
       playNotificationSound('mention');
     }
@@ -461,41 +488,43 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
 
       {/* Pinned Messages Popover Panel */}
       {isPinnedOpen && (
-        <div className="absolute right-4 top-14 w-96 max-h-96 bg-[#2b2d31] rounded-lg shadow-2xl border border-[#1f2023] z-30 flex flex-col overflow-hidden animate-in fade-in duration-150">
+        <div className="absolute right-4 top-14 w-96 max-w-[calc(100vw-32px)] max-h-96 bg-[#2b2d31] rounded-lg shadow-2xl border border-[#1f2023] z-30 flex flex-col overflow-hidden animate-in fade-in duration-150">
           <div className="p-3 bg-[#1e1f22] border-b border-[#232428] flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
-              <Pin className="w-4 h-4 text-[#5865f2]" />
-              <span>Mensagens Fixadas ({pinnedMessages.length})</span>
+            <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider min-w-0">
+              <Pin className="w-4 h-4 text-[#5865f2] flex-shrink-0" />
+              <span className="truncate">Mensagens Fixadas ({pinnedMessages.length})</span>
             </div>
             <button
               onClick={() => setIsPinnedOpen(false)}
-              className="text-[#949ba4] hover:text-white cursor-pointer"
+              className="text-[#949ba4] hover:text-white cursor-pointer flex-shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-w-0">
             {pinnedMessages.length === 0 ? (
               <p className="text-xs text-[#949ba4] text-center py-6">
                 Nenhuma mensagem fixada neste canal.
               </p>
             ) : (
               pinnedMessages.map((p) => (
-                <div key={p.id} className="p-2.5 bg-[#313338] rounded-md border border-[#35363c]/50">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-xs text-white">
+                <div key={p.id} className="p-2.5 bg-[#313338] rounded-md border border-[#35363c]/50 min-w-0 break-words [overflow-wrap:anywhere]">
+                  <div className="flex items-center justify-between mb-1 min-w-0 gap-2">
+                    <span className="font-semibold text-xs text-white truncate min-w-0">
                       {p.author.displayName || p.author.name}
                     </span>
                     <button
                       onClick={() => pinMessage(activeChannelId, p.id)}
-                      className="text-[#949ba4] hover:text-[#f23f43] text-[11px] cursor-pointer"
+                      className="text-[#949ba4] hover:text-[#f23f43] text-[11px] cursor-pointer flex-shrink-0"
                       title="Desafixar"
                     >
                       Desafixar
                     </button>
                   </div>
-                  <DiscordMarkdown content={p.content} />
+                  <div className="min-w-0 break-words [overflow-wrap:anywhere]">
+                    <DiscordMarkdown content={p.content} onInviteClick={handleInviteLinkClick} />
+                  </div>
                 </div>
               ))
             )}
@@ -573,6 +602,7 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
                 <img
                   src={getAvatarUrl(msg.author.avatar)}
                   alt={msg.author.name}
+                  onError={handleAvatarError}
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     openMemberPopout(msg.author, { top: rect.top, right: window.innerWidth - rect.left + 10 });
@@ -595,38 +625,14 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
 
                 {/* Message Details */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2 leading-none">
-                    <span
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        openMemberPopout(msg.author, { top: rect.top, right: window.innerWidth - rect.left + 10 });
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        openMemberPopout(msg.author, { top: rect.top, right: window.innerWidth - rect.left + 10 });
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setUserContextMenu({
-                          user: msg.author,
-                          position: { x: e.clientX, y: e.clientY },
-                        });
-                      }}
-                      className="font-semibold text-sm hover:underline cursor-pointer"
-                      style={{ color: getUserRoleColor(msg.author.id) }}
-                    >
-                      {msg.author.displayName || msg.author.name}
-                    </span>
-
-                    {/* Tag Oficial do Servidor (com badge customizada ou pré-definida e suporte a hex livre) */}
+                  <div className="flex items-center gap-1.5 leading-none min-w-0">
+                    {/* Tag Oficial do Servidor à esquerda do nome (estilo Discord) */}
                     {!isDm && server?.serverTag && (() => {
                       const tagColor = resolveServerTagColor(server.serverTagColor);
                       const tagBadgeIcon = resolveServerTagBadgeIcon(server.serverTagBadge, server.serverTagBadgeImage);
                       return (
                         <span
-                          className="inline-flex items-center gap-1.5 text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm select-none leading-none"
+                          className="inline-flex items-center gap-1.5 text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm select-none leading-none flex-shrink-0"
                           title={`Tag oficial: ${server.serverTag}`}
                           style={{
                             backgroundColor: `${tagColor.hex}25`,
@@ -641,6 +647,44 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
                             style={{ imageRendering: 'pixelated' }}
                           />
                           <span className="leading-none">{server.serverTag}</span>
+                        </span>
+                      );
+                    })()}
+
+                    {(() => {
+                      const isSelf = msg.author.id === currentUser.id || msg.author.id === 'user-me' || msg.author.name === currentUser.name;
+                      const effectiveFont = msg.author.nameFont || (isSelf ? currentUser.nameFont : undefined);
+                      const effectiveEffect = msg.author.nameEffect || (isSelf ? currentUser.nameEffect : undefined);
+                      const effectiveNameColor = msg.author.nameColor || (isSelf ? currentUser.nameColor : undefined);
+                      const effectiveDisplayName = isSelf ? (currentUser.displayName || msg.author.displayName || msg.author.name) : (msg.author.displayName || msg.author.name);
+                      const roleColor = getUserRoleColor(msg.author.id);
+                      const styleColor = effectiveNameColor || roleColor;
+                      const styledCSS = getStyledNameCSS(effectiveFont, effectiveEffect, styleColor);
+                      const fontClass = getFontClassName(effectiveFont);
+
+                      return (
+                        <span
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            openMemberPopout(msg.author, { top: rect.top, right: window.innerWidth - rect.left + 10 });
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            openMemberPopout(msg.author, { top: rect.top, right: window.innerWidth - rect.left + 10 });
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setUserContextMenu({
+                              user: msg.author,
+                              position: { x: e.clientX, y: e.clientY },
+                            });
+                          }}
+                          className={`font-semibold text-sm hover:underline cursor-pointer truncate min-w-0 ${fontClass}`}
+                          style={{ color: styleColor, ...styledCSS }}
+                        >
+                          {effectiveDisplayName}
                         </span>
                       );
                     })()}
@@ -686,9 +730,22 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
                     </div>
                   ) : (
                     <div className="text-[14px] text-[#dbdee1] leading-[1.375rem] break-words mt-0.5">
-                      <DiscordMarkdown content={msg.content} />
+                      <DiscordMarkdown content={msg.content} onInviteClick={handleInviteLinkClick} />
                     </div>
                   )}
+
+                  {/* Rich Discord Invite Embed Cards */}
+                  {(() => {
+                    const inviteItems = extractInviteCodes(msg.content);
+                    if (inviteItems.length === 0) return null;
+                    return (
+                      <div className="space-y-2 mt-1">
+                        {inviteItems.map((inv) => (
+                          <DiscordInviteEmbed key={inv.code} code={inv.code} rawUrl={inv.rawUrl} />
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {/* Message Attachments */}
                   {msg.attachments && msg.attachments.length > 0 && (
@@ -942,23 +999,43 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
           }`}
         >
           {/* Attach Button */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            title="Enviar anexo ou arquivo"
-            className="text-[#b5bac1] hover:text-[#dbdee1] p-1 bg-[#4e5058]/50 hover:bg-[#4e5058] rounded-full transition-colors cursor-pointer flex-shrink-0"
-          >
-            <PlusCircle className="w-5 h-5" />
-          </button>
+          {canAttachFiles ? (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Enviar anexo ou arquivo"
+              className="text-[#b5bac1] hover:text-[#dbdee1] p-1 bg-[#4e5058]/50 hover:bg-[#4e5058] rounded-full transition-colors cursor-pointer flex-shrink-0"
+            >
+              <PlusCircle className="w-5 h-5" />
+            </button>
+          ) : (
+            <div
+              title="Você não tem permissão para enviar arquivos neste canal"
+              className="text-[#80848e] p-1 opacity-30 cursor-not-allowed flex-shrink-0"
+            >
+              <PlusCircle className="w-5 h-5" />
+            </div>
+          )}
 
           {/* Text Input */}
           <input
             ref={inputBarRef}
             type="text"
+            disabled={!canSendMessages}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Conversar em #${channelName}`}
-            className="flex-1 bg-transparent !border-0 !outline-none !shadow-none !ring-0 !p-0 text-base sm:text-[14px] leading-5 text-[#f2f3f5] placeholder-[#80848e] select-text py-0.5"
+            placeholder={
+              !canSendMessages
+                ? 'Você não tem permissão para enviar mensagens neste canal.'
+                : replyingTo
+                ? `Respondendo a @${replyingTo.author}...`
+                : channelType === 'voice'
+                ? `Conversar no bate-papo de áudio #${channelName}`
+                : `Conversar em #${channelName}`
+            }
+            className={`flex-1 bg-transparent !border-0 !outline-none !shadow-none !ring-0 !p-0 text-base sm:text-[14px] leading-5 text-[#f2f3f5] placeholder-[#80848e] select-text py-0.5 ${
+              !canSendMessages ? 'cursor-not-allowed opacity-50' : ''
+            }`}
           />
 
           {/* Action Icons Right */}
@@ -1137,7 +1214,7 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
           )}
 
           {/* Delete message (own message OR moderator/admin permission) */}
-          {(msgContextMenu.authorId === currentUser.id || currentUser.id === 'user-me' || canUserModerate(currentUser.id).canKick || canUserModerate(currentUser.id).isAdmin) && (
+          {(msgContextMenu.authorId === currentUser.id || currentUser.id === 'user-me' || canUserModerate(currentUser.id).canKick || canUserModerate(currentUser.id).isAdmin || canManageMessages) && (
             <button
               onClick={() => {
                 deleteMessage(activeChannelId, msgContextMenu.msgId);

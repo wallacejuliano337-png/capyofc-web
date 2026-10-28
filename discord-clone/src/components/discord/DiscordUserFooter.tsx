@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useDiscord, currentUser } from '../../store/discordStore';
 import { useVoiceStreamStore } from '../../store/voiceStreamStore';
 import { DiscordCurrentUserPopout } from './DiscordCurrentUserPopout';
-import { getAvatarUrl } from '../../utils/avatar';
+import { getAvatarUrl, handleAvatarError } from '../../utils/avatar';
+import { getAssetUrl } from '../../utils/assets';
+import { resolveServerTagBadgeIcon } from '../../types/discord';
 import {
   Mic,
   MicOff,
@@ -11,8 +13,6 @@ import {
   PhoneOff,
   Signal,
   Info,
-  Pencil,
-  Check,
   Maximize2,
   Video,
   VideoOff,
@@ -20,13 +20,13 @@ import {
   Rocket,
   AudioWaveform,
   X,
-  LogOut,
-  Loader2,
 } from 'lucide-react';
 
 export const DiscordUserFooter: React.FC = () => {
   const {
     currentUser,
+    servers,
+    activeServerId,
     updateCurrentUser,
     voiceState,
     isMicMuted,
@@ -39,8 +39,6 @@ export const DiscordUserFooter: React.FC = () => {
     openSettingsModal,
     setActiveView,
     activeView,
-    isLoggingOut,
-    logout,
   } = useDiscord();
 
   const [isPopoutOpen, setIsPopoutOpen] = useState(false);
@@ -66,29 +64,11 @@ export const DiscordUserFooter: React.FC = () => {
     }
   }, [screenStream, activeView]);
 
-  // ── Editable display name persisted to localStorage ──────────────────────
-  const [displayName, setDisplayName] = useState<string>(
-    () =>
-      (typeof window !== 'undefined' && localStorage.getItem('lycDisplayName')) ||
-      currentUser.displayName ||
-      'LycUser',
-  );
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(displayName);
-
-  useEffect(() => {
-    if (currentUser.displayName) {
-      setDisplayName(currentUser.displayName);
-      setEditValue(currentUser.displayName);
-    }
-  }, [currentUser.displayName]);
-
-  const confirmEdit = () => {
-    const trimmed = editValue.trim() || 'LycUser';
-    setDisplayName(trimmed);
-    updateCurrentUser({ displayName: trimmed, name: trimmed });
-    setIsEditing(false);
-  };
+  const currentServer = servers.find((s) => s.id === activeServerId) || servers[0];
+  const displayName = currentUser.displayName || currentUser.name || 'Usuário';
+  const tagBadgeIcon = currentServer?.serverTag
+    ? resolveServerTagBadgeIcon(currentServer.serverTagBadge, currentServer.serverTagBadgeImage)
+    : null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -180,7 +160,7 @@ export const DiscordUserFooter: React.FC = () => {
   };
 
   return (
-    <footer className="w-full flex flex-col bg-[#232428] select-none border-t border-[#1f2023] flex-shrink-0 z-20">
+    <footer className="w-full flex flex-col bg-[#232428] select-none border-t border-[#1f2023] flex-shrink-0 z-20 mt-auto">
       {/* Miniatura Flutuante Picture-in-Picture (quando a stream está ativa e o usuário está navegando em chat/outras abas) */}
       {voiceState.isConnected && screenStream && activeView !== 'voice-stage' && (
         <div className="p-2 border-b border-[#1f2023] bg-[#1a1b1e]">
@@ -256,7 +236,7 @@ export const DiscordUserFooter: React.FC = () => {
                 aria-label="Desconectar"
               >
                 <img
-                  src="/brand/03_UI_Icons_SVG/btn_call_hangup.svg"
+                  src={getAssetUrl('brand/03_UI_Icons_SVG/btn_call_hangup.svg')}
                   alt="Desconectar"
                   className="w-4 h-4"
                 />
@@ -324,25 +304,27 @@ export const DiscordUserFooter: React.FC = () => {
       )}
 
       {/* User Info & Quick Controls Bar */}
-      <div className="h-[52px] flex items-center justify-between px-2">
+      <div className="h-[52px] flex items-center justify-between px-2 bg-[#111214]/60">
         {/* User Card */}
         <div
           ref={userCardRef}
           onClick={() => setIsPopoutOpen((prev) => !prev)}
-          className={`flex items-center space-x-2 p-1 -ml-1 rounded-md cursor-pointer flex-1 min-w-0 transition-colors group ${
+          className={`flex items-center gap-2 p-1 -ml-1 rounded-[4px] cursor-pointer flex-1 min-w-0 transition-colors group mr-1 ${
             isPopoutOpen ? 'bg-[#35373c]' : 'hover:bg-[#35373c]/50'
           }`}
+          title={`${displayName} (@${currentUser.name || 'usuario'})`}
         >
           <div className="relative flex-shrink-0">
             <img
               src={getAvatarUrl(currentUser.avatar)}
-              alt={currentUser.name}
-              className="w-8 h-8 rounded-full object-cover"
+              alt={displayName}
+              onError={handleAvatarError}
+              className="w-8 h-8 rounded-full object-cover bg-[#111214]"
             />
             {/* Status dot / Mascot expression */}
             {currentUser.status === 'idle' ? (
               <img
-                src="/brand/04_Recortes_PNG_Alta_Resolucao/Mascotes_Expressoes/06_Dormindo.png"
+                src={getAssetUrl('brand/04_Recortes_PNG_Alta_Resolucao/Mascotes_Expressoes/06_Dormindo.png')}
                 alt="Ausente"
                 title="Ausente (Dormindo)"
                 className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-[#232428] bg-[#1F1F26] object-cover shadow"
@@ -364,74 +346,51 @@ export const DiscordUserFooter: React.FC = () => {
             ) : (
               <span
                 title="Disponível"
-                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2.5px] border-[#232428] ${getStatusColor(
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-[2px] border-[#232428] ${getStatusColor(
                   currentUser.status
                 )}`}
               />
             )}
           </div>
 
-          <div className="flex flex-col min-w-0 leading-tight">
-            {isEditing ? (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <input
-                  autoFocus
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') confirmEdit();
-                    if (e.key === 'Escape') setIsEditing(false);
-                  }}
-                  className="text-sm font-semibold text-[#f2f3f5] bg-[#1e1f22] border border-[#5865f2] rounded px-1 w-24 outline-none"
-                  maxLength={32}
-                />
-                <button onClick={confirmEdit} className="text-[#23a55a] hover:text-[#1a8a4a]">
-                  <Check className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 group/name">
-                <span className="text-sm font-semibold text-[#f2f3f5] truncate group-hover:underline">
-                  {displayName}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditValue(displayName);
-                    setIsEditing(true);
-                  }}
-                  className="opacity-0 group-hover/name:opacity-100 text-[#949ba4] hover:text-[#dbdee1] transition-opacity"
-                  title="Editar nome"
-                >
-                  <Pencil className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-            <span className="text-[11px] text-[#949ba4] truncate">
-              {currentUser.customStatus || `@${displayName}`}
+          <div className="flex flex-col min-w-0 leading-tight justify-center flex-1">
+            <span className="text-sm font-semibold text-[#f2f3f5] truncate block group-hover:underline">
+              {displayName}
             </span>
+            {currentServer?.serverTag && tagBadgeIcon ? (
+              <span className="text-[11px] text-[#949ba4] truncate flex items-center gap-1 font-medium mt-0.5">
+                <img
+                  src={tagBadgeIcon}
+                  alt="Tag"
+                  className="w-3 h-3 object-contain rounded-xs flex-shrink-0"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+                <span className="truncate">{currentServer.serverTag}</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-[#949ba4] truncate font-normal mt-0.5">
+                {currentUser.customStatus || `@${currentUser.name || 'usuario'}`}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Audio / Settings Buttons */}
-        <div className="flex items-center space-x-1 text-[#b5bac1]">
+        <div className="flex items-center gap-0.5 text-[#b5bac1] flex-shrink-0">
           {/* Mute Mic */}
           <button
             onClick={toggleMute}
             title={isMicMuted ? 'Desmutar Microfone' : 'Mutar Microfone'}
-            className={`p-1.5 rounded-md hover:bg-[#35373c] transition-colors relative flex items-center justify-center ${
-              isMicMuted ? 'text-[#f23f43]' : 'hover:text-[#dbdee1]'
+            className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors cursor-pointer ${
+              isMicMuted
+                ? 'text-[#f23f43] bg-[#f23f43]/15 hover:bg-[#f23f43]/25'
+                : 'hover:bg-[#35373c] hover:text-[#dbdee1]'
             }`}
           >
-            <img
-              src="/brand/03_UI_Icons_SVG/btn_call_mic.svg"
-              alt="Microfone"
-              className={`w-5 h-5 rounded-full transition-opacity ${isMicMuted ? 'opacity-40 grayscale' : ''}`}
-            />
-            {isMicMuted && (
-              <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="w-5 h-0.5 bg-[#EF4444] rotate-45 rounded shadow" />
-              </span>
+            {isMicMuted ? (
+              <MicOff className="w-5 h-5 text-[#f23f43]" />
+            ) : (
+              <Mic className="w-5 h-5" />
             )}
           </button>
 
@@ -439,12 +398,19 @@ export const DiscordUserFooter: React.FC = () => {
           <button
             onClick={toggleDeafen}
             title={isDeafened ? 'Reativar Áudio' : 'Ensurdecer'}
-            className={`p-1.5 rounded-md hover:bg-[#35373c] transition-colors ${
-              isDeafened ? 'text-[#f23f43]' : 'hover:text-[#dbdee1]'
+            className={`w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors cursor-pointer ${
+              isDeafened
+                ? 'text-[#f23f43] bg-[#f23f43]/15 hover:bg-[#f23f43]/25'
+                : 'hover:bg-[#35373c] hover:text-[#dbdee1]'
             }`}
           >
             {isDeafened ? (
-              <Headphones className="w-5 h-5 text-[#f23f43] line-through" />
+              <div className="relative flex items-center justify-center">
+                <Headphones className="w-5 h-5 text-[#f23f43]" />
+                <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="w-5 h-[2px] bg-[#f23f43] -rotate-45 rounded-[1px] shadow-xs" />
+                </span>
+              </div>
             ) : (
               <Headphones className="w-5 h-5" />
             )}
@@ -454,34 +420,9 @@ export const DiscordUserFooter: React.FC = () => {
           <button
             onClick={openSettingsModal}
             title="Configurações de Usuário"
-            className="p-1.5 rounded-md hover:bg-[#35373c] hover:text-[#dbdee1] transition-colors flex items-center justify-center cursor-pointer"
+            className="w-8 h-8 rounded-[4px] flex items-center justify-center hover:bg-[#35373c] hover:text-[#dbdee1] transition-colors cursor-pointer group"
           >
-            <img
-              src="/brand/03_UI_Icons_SVG/icon_configuracoes.svg"
-              alt="Configurações"
-              className="w-5 h-5 rounded-md hover:brightness-110"
-            />
-          </button>
-
-          {/* Quick Logout Button */}
-          <button
-            onClick={async () => {
-              if (isLoggingOut) return;
-              try {
-                await logout();
-              } catch (err) {
-                console.error('[DiscordUserFooter] Logout error:', err);
-              }
-            }}
-            disabled={isLoggingOut}
-            title={isLoggingOut ? 'Saindo da conta...' : 'Sair da Conta (Logout)'}
-            className="p-1.5 rounded-md hover:bg-[#f23f43]/15 text-[#949ba4] hover:text-[#f23f43] transition-colors flex items-center justify-center cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoggingOut ? (
-              <Loader2 className="w-4 h-4 text-[#f23f43] animate-spin" />
-            ) : (
-              <LogOut className="w-4 h-4 transition-transform group-hover:scale-110" />
-            )}
+            <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-200" />
           </button>
         </div>
       </div>

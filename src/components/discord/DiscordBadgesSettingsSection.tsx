@@ -7,7 +7,9 @@ import {
   getDisplayedBadgeIds,
 } from '../../types/badges';
 import { CapyBadgeIcon } from './CapyBadgeIcon';
+import { DiscordBadgesGroup } from './DiscordBadgesGroup';
 import { Award, RotateCcw, Check, Lock, Sparkles, ShieldCheck } from 'lucide-react';
+import { getAvatarUrl, handleAvatarError } from '../../utils/avatar';
 
 export const DiscordBadgesSettingsSection: React.FC = () => {
   const { currentUser, updateDisplayedBadges } = useDiscord();
@@ -100,8 +102,9 @@ export const DiscordBadgesSettingsSection: React.FC = () => {
           {/* Avatar */}
           <div className="relative flex-shrink-0">
             <img
-              src={currentUser.avatar}
+              src={getAvatarUrl(currentUser.avatar)}
               alt={currentUser.displayName || currentUser.name}
+              onError={handleAvatarError}
               className="w-12 h-12 rounded-full object-cover bg-[#2b2d31] ring-2 ring-[#5865f2]/40"
             />
             <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[#1e1f22] bg-[#23a55a]" />
@@ -121,11 +124,9 @@ export const DiscordBadgesSettingsSection: React.FC = () => {
           </div>
 
           {/* Badges Container Preview */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#111214]/85 rounded-full border border-[#35373c]/40 shadow-xs flex-shrink-0">
+          <div className="flex-shrink-0">
             {displayedList.length > 0 ? (
-              displayedList.map((id) => (
-                <CapyBadgeIcon key={id} badgeId={id} size={15} showTooltip />
-              ))
+              <DiscordBadgesGroup badgeIds={displayedList} size={16} />
             ) : (
               <span className="text-[10px] text-[#80848e] italic px-2">
                 Nenhuma insígnia exibida

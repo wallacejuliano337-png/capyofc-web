@@ -31,7 +31,7 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
   isOpen,
   onClose,
 }) => {
-  const { currentUser, addServer, setActiveServer, servers, createServerFromTemplate } = useDiscord();
+  const { currentUser, addServer, setActiveServer, servers, createServerFromTemplate, joinCommunityServer, createCommunityServer } = useDiscord();
   const [view, setView] = useState<'templates' | 'customize' | 'join' | 'import-template'>('templates');
   const [serverName, setServerName] = useState(`Servidor de ${currentUser.displayName || currentUser.name}`);
   const [serverIcon, setServerIcon] = useState<string>('');
@@ -39,6 +39,9 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('custom');
+
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const [templateInput, setTemplateInput] = useState('');
   const [importedTemplate, setImportedTemplate] = useState<ServerTemplateData | null>(null);
@@ -57,6 +60,8 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
       setTemplateInput('');
       setImportedTemplate(null);
       setTemplateError(null);
+      setCreateError(null);
+      setIsCreating(false);
     }
   }, [isOpen, currentUser]);
 
@@ -84,51 +89,21 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
     }
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!serverName.trim()) return;
+    if (!serverName.trim() || isCreating) return;
 
-    const initials = serverName
-      .trim()
-      .split(' ')
-      .map((w) => w[0])
-      .slice(0, 3)
-      .join('')
-      .toUpperCase();
+    setIsCreating(true);
+    setCreateError(null);
 
-    const newServerId = `server-${Date.now()}`;
+    const res = await createCommunityServer(serverName, serverIcon);
+    setIsCreating(false);
 
-    addServer({
-      id: newServerId,
-      name: serverName.trim(),
-      initials: initials || 'SRV',
-      icon: serverIcon || undefined,
-      bannerColor: 'blurple-purple',
-      bannerImage: null,
-      description: `Comunidade criada por ${currentUser.displayName || currentUser.name}`,
-      ownerId: currentUser.id,
-      memberIds: [currentUser.id],
-      memberCount: 1,
-      categories: [
-        {
-          id: `cat-${Date.now()}-1`,
-          name: 'CANAIS DE TEXTO',
-          channels: [
-            { id: `ch-${Date.now()}-general`, name: 'geral', type: 'text', topic: 'Bate-papo geral do servidor.' },
-          ],
-        },
-        {
-          id: `cat-${Date.now()}-2`,
-          name: 'CANAIS DE VOZ',
-          channels: [
-            { id: `ch-${Date.now()}-voice`, name: 'Geral [Voz]', type: 'voice' },
-          ],
-        },
-      ],
-    });
-
-    setActiveServer(newServerId);
-    onClose();
+    if (res.success) {
+      onClose();
+    } else {
+      setCreateError(res.error || 'Erro ao criar servidor.');
+    }
   };
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -165,7 +140,11 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
 
     if (result.success) {
       if (result.communityId) {
-        setActiveServer(result.communityId);
+        if (result.communityId === 'server-lyc') {
+          setActiveServer('server-lyc');
+        } else {
+          await joinCommunityServer(result.communityId);
+        }
       }
       onClose();
     } else {
@@ -346,6 +325,11 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
               <span className="text-[10px] text-[#949ba4] block">
                 Ao criar um servidor, você concorda com as Diretrizes da Comunidade do CapyChat Oficial.
               </span>
+              {createError && (
+                <span className="text-[11px] text-[#f23f43] font-medium block">
+                  {createError}
+                </span>
+              )}
             </div>
 
             {/* Buttons */}
@@ -360,10 +344,10 @@ export const DiscordCreateServerModal: React.FC<DiscordCreateServerModalProps> =
               </button>
               <button
                 type="submit"
-                disabled={!serverName.trim()}
+                disabled={!serverName.trim() || isCreating}
                 className="px-6 py-2 bg-[#5865f2] hover:bg-[#4752c4] text-white font-bold text-xs rounded-[4px] transition-colors cursor-pointer shadow disabled:opacity-50"
               >
-                Criar
+                {isCreating ? 'Criando...' : 'Criar'}
               </button>
             </div>
           </form>

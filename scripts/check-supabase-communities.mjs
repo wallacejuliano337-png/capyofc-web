@@ -23,27 +23,57 @@ for (const f of files.reverse()) {
   }
 }
 
-if (!validJwt) {
-  console.log('No valid JWT found in leveldb.');
-  process.exit(0);
-}
-
 const client = createClient(
   'https://tfjkinffnksmiqatdhnb.supabase.co',
   'sb_publishable_TJ044Vhx0EW8lEH_u_lg7Q_lRqCop_Q',
   { global: { headers: { Authorization: `Bearer ${validJwt}` } } }
 );
 
-async function main() {
-  const { data: coms, error: cErr } = await client.from('communities').select('*');
-  console.log('Communities in Supabase count:', coms?.length);
-  if (coms) console.log(JSON.stringify(coms, null, 2));
+async function testCommunityCreate() {
+  console.log('\n--- TESTING COMMUNITY CREATE WITH USER JWT ---');
+  const { data: newCommId, error: createErr } = await client.rpc('community_action', {
+    action: 'create',
+    payload: { name: 'Comunidade Teste Supabase' }
+  });
 
-  const { data: cm, error: cmErr } = await client.from('community_members').select('*');
-  console.log('Community members in Supabase count:', cm?.length);
-  if (cm) {
-    console.log(JSON.stringify(cm.map(m => ({ community_id: m.community_id, user_id: m.user_id, role_id: m.role_id, left_at: m.left_at })), null, 2));
+  if (createErr) {
+    console.error('Error creating community:', createErr);
+    return;
   }
+  console.log('Created community ID:', newCommId);
+
+  // Check roles created by trigger
+  const { data: roles, error: rErr } = await client
+    .from('community_roles')
+    .select('*')
+    .eq('community_id', newCommId);
+  console.log('Roles created in new community:', roles?.length, roles?.map(r => ({ id: r.id, name: r.name, base: r.base_role, pos: r.position })));
+
+  // Check membership
+  const { data: members, error: mErr } = await client
+    .from('community_members')
+    .select('*')
+    .eq('community_id', newCommId);
+  console.log('Membership in new community:', members);
+
+  // Check user permissions in new community
+  const { data: perms, error: pErr } = await client.rpc('my_community_permissions', { community_id: newCommId });
+  console.log('My permissions in new community:', perms);
+
+  // Test creating an invite
+  const { data: inviteRes, error: invErr } = await client.rpc('community_action', {
+    action: 'create_invite',
+    payload: { community_id: newCommId }
+  });
+  console.log('Create invite result:', inviteRes, invErr);
+
+  // Delete test community to keep DB clean
+  console.log('Cleaning up test community...');
+  const { data: delRes, error: delErr } = await client.rpc('community_action', {
+    action: 'delete',
+    payload: { community_id: newCommId }
+  });
+  console.log('Delete result:', delRes, delErr);
 }
 
-main().catch(console.error);
+testCommunityCreate().catch(console.error);

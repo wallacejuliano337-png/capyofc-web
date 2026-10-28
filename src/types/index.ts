@@ -124,6 +124,16 @@ declare global {
   interface Window {
     electronAPI?: {
       getScreenSources: () => Promise<Source[]>;
+      getVersion?: () => Promise<string>;
+      getUpdateStatus?: () => Promise<UpdateInfoPayload>;
+      checkForUpdates?: () => Promise<UpdateInfoPayload>;
+      downloadUpdate?: () => Promise<boolean>;
+      installUpdate?: () => Promise<boolean>;
+      onUpdateStatus?: (
+        callback: (status: UpdateInfoPayload) => void,
+      ) => () => void;
+      openUpdateModal?: () => Promise<boolean>;
+      onShowUpdateModal?: (callback: () => void) => () => void;
     };
     arena?: {
       window: (action: "minimize" | "maximize" | "close") => Promise<void>;
@@ -144,6 +154,7 @@ declare global {
       getVersion?: () => Promise<string>;
       getUpdateStatus?: () => Promise<UpdateInfoPayload>;
       checkForUpdates?: () => Promise<UpdateInfoPayload>;
+      downloadUpdate?: () => Promise<boolean>;
       installUpdate?: () => Promise<boolean>;
       onUpdateStatus?: (
         callback: (status: UpdateInfoPayload) => void,

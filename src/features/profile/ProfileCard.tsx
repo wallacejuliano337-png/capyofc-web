@@ -45,8 +45,8 @@ export function ProfileCard({
           <img src={appearance.banner} alt="Banner do perfil" />
         )}
       </div>
-      <div className="lyc-profile-card-body">
-        <div className="lyc-profile-avatar">
+      <div className="lyc-profile-card-body min-w-0">
+        <div className="lyc-profile-avatar flex-shrink-0">
           {profile.avatar_url ? (
             <img src={profile.avatar_url} alt="Avatar do perfil" />
           ) : (
@@ -54,15 +54,15 @@ export function ProfileCard({
           )}
           <i className={"presence-dot presence-" + presence} />
         </div>
-        <h3>{profile.display_name || "Seu nome"}</h3>
-        <p className="lyc-profile-handle">@{normalizeUsername(profile.username, profile.display_name)}</p>
-        <p className="lyc-profile-status">
+        <h3 className="break-words min-w-0 [overflow-wrap:anywhere]">{profile.display_name || "Seu nome"}</h3>
+        <p className="lyc-profile-handle break-all min-w-0 [overflow-wrap:anywhere]">@{normalizeUsername(profile.username, profile.display_name)}</p>
+        <p className="lyc-profile-status min-w-0 truncate">
           {presenceLabels[presence] || presenceLabels.offline}
         </p>
         {appearance.bio && (
           <>
             <h4>Sobre mim</h4>
-            <p className="lyc-profile-bio">{appearance.bio}</p>
+            <p className="lyc-profile-bio break-words min-w-0 [overflow-wrap:anywhere]">{appearance.bio}</p>
           </>
         )}
         {!Number.isNaN(joined.getTime()) && (

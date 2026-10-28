@@ -17,6 +17,7 @@ interface Props {
   category: ChannelCategory;
   isCollapsed: boolean;
   position: { x: number; y: number };
+  canManageChannels?: boolean;
   onClose: () => void;
   onMarkAsRead: () => void;
   onToggleCollapse: () => void;
@@ -30,6 +31,7 @@ export const DiscordCategoryContextMenu: React.FC<Props> = ({
   category,
   isCollapsed,
   position,
+  canManageChannels = false,
   onClose,
   onMarkAsRead,
   onToggleCollapse,
@@ -138,33 +140,38 @@ export const DiscordCategoryContextMenu: React.FC<Props> = ({
         onClick={onToggleMute}
       />
 
-      <div className="h-[1px] bg-[#222327] my-1" />
+      {/* Ações administrativas de canais/categorias */}
+      {canManageChannels && (
+        <>
+          <div className="h-[1px] bg-[#222327] my-1" />
 
-      {/* 4. Criar canal */}
-      <Item
-        icon={PlusCircle}
-        label="Criar canal"
-        onClick={onCreateChannel}
-      />
+          {/* 4. Criar canal */}
+          <Item
+            icon={PlusCircle}
+            label="Criar canal"
+            onClick={onCreateChannel}
+          />
 
-      <div className="h-[1px] bg-[#222327] my-1" />
+          <div className="h-[1px] bg-[#222327] my-1" />
 
-      {/* 5. Editar categoria */}
-      <Item
-        icon={Settings}
-        label="Editar categoria"
-        onClick={onEdit}
-      />
+          {/* 5. Editar categoria */}
+          <Item
+            icon={Settings}
+            label="Editar categoria"
+            onClick={onEdit}
+          />
 
-      <div className="h-[1px] bg-[#222327] my-1" />
+          <div className="h-[1px] bg-[#222327] my-1" />
 
-      {/* 6. Excluir categoria */}
-      <Item
-        icon={Trash2}
-        label="Excluir categoria"
-        onClick={onDelete}
-        danger
-      />
+          {/* 6. Excluir categoria */}
+          <Item
+            icon={Trash2}
+            label="Excluir categoria"
+            onClick={onDelete}
+            danger
+          />
+        </>
+      )}
     </div>
   );
 };

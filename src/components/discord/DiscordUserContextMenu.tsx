@@ -55,6 +55,7 @@ export const DiscordUserContextMenu: React.FC<DiscordUserContextMenuProps> = ({
     activeServerId,
     servers,
     roles,
+    getServerRoles,
     userRoleMap,
     setUserRoles,
     getUserRole,
@@ -227,12 +228,18 @@ export const DiscordUserContextMenu: React.FC<DiscordUserContextMenuProps> = ({
     onClose();
   };
 
-  const handleToggleRole = (roleId: string) => {
+  const [roleError, setRoleError] = useState<string | null>(null);
+
+  const handleToggleRole = async (roleId: string) => {
     const hasRole = targetRoleIds.includes(roleId);
     const updated = hasRole
       ? targetRoleIds.filter((id) => id !== roleId)
       : [...targetRoleIds, roleId];
-    setUserRoles(user.id, updated);
+    const res = await setUserRoles(user.id, updated, activeServerId);
+    if (res && !res.success && res.error) {
+      setRoleError(res.error);
+      setTimeout(() => setRoleError(null), 3000);
+    }
   };
 
   const handleConfirmModeration = async () => {
@@ -499,6 +506,7 @@ export const DiscordUserContextMenu: React.FC<DiscordUserContextMenuProps> = ({
                   icon={Shield}
                   label="Cargos"
                   hasSubmenu
+                  onClick={() => setActiveSubmenu(activeSubmenu === 'roles' ? null : 'roles')}
                 />
                 {activeSubmenu === 'roles' && (
                   <div
@@ -508,7 +516,12 @@ export const DiscordUserContextMenu: React.FC<DiscordUserContextMenuProps> = ({
                     <div className="px-2 py-1 text-[10px] font-bold text-[#949ba4] uppercase tracking-wider border-b border-[#232428] mb-1">
                       Atribuir Cargo
                     </div>
-                    {roles
+                    {roleError && (
+                      <div className="p-1.5 mb-1 bg-[#f23f43]/15 border border-[#f23f43]/30 rounded text-[10px] text-[#f23f43] leading-tight">
+                        {roleError}
+                      </div>
+                    )}
+                    {(getServerRoles(activeServerId).length > 0 ? getServerRoles(activeServerId) : roles)
                       .filter((r) => r.id !== 'role-everyone')
                       .map((role) => {
                         const hasRole = targetRoleIds.includes(role.id);

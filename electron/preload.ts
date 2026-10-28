@@ -1,7 +1,32 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+const updaterApi = {
+  getVersion: () => ipcRenderer.invoke("app:version"),
+  getUpdateStatus: () => ipcRenderer.invoke("updater:status"),
+  checkForUpdates: () => ipcRenderer.invoke("updater:check"),
+  downloadUpdate: () => ipcRenderer.invoke("updater:download"),
+  installUpdate: () => ipcRenderer.invoke("updater:install"),
+  openUpdateModal: () => ipcRenderer.invoke("updater:open-modal"),
+  onUpdateStatus: (callback: (status: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: unknown) =>
+      callback(status);
+    ipcRenderer.on("updater:status-changed", handler);
+    return () => {
+      ipcRenderer.removeListener("updater:status-changed", handler);
+    };
+  },
+  onShowUpdateModal: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("updater:show-modal", handler);
+    return () => {
+      ipcRenderer.removeListener("updater:show-modal", handler);
+    };
+  },
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   getScreenSources: () => ipcRenderer.invoke("GET_SCREEN_SOURCES"),
+  ...updaterApi,
 });
 
 contextBridge.exposeInMainWorld("arena", {
@@ -37,18 +62,7 @@ contextBridge.exposeInMainWorld("arena", {
       ipcRenderer.removeListener("tray:mute-notifications", handler);
     };
   },
-  getVersion: () => ipcRenderer.invoke("app:version"),
-  getUpdateStatus: () => ipcRenderer.invoke("updater:status"),
-  checkForUpdates: () => ipcRenderer.invoke("updater:check"),
-  installUpdate: () => ipcRenderer.invoke("updater:install"),
-  onUpdateStatus: (callback: (status: unknown) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, status: unknown) =>
-      callback(status);
-    ipcRenderer.on("updater:status-changed", handler);
-    return () => {
-      ipcRenderer.removeListener("updater:status-changed", handler);
-    };
-  },
+  ...updaterApi,
   onVoiceToggleMute: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on("voice:toggle-mute", handler);
@@ -68,14 +82,6 @@ contextBridge.exposeInMainWorld("arena", {
     ipcRenderer.on("voice:disconnect", handler);
     return () => {
       ipcRenderer.removeListener("voice:disconnect", handler);
-    };
-  },
-  openUpdateModal: () => ipcRenderer.invoke("updater:open-modal"),
-  onShowUpdateModal: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on("updater:show-modal", handler);
-    return () => {
-      ipcRenderer.removeListener("updater:show-modal", handler);
     };
   },
 });

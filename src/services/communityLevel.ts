@@ -1,3 +1,5 @@
+import { getAssetUrl } from '../utils/assets';
+
 export const OFFICIAL_COMMUNITY_ID = 'd3f2173f-79f0-4362-b60a-ad079f724b54';
 export const OFFICIAL_SERVER_ID = 'server-lyc';
 
@@ -32,7 +34,7 @@ export const COMMUNITY_LEVEL_MEDALS: Record<CommunityBoostLevel, CommunityMedalC
   0: {
     level: 0,
     name: 'Bronze',
-    medalUrl: '/assets/impulso/parte3/bronze.png',
+    medalUrl: getAssetUrl('assets/impulso/parte3/bronze.png'),
     label: 'Sem Nível',
     minBoosts: 0,
     color: '#cd7f32',
@@ -40,7 +42,7 @@ export const COMMUNITY_LEVEL_MEDALS: Record<CommunityBoostLevel, CommunityMedalC
   1: {
     level: 1,
     name: 'Prata',
-    medalUrl: '/assets/impulso/parte3/prata.png',
+    medalUrl: getAssetUrl('assets/impulso/parte3/prata.png'),
     label: 'Nível 1',
     minBoosts: 2,
     color: '#c0c0c0',
@@ -48,7 +50,7 @@ export const COMMUNITY_LEVEL_MEDALS: Record<CommunityBoostLevel, CommunityMedalC
   2: {
     level: 2,
     name: 'Ouro',
-    medalUrl: '/assets/impulso/parte3/ouro.png',
+    medalUrl: getAssetUrl('assets/impulso/parte3/ouro.png'),
     label: 'Nível 2',
     minBoosts: 7,
     color: '#ffd700',
@@ -56,7 +58,7 @@ export const COMMUNITY_LEVEL_MEDALS: Record<CommunityBoostLevel, CommunityMedalC
   3: {
     level: 3,
     name: 'Esmeralda',
-    medalUrl: '/assets/impulso/parte3/esmeralda.png',
+    medalUrl: getAssetUrl('assets/impulso/parte3/esmeralda.png'),
     label: 'Nível 3 • Máximo',
     minBoosts: 14,
     color: '#57f287',

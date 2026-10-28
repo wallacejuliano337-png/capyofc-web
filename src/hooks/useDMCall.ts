@@ -15,6 +15,7 @@ import {
 } from "../services/dm-calls";
 import { requestCallToken, shareScreen, qualities } from "../services/media";
 import { audioSettings } from "../services/audio-settings";
+import { playNotificationSound } from "../services/notification-sounds";
 
 export function useDMCall(
   userId?: string,
@@ -39,6 +40,7 @@ export function useDMCall(
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callRef = useRef<DMCall | null>(null);
   callRef.current = call;
+  const wasConnectedRef = useRef(false);
 
   // Bind audio settings to room
   useEffect(() => {
@@ -96,6 +98,8 @@ export function useDMCall(
         }
 
         setCallStatus("connected");
+        wasConnectedRef.current = true;
+        playNotificationSound("voice_join");
       } catch (err) {
         setError(
           err instanceof Error
@@ -111,6 +115,10 @@ export function useDMCall(
   // Disconnect & cleanup
   const cleanupCall = useCallback(
     async (terminalStatus?: CallStatus) => {
+      if (wasConnectedRef.current) {
+        wasConnectedRef.current = false;
+        playNotificationSound("voice_leave");
+      }
       if (ringTimeoutRef.current) {
         clearTimeout(ringTimeoutRef.current);
         ringTimeoutRef.current = null;
@@ -437,6 +445,7 @@ export function useDMCall(
     try {
       const next = !isMicEnabled;
       await room.localParticipant.setMicrophoneEnabled(next);
+      playNotificationSound(next ? "unmute" : "mute");
       setIsMicEnabled(next);
     } catch {
       // Ignored
@@ -551,6 +560,7 @@ export function useDMCall(
   const toggleDeafened = useCallback(() => {
     setIsDeafened((prev) => {
       const next = !prev;
+      playNotificationSound(next ? "deafen" : "undeafen");
       // Mute/unmute all remote audio playback
       for (const p of room.remoteParticipants.values()) {
         for (const pub of p.audioTrackPublications.values()) {

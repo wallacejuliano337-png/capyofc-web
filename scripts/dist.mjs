@@ -14,7 +14,7 @@ const env = {
 };
 const child = spawn(
   process.execPath,
-  ["node_modules/electron-builder/cli.js", "--win", "nsis", "--x64", "--publish", "never"],
+  ["node_modules/electron-builder/cli.js", "--win", "--x64", "--publish", "never"],
   { stdio: "inherit", env },
 );
 child.on("exit", (code) => process.exit(code ?? 1));

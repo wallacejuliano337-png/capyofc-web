@@ -1,6 +1,6 @@
 {
   "name": "capychat",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "private": true,
   "description": "CapyChat Desktop",
   "author": "CapyChat",
@@ -21,9 +21,9 @@
     "test:desktop": "node scripts/smoke.mjs"
   },
   "build": {
-    "appId": "com.capychat.app",
-    "productName": "CapyChat",
-    "copyright": "Copyright © 2026 CapyChat",
+    "appId": "com.capyofc.app",
+    "productName": "Capy.ofc",
+    "copyright": "Copyright © 2026 Capy.ofc",
     "directories": {
       "output": "release",
       "buildResources": "assets"
@@ -41,31 +41,41 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.ico",
-      "legalTrademarks": "CapyChat",
-      "executableName": "CapyChat",
+      "legalTrademarks": "Capy.ofc",
+      "executableName": "Capy.ofc",
       "signAndEditExecutable": true
     },
     "nsis": {
-      "artifactName": "CapyChat-Setup-${version}.${ext}",
+      "artifactName": "Capy.ofc-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "CapyChat",
-      "uninstallDisplayName": "CapyChat",
+      "shortcutName": "Capy.ofc",
+      "uninstallDisplayName": "Capy.ofc",
       "deleteAppDataOnUninstall": false,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico"
     },
+    "portable": {
+      "artifactName": "Capy.ofc-Portable-${version}.${ext}"
+    },
     "publish": [
       {
         "provider": "github",
-        "owner": "lyc-arena",
-        "repo": "lyc-arena"
+        "owner": "wallacejuliano337-png",
+        "repo": "capyofc-releases",
+        "releaseType": "release"
       }
     ],
     "electronDist": "node_modules/electron/dist"

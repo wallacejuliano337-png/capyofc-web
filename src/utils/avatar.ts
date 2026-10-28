@@ -1,3 +1,5 @@
+import { getAssetUrl, handleAvatarError } from './assets';
+
 export const DEFAULT_AVATAR = '/assets/avatar-padrao-capychat.png';
 
 /**
@@ -13,3 +15,5 @@ export function getAvatarUrl(url?: string | null): string {
   }
   return url;
 }
+
+export { handleAvatarError, getAssetUrl };

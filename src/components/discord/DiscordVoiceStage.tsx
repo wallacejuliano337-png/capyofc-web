@@ -4,6 +4,7 @@ import { useVoiceStreamStore } from '../../store/voiceStreamStore';
 import { useTheme } from '../../store/themeStore';
 import { DiscordUserContextMenu } from './DiscordUserContextMenu';
 import { getAvatarUrl } from '../../utils/avatar';
+import { getAssetUrl } from '../../utils/assets';
 import { User, VoiceParticipant } from '../../types/discord';
 import {
   Volume2,
@@ -29,6 +30,8 @@ export const DiscordVoiceStage: React.FC = () => {
     setActiveView,
     openMemberPopout,
     openSettingsModal,
+    focusedParticipantId,
+    setFocusedParticipantId,
   } = useDiscord();
 
   const { theme } = useTheme();
@@ -49,22 +52,6 @@ export const DiscordVoiceStage: React.FC = () => {
     position: { x: number; y: number };
   } | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
-
-  // Re-bind screen stream to main video element when stream or view mode changes
-  useEffect(() => {
-    if (screenVideoRef.current && screenStream) {
-      screenVideoRef.current.srcObject = screenStream;
-      screenVideoRef.current.play().catch(() => {});
-    }
-  }, [screenStream, viewMode]);
-
-  const handleToggleScreenShare = () => {
-    if (screenStream) {
-      stopScreenShare();
-    } else {
-      openShareModal();
-    }
-  };
 
   // Compile participants list ensuring local state (mute/video/screen) is kept in sync
   const hasLocal = voiceState.participants?.some(
@@ -97,8 +84,75 @@ export const DiscordVoiceStage: React.FC = () => {
     return p;
   });
 
+  const remoteScreenParticipant = participants.find((p) => {
+    if (p.user.id === currentUser.id || p.user.name === currentUser.name) return false;
+    const hasVideoTrack = Boolean(p.mediaStream && p.mediaStream.getVideoTracks().length > 0);
+    if (focusedParticipantId) {
+      return p.user.id === focusedParticipantId && (p.isScreenSharing || hasVideoTrack);
+    }
+    return (p.isScreenSharing || hasVideoTrack) && Boolean(p.mediaStream);
+  });
+
+  const activeStream =
+    screenStream ||
+    (remoteScreenParticipant?.mediaStream?.getVideoTracks()?.length
+      ? remoteScreenParticipant.mediaStream
+      : null);
+
+  const activeStreamOwner = remoteScreenParticipant
+    ? `${remoteScreenParticipant.user.displayName || remoteScreenParticipant.user.name}`
+    : `${currentUser.displayName || currentUser.name} (${activeSourceName})`;
+
+  // Re-bind screen stream to main video element when stream or view mode changes
+  useEffect(() => {
+    const videoEl = screenVideoRef.current;
+    if (videoEl && activeStream) {
+      if (videoEl.srcObject !== activeStream) {
+        videoEl.srcObject = activeStream;
+      }
+      const playVideo = () => {
+        if (videoEl.paused) {
+          videoEl.play().catch((err) => {
+            console.warn('[DiscordVoiceStage] Error playing stream video:', err);
+          });
+        }
+      };
+      playVideo();
+
+      const videoTracks = activeStream.getVideoTracks();
+      videoTracks.forEach((t) => {
+        t.enabled = true;
+        t.onunmute = playVideo;
+      });
+      videoEl.onloadedmetadata = playVideo;
+
+      return () => {
+        videoTracks.forEach((t) => {
+          if (t.onunmute === playVideo) t.onunmute = null;
+        });
+        if (videoEl.onloadedmetadata === playVideo) videoEl.onloadedmetadata = null;
+      };
+    }
+  }, [activeStream, viewMode]);
+
+  const handleToggleScreenShare = () => {
+    if (screenStream) {
+      stopScreenShare();
+    } else {
+      openShareModal();
+    }
+  };
+
   const hasActiveStream = Boolean(
-    screenStream || isVideoOn || participants.some((p) => p.isScreenSharing || p.isVideoOn),
+    screenStream ||
+    participants.some(
+      (p) =>
+        p.user.id !== currentUser.id &&
+        p.user.name !== currentUser.name &&
+        p.isScreenSharing &&
+        p.mediaStream &&
+        p.mediaStream.getVideoTracks().length > 0
+    )
   );
 
   const getGridClass = (count: number) => {
@@ -157,6 +211,12 @@ export const DiscordVoiceStage: React.FC = () => {
     return (
       <div
         key={p.user.id}
+        onClick={() => {
+          if (p.isScreenSharing) {
+            setFocusedParticipantId(p.user.id);
+            setViewMode('stage');
+          }
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           setVoiceContextMenu({
@@ -170,17 +230,36 @@ export const DiscordVoiceStage: React.FC = () => {
             : 'border-[#1f2023] hover:border-[#2b2d31]'
         }`}
       >
-        {/* Avatar Central com borda verde brilhante (#22c55e) ao emitir áudio */}
+        {/* Avatar Central com borda verde brilhante (#22c55e) ao emitir áudio ou Câmera */}
         <div className="relative flex items-center justify-center">
-          <img
-            src={getAvatarUrl(p.user.avatar)}
-            alt={p.user.name}
-            className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover transition-all duration-150 select-none ${
-              isUserSpeaking
-                ? 'ring-4 ring-[#22c55e] shadow-[0_0_16px_rgba(34,197,94,0.6)]'
-                : 'ring-1 ring-white/10'
-            }`}
-          />
+          {p.isVideoOn && p.mediaStream ? (
+            <video
+              autoPlay
+              playsInline
+              muted
+              ref={(el) => {
+                if (el && p.mediaStream && el.srcObject !== p.mediaStream) {
+                  el.srcObject = p.mediaStream;
+                  el.play().catch(() => {});
+                }
+              }}
+              className={`w-28 h-28 sm:w-36 sm:h-36 rounded-xl object-cover transition-all duration-150 select-none ${
+                isUserSpeaking
+                  ? 'ring-4 ring-[#22c55e] shadow-[0_0_16px_rgba(34,197,94,0.6)]'
+                  : 'ring-1 ring-white/10'
+              }`}
+            />
+          ) : (
+            <img
+              src={getAvatarUrl(p.user.avatar)}
+              alt={p.user.name}
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover transition-all duration-150 select-none ${
+                isUserSpeaking
+                  ? 'ring-4 ring-[#22c55e] shadow-[0_0_16px_rgba(34,197,94,0.6)]'
+                  : 'ring-1 ring-white/10'
+              }`}
+            />
+          )}
         </div>
 
         {/* Nome do Usuário abaixo do avatar com fonte compacta (text-sm font-medium text-white) */}
@@ -199,9 +278,18 @@ export const DiscordVoiceStage: React.FC = () => {
             </span>
           )}
           {p.isScreenSharing && (
-            <span className="bg-[#5865f2] px-1.5 py-0.5 rounded text-[9px] font-bold text-white leading-none flex-shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFocusedParticipantId(p.user.id);
+                setViewMode('stage');
+              }}
+              title="Assistir à transmissão ao vivo"
+              className="bg-[#5865f2] hover:bg-[#4752c4] px-1.5 py-0.5 rounded text-[9px] font-bold text-white leading-none flex-shrink-0 cursor-pointer transition-colors"
+            >
               AO VIVO
-            </span>
+            </button>
           )}
         </div>
       </div>
@@ -234,6 +322,16 @@ export const DiscordVoiceStage: React.FC = () => {
           <span className="text-xs text-[#949ba4] hidden md:inline">
             • {participants.length} conectado{participants.length !== 1 ? 's' : ''} • RTC {voiceState.pingMs || 24}ms
           </span>
+
+          {voiceState.error && (
+            <span
+              title={voiceState.error}
+              className="bg-[#da373c]/20 text-[#f23f43] text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 border border-[#da373c]/40 truncate max-w-[220px]"
+            >
+              <MicOff className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{voiceState.error}</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -299,20 +397,22 @@ export const DiscordVoiceStage: React.FC = () => {
                 AO VIVO
               </span>
               <span className="text-xs font-medium text-white">
-                {currentUser.displayName || currentUser.name} ({activeSourceName})
+                {activeStreamOwner}
               </span>
             </div>
 
             {/* Top right stream actions */}
             <div className="absolute top-3 right-3 flex items-center gap-2">
-              <button
-                onClick={openShareModal}
-                className="flex items-center gap-1.5 bg-black/80 hover:bg-[#35373c] backdrop-blur-md px-2 py-1 rounded text-xs text-[#dbdee1] border border-white/10 transition-colors cursor-pointer"
-                title="Trocar tela ou janela compartilhada"
-              >
-                <Layers className="w-3.5 h-3.5 text-[#8b5cf6]" />
-                <span>Trocar Janela</span>
-              </button>
+              {Boolean(screenStream) && (
+                <button
+                  onClick={openShareModal}
+                  className="flex items-center gap-1.5 bg-black/80 hover:bg-[#35373c] backdrop-blur-md px-2 py-1 rounded text-xs text-[#dbdee1] border border-white/10 transition-colors cursor-pointer"
+                  title="Trocar tela ou janela compartilhada"
+                >
+                  <Layers className="w-3.5 h-3.5 text-[#8b5cf6]" />
+                  <span>Trocar Janela</span>
+                </button>
+              )}
 
               <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm px-2 py-1 rounded text-[11px] text-[#949ba4] pointer-events-none border border-white/5">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#23a55a]" />
@@ -385,7 +485,7 @@ export const DiscordVoiceStage: React.FC = () => {
           }`}
         >
           <img
-            src="/brand/03_UI_Icons_SVG/btn_call_camera.svg"
+            src={getAssetUrl('brand/03_UI_Icons_SVG/btn_call_camera.svg')}
             alt="Câmera"
             className="w-5 h-5 object-contain"
           />
@@ -402,7 +502,7 @@ export const DiscordVoiceStage: React.FC = () => {
           }`}
         >
           <img
-            src="/brand/03_UI_Icons_SVG/icon_compartilhar_tela.svg"
+            src={getAssetUrl('brand/03_UI_Icons_SVG/icon_compartilhar_tela.svg')}
             alt="Compartilhar Tela"
             className="w-5 h-5 object-contain"
           />
@@ -419,7 +519,7 @@ export const DiscordVoiceStage: React.FC = () => {
           }`}
         >
           <img
-            src="/brand/03_UI_Icons_SVG/btn_call_mic.svg"
+            src={getAssetUrl('brand/03_UI_Icons_SVG/btn_call_mic.svg')}
             alt="Microfone"
             className="w-5 h-5 object-contain"
           />
@@ -432,7 +532,7 @@ export const DiscordVoiceStage: React.FC = () => {
           className="p-2 bg-[#1f2023] hover:bg-[#2b2d31] rounded-lg transition-colors cursor-pointer"
         >
           <img
-            src="/brand/03_UI_Icons_SVG/icon_configuracoes.svg"
+            src={getAssetUrl('brand/03_UI_Icons_SVG/icon_configuracoes.svg')}
             alt="Configurações"
             className="w-5 h-5 object-contain"
           />
@@ -447,7 +547,7 @@ export const DiscordVoiceStage: React.FC = () => {
           className="px-3 py-2 bg-[#da373c] hover:bg-[#a12829] text-white font-medium text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
         >
           <img
-            src="/brand/03_UI_Icons_SVG/btn_call_hangup.svg"
+            src={getAssetUrl('brand/03_UI_Icons_SVG/btn_call_hangup.svg')}
             alt="Desconectar"
             className="w-4.5 h-4.5 object-contain"
           />

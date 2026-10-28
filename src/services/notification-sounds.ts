@@ -214,12 +214,111 @@ class NotificationSoundService {
       // Audio error ignored
     }
   }
+
+  /**
+   * Plays Discord-authentic voice connect chime (ascending chime)
+   */
+  public playVoiceJoinChime(volume = 0.35): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+
+      // Note 1: lower tone (523.25 Hz - C5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(523.25, now);
+
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(volume * 0.85, now + 0.015);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+
+      osc1.start(now);
+      osc1.stop(now + 0.13);
+
+      // Note 2: higher tone (783.99 Hz - G5)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(783.99, now + 0.08);
+
+      gain2.gain.setValueAtTime(0, now + 0.08);
+      gain2.gain.linearRampToValueAtTime(volume, now + 0.095);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.4);
+    } catch {
+      // Audio error ignored
+    }
+  }
+
+  /**
+   * Plays Discord-authentic voice disconnect chime (descending chime)
+   */
+  public playVoiceLeaveChime(volume = 0.35): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+
+      // Note 1: higher tone (783.99 Hz - G5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(783.99, now);
+
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(volume * 0.85, now + 0.015);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+
+      osc1.start(now);
+      osc1.stop(now + 0.13);
+
+      // Note 2: lower tone (523.25 Hz - C5)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(523.25, now + 0.08);
+
+      gain2.gain.setValueAtTime(0, now + 0.08);
+      gain2.gain.linearRampToValueAtTime(volume, now + 0.095);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.4);
+    } catch {
+      // Audio error ignored
+    }
+  }
 }
 
 export const notificationSounds = new NotificationSoundService();
 
 export function playNotificationSound(
-  type: "message" | "mention" | "call" | "mute" | "unmute" | "deafen" | "undeafen",
+  type:
+    | "message"
+    | "mention"
+    | "call"
+    | "mute"
+    | "unmute"
+    | "deafen"
+    | "undeafen"
+    | "voice_join"
+    | "voice_leave",
 ): void {
   if (type === "message") {
     notificationSounds.playMessageChime();
@@ -236,5 +335,9 @@ export function playNotificationSound(
     notificationSounds.playDeafenChime(true);
   } else if (type === "undeafen") {
     notificationSounds.playDeafenChime(false);
+  } else if (type === "voice_join") {
+    notificationSounds.playVoiceJoinChime();
+  } else if (type === "voice_leave") {
+    notificationSounds.playVoiceLeaveChime();
   }
 }

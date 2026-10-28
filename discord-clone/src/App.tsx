@@ -13,6 +13,7 @@ import { DiscordShopView } from './components/discord/DiscordShopView';
 import { DiscordUltraPassView } from './components/discord/DiscordUltraPassView';
 import { DiscordMissionsView } from './components/discord/DiscordMissionsView';
 import { DiscordMemberProfilePopout } from './components/discord/DiscordMemberProfilePopout';
+import { DiscordUserProfileModal } from './components/discord/DiscordUserProfileModal';
 import { DiscordSettingsModal } from './components/discord/DiscordSettingsModal';
 import { DiscordScreenShareModal } from './components/discord/DiscordScreenShareModal';
 import { DiscordServerSettingsModal } from './components/discord/DiscordServerSettingsModal';
@@ -230,6 +231,7 @@ export function App() {
 
         {/* Modais flutuantes compatíveis com mobile */}
         <DiscordMemberProfilePopout />
+        <DiscordUserProfileModal />
         <DiscordSettingsModal />
         <DiscordServerSettingsModal />
         <DiscordServerBoostModal />
@@ -287,6 +289,9 @@ export function App() {
 
       {/* 3. Floating User Profile Popout */}
       <DiscordMemberProfilePopout />
+
+      {/* 3.1 Full Extended User Profile Modal (Discord Mural & Server Profile) */}
+      <DiscordUserProfileModal />
 
       {/* 4. Full User Settings Modal */}
       <DiscordSettingsModal />

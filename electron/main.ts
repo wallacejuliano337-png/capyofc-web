@@ -17,13 +17,16 @@ import { validSource, validAction } from "./security";
 import { initAutoUpdater, destroyAutoUpdater } from "./updater";
 
 app.disableHardwareAcceleration();
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 function logDebug(msg: string) {
   try {
-    const cacheDir = path.join(app.getAppPath(), ".cache");
-    fs.mkdirSync(cacheDir, { recursive: true });
+    const logDir = app.isPackaged
+      ? path.join(app.getPath("userData"), "logs")
+      : path.join(app.getAppPath(), ".cache");
+    fs.mkdirSync(logDir, { recursive: true });
     fs.appendFileSync(
-      path.join(cacheDir, "electron-debug.log"),
+      path.join(logDir, "electron-debug.log"),
       `[${new Date().toISOString()}] ${msg}\n`,
     );
   } catch {
@@ -37,7 +40,7 @@ function logDebug(msg: string) {
   else if (!app.isPackaged)
     app.setPath("userData", path.join(app.getAppPath(), ".cache/user-data"));
   app.setPath("sessionData", path.join(app.getPath("userData"), "session"));
-  app.setAppUserModelId("com.capychat.transparent.arena");
+  app.setAppUserModelId("com.capyofc.app");
 
   process.on("uncaughtException", (err) => {
     logDebug("UNCAUGHT EXCEPTION: " + String(err) + "\n" + (err instanceof Error ? err.stack : ""));
@@ -100,20 +103,18 @@ function logDebug(msg: string) {
   function getAppIcon() {
     const isWin = process.platform === "win32";
     const candidates = [
-      "D:\\Capychat\\logo circular.png",
-      "D:\\Capychat\\logo png.png",
+      path.join(process.resourcesPath || "", "assets/icon.ico"),
+      path.join(process.resourcesPath || "", "assets/icon.png"),
+      path.join(__dirname, isWin ? "../assets/icon.ico" : "../assets/icon.png"),
+      path.join(__dirname, "../assets/icon.png"),
+      path.join(app.getAppPath(), isWin ? "assets/icon.ico" : "assets/icon.png"),
+      path.join(app.getAppPath(), "assets/icon.png"),
       path.join(__dirname, "../public/logos/logo-circular.png"),
       path.join(__dirname, "../public/logos/logo-3d.png"),
       path.join(__dirname, "../public/logos/capy-3d.png"),
       path.join(app.getAppPath(), "public/logos/logo-circular.png"),
       path.join(app.getAppPath(), "public/logos/logo-3d.png"),
       path.join(app.getAppPath(), "public/logos/capy-3d.png"),
-      path.join(__dirname, isWin ? "../assets/icon.ico" : "../assets/icon.png"),
-      path.join(__dirname, "../assets/icon.png"),
-      path.join(app.getAppPath(), isWin ? "assets/icon.ico" : "assets/icon.png"),
-      path.join(app.getAppPath(), "assets/icon.png"),
-      path.join(process.resourcesPath || "", "assets/icon.ico"),
-      path.join(process.resourcesPath || "", "assets/icon.png"),
     ];
 
     for (const p of candidates) {
@@ -135,17 +136,17 @@ function logDebug(msg: string) {
 
     const { image: trayIcon } = getAppIcon();
     tray = new Tray(trayIcon.isEmpty() ? nativeImage.createEmpty() : trayIcon);
-    tray.setToolTip("CapyChat");
+    tray.setToolTip("Capy.ofc");
 
     const buildContextMenu = () =>
       Menu.buildFromTemplate([
         {
-          label: "CapyChat",
+          label: "Capy.ofc",
           enabled: false,
         },
         { type: "separator" },
         {
-          label: "Abrir CapyChat",
+          label: "Abrir Capy.ofc",
           click: () => {
             restoreWindow();
           },
@@ -233,7 +234,7 @@ function logDebug(msg: string) {
     const { image: appIcon } = getAppIcon();
 
     win = new BrowserWindow({
-      title: "CapyChat",
+      title: "Capy.ofc",
       x,
       y,
       width,
@@ -275,6 +276,26 @@ function logDebug(msg: string) {
     win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     win.webContents.on("will-navigate", (e) => e.preventDefault());
     win.webContents.on("will-attach-webview", (e) => e.preventDefault());
+
+    // Interceptor de segurança no protocolo file:// para redirecionar requisições de assets
+    // com barra inicial (ex: file:///D:/assets/...) diretamente para dentro da pasta dist do app.asar
+    if (!dev) {
+      const distDir = path.join(__dirname, "../dist");
+      ses.webRequest.onBeforeRequest({ urls: ["file://*"] }, (details, callback) => {
+        const rawUrl = details.url;
+        const match = rawUrl.match(
+          /^file:\/\/\/(?:[a-zA-Z]:\/)?(assets\/|logos\/|brand\/|[a-zA-Z0-9_\-\.]+\.(?:png|svg|ico|webp|jpg|jpeg|gif|json|webmanifest)$)(.*)$/i
+        );
+        if (match && !rawUrl.includes("/dist/")) {
+          const subPath = (match[1] + (match[2] || "")).replace(/^\//, "");
+          const redirectedPath = path.join(distDir, subPath);
+          const redirectURL = pathToFileURL(redirectedPath).href;
+          logDebug(`Asset redirect in session: ${rawUrl} -> ${redirectURL}`);
+          return callback({ redirectURL });
+        }
+        callback({});
+      });
+    }
 
     ses.setPermissionCheckHandler(
       (wc, permission) =>

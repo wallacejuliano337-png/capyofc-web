@@ -3,8 +3,10 @@ import { useThemeStore, ThemeMode } from './themeStore';
 import { supabase, db } from '../lib/supabase';
 import { socialAction } from '../services/social';
 import { communityAction, isPresenceOnline } from '../services/communities';
+import { isOfficialCommunity } from '../services/communityLevel';
 import { ServerTemplateData, buildServerFromTemplate } from '../services/server-templates';
 import { DEFAULT_AVATAR, getAvatarUrl } from '../utils/avatar';
+import { getAssetUrl } from '../utils/assets';
 import { getUserUnlockedBadgeIds } from '../types/badges';
 import {
   User,
@@ -13,6 +15,7 @@ import {
   ServerFolder,
   Message,
   VoiceConnectionState,
+  VoiceParticipant,
   ShopItem,
   Mission,
   Channel,
@@ -20,9 +23,14 @@ import {
   ChannelType,
   Role,
   RolePermissions,
+  PERMISSION_KEY_MAP,
+  DEFAULT_MEMBER_PERMISSIONS,
   FriendRequest,
   AuditLogEntry,
 } from '../types/discord';
+import { playNotificationSound } from '../services/notification-sounds';
+import { voiceService } from '../services/voiceService';
+import { presenceService } from '../services/presenceService';
 
 export const defaultFriendRequests: FriendRequest[] = [
   {
@@ -308,6 +316,11 @@ const _savedBannerImage =
 const _savedAboutMe =
   (isBrowser && window.localStorage.getItem('lycAboutMe')) ||
   'Desenvolvedor & Membro Fundador da LYC Arena. Explorando a nova interface WebRTC.';
+const _savedNameFont = (isBrowser && window.localStorage.getItem('lyc_nameFont')) || undefined;
+const _savedNameEffect = ((isBrowser && window.localStorage.getItem('lyc_nameEffect')) as any) || undefined;
+const _savedNameColor = (isBrowser && window.localStorage.getItem('lyc_nameColor')) || undefined;
+const _savedThemePrimary = (isBrowser && window.localStorage.getItem('lyc_themePrimaryColor')) || undefined;
+const _savedThemeSecondary = (isBrowser && window.localStorage.getItem('lyc_themeSecondaryColor')) || undefined;
 
 export const currentUser: User = {
   id: 'user-me',
@@ -322,6 +335,11 @@ export const currentUser: User = {
   aboutMe: _savedAboutMe,
   badges: ['nitro-booster', 'early-supporter'],
   joinedDate: '15 de Janeiro de 2024',
+  nameFont: _savedNameFont,
+  nameEffect: _savedNameEffect,
+  nameColor: _savedNameColor,
+  themePrimaryColor: _savedThemePrimary,
+  themeSecondaryColor: _savedThemeSecondary,
   activity: {
     type: 'PLAYING',
     name: 'LYC Arena - Ranked',
@@ -447,7 +465,8 @@ export const mockServers: Server[] = [
     id: 'server-lyc',
     name: 'CapyChat Oficial',
     initials: 'CAPY',
-    icon: '/assets/logo-circular.png',
+    icon: getAssetUrl('assets/logo-circular.png'),
+    ownerId: 'f8fcd139-cf43-4873-bd7d-a807ecd73567',
     unreadBadge: 3,
     mentionCount: 2,
     bannerColor: 'blurple-purple',
@@ -725,7 +744,8 @@ export type SettingsTab =
   | 'voice-video'
   | 'notifications'
   | 'keybinds'
-  | 'language';
+  | 'language'
+  | 'about';
 
 export interface DiscordStore {
   // Navigation
@@ -743,6 +763,8 @@ export interface DiscordStore {
   // Modals
   isSettingsModalOpen: boolean;
   activeSettingsTab: SettingsTab;
+  isUserProfileModalOpen: boolean;
+  userProfileModalTarget: User | null;
 
   // Theme
   theme: ThemeMode;
@@ -760,6 +782,10 @@ export interface DiscordStore {
 
   // Voice State
   voiceState: VoiceConnectionState;
+  channelVoiceParticipants: Record<string, VoiceParticipant[]>;
+  setChannelVoiceParticipants: (participants: Record<string, VoiceParticipant[]>) => void;
+  focusedParticipantId: string | null;
+  setFocusedParticipantId: (id: string | null) => void;
   
   // Messages
   messages: Record<string, Message[]>;
@@ -794,7 +820,7 @@ export interface DiscordStore {
   setRoles: (roles: Role[]) => void;
   getUserRoleColor: (userId: string) => string;
   getUserRole: (userId: string) => Role | undefined;
-  setUserRoles: (userId: string, roleIds: string[]) => void;
+  setUserRoles: (userId: string, roleIds: string[], serverId?: string) => Promise<{ success: boolean; error?: string }> | void;
 
   // Current User & Auth
   currentUser: User;
@@ -812,6 +838,9 @@ export interface DiscordStore {
   fetchCommunityMembers: (communityId?: string) => Promise<void>;
   startPresenceTracking: (communityId?: string) => void;
   stopPresenceTracking: () => void;
+  realtimeOnlineIds: Set<string>;
+  setRealtimeOnlineIds: (ids: Set<string>) => void;
+  updatePresenceLease: (userId: string, expiresAt: string, status?: string) => void;
   leaveServer: (serverId: string) => Promise<{ success: boolean; error?: string }>;
   updateDisplayedBadges: (badgeIds: string[]) => Promise<void>;
   savedAccounts: SavedAccount[];
@@ -830,6 +859,8 @@ export interface DiscordStore {
   closeMemberPopout: () => void;
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
+  openUserProfileModal: (user?: User) => void;
+  closeUserProfileModal: () => void;
   setActiveSettingsTab: (tab: SettingsTab) => void;
   openServerSettings: (tab?: string) => void;
   closeServerSettings: () => void;
@@ -859,6 +890,7 @@ export interface DiscordStore {
   closeQuickSwitcher: () => void;
   toggleQuickSwitcher: () => void;
   addServer: (serverData: Partial<Server>) => void;
+  createCommunityServer: (serverName: string, icon?: string) => Promise<{ success: boolean; serverId?: string; error?: string }>;
   // Server Folders & Rail Order
   folders: ServerFolder[];
   railOrder: string[];
@@ -880,6 +912,7 @@ export interface DiscordStore {
   }>;
   disableCommunity: (serverId: string) => Promise<{ success: boolean; error?: string }>;
   createServerFromTemplate: (template: ServerTemplateData, serverName: string, icon?: string) => Promise<{ success: boolean; serverId?: string; error?: string }>;
+  joinCommunityServer: (communityId: string) => Promise<{ success: boolean; server?: Server; error?: string }>;
   reorderServers: (serverId: string, direction: 'up' | 'down') => void;
   moveServer: (sourceServerId: string, targetServerId: string, position?: 'above' | 'below') => void;
   markServerAsRead: (serverId: string) => void;
@@ -936,6 +969,7 @@ export interface DiscordStore {
   getUserNote: (userId: string) => string;
   removeFriend: (userId: string) => void;
   canUserModerate: (actorUserId: string, targetUserId?: string, serverId?: string) => { canKick: boolean; canBan: boolean; canManageRoles: boolean; isAdmin: boolean };
+  hasServerPermission: (permission: keyof RolePermissions, serverId?: string, channelId?: string) => boolean;
 }
 
 export const KNOWN_LEGITIMATE_ACCOUNT_IDS = new Set([
@@ -1151,7 +1185,7 @@ export const loadInitialServers = (): Server[] => {
             ...(lycServer || {}),
             name: 'CapyChat Oficial',
             categories: reconcileOfficialCategories(mockServers[0].categories, lycServer?.categories),
-            icon: lycServer?.icon && !lycServer.icon.includes('mascote-cabeca') ? lycServer.icon : '/assets/logo-circular.png',
+            icon: lycServer?.icon && !lycServer.icon.includes('mascote-cabeca') ? getAssetUrl(lycServer.icon) : getAssetUrl('assets/logo-circular.png'),
             isVerified: true,
             verifiedBadgeStyle: 'blue',
             memberCount: lycServer?.memberCount && lycServer.memberCount < 1000 ? lycServer.memberCount : 7,
@@ -1186,7 +1220,7 @@ export const loadInitialServers = (): Server[] => {
     const savedBannerColor = window.localStorage.getItem(`lyc_server_bannerColor_${s.id}`);
 
     const isOfficial = s.id === 'server-lyc';
-    const ownerId = s.ownerId || (isOfficial ? undefined : currentUser.id);
+    const ownerId = s.ownerId || (isOfficial ? 'f8fcd139-cf43-4873-bd7d-a807ecd73567' : currentUser.id);
     let memberIds = s.memberIds && s.memberIds.length > 0 ? s.memberIds : savedMembersMap[s.id];
     if (!isOfficial && (!memberIds || memberIds.length === 0)) {
       memberIds = [ownerId || currentUser.id];
@@ -1320,6 +1354,22 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   communityMembers: [],
   serverMembersMap: loadInitialServerMembersMap(),
   savedAccounts: loadInitialSavedAccounts(),
+  realtimeOnlineIds: new Set<string>(),
+
+  setRealtimeOnlineIds: (ids) => {
+    set({ realtimeOnlineIds: ids });
+    scheduleDebouncedMemberRefresh();
+  },
+
+  updatePresenceLease: (userId, expiresAt, status) => {
+    presenceLeaseCache.set(userId, expiresAt);
+    if (status === 'online') {
+      const current = new Set(get().realtimeOnlineIds);
+      current.add(userId);
+      set({ realtimeOnlineIds: current });
+    }
+    scheduleDebouncedMemberRefresh();
+  },
 
   addSavedAccount: (account) => {
     set((state) => {
@@ -1526,6 +1576,8 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
         isAuthenticated: false,
         activeView: 'chat',
         isSettingsModalOpen: false,
+        isUserProfileModalOpen: false,
+        userProfileModalTarget: null,
         selectedMemberForPopout: null,
         popoutPosition: null,
         isQuickSwitcherOpen: false,
@@ -1582,14 +1634,23 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
           }
         }
 
+        const localPrimary = isBrowser ? window.localStorage.getItem('lyc_themePrimaryColor') : null;
+        const localSecondary = isBrowser ? window.localStorage.getItem('lyc_themeSecondaryColor') : null;
+        const effectivePrimary = (localPrimary && localPrimary.trim() !== '')
+          ? localPrimary
+          : (profile.profile_primary_color && profile.profile_primary_color !== '#000000' ? profile.profile_primary_color : undefined);
+        const effectiveSecondary = (localSecondary && localSecondary.trim() !== '')
+          ? localSecondary
+          : (profile.profile_accent_color && profile.profile_accent_color !== '#000000' ? profile.profile_accent_color : undefined);
+
         const mappedUser: User = {
           id: profile.id,
           name: profile.username || 'usuario',
           displayName: profile.display_name || profile.username || 'CapyMembro',
           tag: profile.id.replace(/-/g, '').slice(0, 4),
           avatar: getAvatarUrl(profile.avatar_url),
-          bannerColor: profile.profile_primary_color || '#5865f2',
-          bannerImage: profile.banner_url || undefined,
+          bannerColor: profile.profile_primary_color || (isBrowser ? window.localStorage.getItem('lyc_bannerColor') : undefined) || '#5865f2',
+          bannerImage: profile.banner_url || (isBrowser ? window.localStorage.getItem('lyc_bannerImage') : undefined) || undefined,
           status: 'online',
           customStatus: profile.custom_status || 'Online no CapyChat Oficial',
           aboutMe: profile.bio || '',
@@ -1597,6 +1658,11 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
           badges: profile.role === 'OWNER' ? ['capy_founder', 'capy_staff', 'capy_supporter', 'capy_community'] : ['capy_community', 'capy_supporter'],
           displayedBadges,
           joinedDate: profile.created_at ? new Date(profile.created_at).toLocaleDateString('pt-BR') : 'Hoje',
+          nameFont: profile.name_font || (isBrowser ? window.localStorage.getItem('lyc_nameFont') : undefined) || undefined,
+          nameEffect: profile.name_effect || (isBrowser ? window.localStorage.getItem('lyc_nameEffect') : undefined) || undefined,
+          nameColor: profile.name_color || (isBrowser ? window.localStorage.getItem('lyc_nameColor') : undefined) || undefined,
+          themePrimaryColor: effectivePrimary,
+          themeSecondaryColor: effectiveSecondary,
         };
 
         Object.assign(currentUser, mappedUser);
@@ -1656,7 +1722,7 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
         try {
           const { data: remoteComms } = await db()
             .from('communities')
-            .select('id, name, is_official, is_community, rules_channel_id, public_updates_channel_id');
+            .select('id, name, is_official, is_community, rules_channel_id, public_updates_channel_id, owner_id');
 
           if (remoteComms && remoteComms.length > 0) {
             set((s) => {
@@ -1684,6 +1750,7 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
                 return {
                   ...srv,
                   communityId: matched.id,
+                  ownerId: (matched as any).owner_id || srv.ownerId,
                   isCommunity,
                   rulesChannelId,
                   publicUpdatesChannelId,
@@ -1693,6 +1760,37 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
               saveServersStateToStorage(updatedServers);
               return { servers: updatedServers };
             });
+          }
+
+          // Sincronizar servidores de comunidades onde o usuário é membro ativo
+          const { data: userMemberships } = await db()
+            .from('community_members')
+            .select('community_id')
+            .eq('user_id', mappedUser.id)
+            .is('left_at', null);
+
+          if (userMemberships) {
+            const memberCommIds = new Set(userMemberships.map((m) => m.community_id));
+            // Filtrar servidores locais: manter oficial e comunidades das quais o usuário é membro ativo
+            set((s) => {
+              const filtered = s.servers.filter((srv) => {
+                if (srv.id === 'server-lyc' || srv.isVerified || srv.communityId === 'd3f2173f-79f0-4362-b60a-ad079f724b54') return true;
+                const cid = srv.communityId || srv.id;
+                return memberCommIds.has(cid);
+              });
+              saveServersStateToStorage(filtered);
+              return { servers: filtered };
+            });
+
+            // Carregar todas as comunidades do usuário que ainda não estejam na store
+            const currentServerIds = new Set(get().servers.map((s) => s.communityId || s.id));
+            await Promise.all(
+              userMemberships.map(async (m) => {
+                if (!currentServerIds.has(m.community_id) && m.community_id !== 'd3f2173f-79f0-4362-b60a-ad079f724b54') {
+                  await get().joinCommunityServer(m.community_id);
+                }
+              })
+            );
           }
         } catch (commSyncErr) {
           console.warn('[discordStore] Remote communities sync warning:', commSyncErr);
@@ -1761,26 +1859,34 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
         display_name: p.display_name,
       }));
 
+      const realtimeOnlineIds = get().realtimeOnlineIds;
       const mappedMembers: User[] = authenticProfiles.map((p) => {
-        const isSelf = p.id === curId;
+        const isSelf = p.id === curId || p.id === 'user-me' || p.username === curUser?.name;
+        const isRealtimeOnline = realtimeOnlineIds.has(p.id);
+        const isDbOnline = presenceMap.get(p.id) === 'online';
         const realStatus = isSelf
           ? (curUser?.status || 'online')
-          : (presenceMap.get(p.id) || 'offline');
+          : (isRealtimeOnline || isDbOnline ? 'online' : 'offline');
 
         return {
           id: p.id,
           name: p.username || 'usuario',
-          displayName: p.display_name || p.username || 'Membro',
+          displayName: isSelf ? (curUser?.displayName || p.display_name || p.username || 'Membro') : (p.display_name || p.username || 'Membro'),
           tag: p.id.replace(/-/g, '').slice(0, 4),
-          avatar: getAvatarUrl(p.avatar_url),
-          bannerColor: p.profile_primary_color || '#5865f2',
-          bannerImage: p.banner_url || undefined,
+          avatar: getAvatarUrl(isSelf ? (curUser?.avatar || p.avatar_url) : p.avatar_url),
+          bannerColor: isSelf ? (curUser?.bannerColor || p.profile_primary_color || '#5865f2') : (p.profile_primary_color || '#5865f2'),
+          bannerImage: isSelf ? (curUser?.bannerImage || p.banner_url || undefined) : (p.banner_url || undefined),
           status: realStatus as any,
           customStatus: p.custom_status || (p.role === 'OWNER' ? '👑 Fundador do CapyChat' : undefined),
-          aboutMe: p.bio || '',
+          aboutMe: isSelf ? (curUser?.aboutMe || p.bio || '') : (p.bio || ''),
           role: p.role,
           badges: p.role === 'OWNER' ? ['capy_founder', 'capy_staff', 'capy_supporter', 'capy_community'] : ['capy_community', 'capy_supporter'],
           displayedBadges: isSelf ? get().currentUser.displayedBadges : undefined,
+          nameFont: isSelf ? curUser?.nameFont : undefined,
+          nameEffect: isSelf ? curUser?.nameEffect : undefined,
+          nameColor: isSelf ? curUser?.nameColor : undefined,
+          themePrimaryColor: isSelf ? curUser?.themePrimaryColor : undefined,
+          themeSecondaryColor: isSelf ? curUser?.themeSecondaryColor : undefined,
         };
       });
 
@@ -1810,18 +1916,101 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
         };
       });
 
-      // Server member list reflects solely authentic members from database
-      const currentMap = { ...get().userRoleMap };
-      for (const p of authenticProfiles) {
-        if (p.role === 'OWNER' || p.role === 'ADMIN') {
-          currentMap[p.id] = ['role-admin'];
-        } else if (p.role === 'MODERATOR') {
-          currentMap[p.id] = ['role-mod'];
-        }
-      }
-      saveUserRoleMapToStorage(currentMap);
+      // 4. Fetch community roles and assigned member roles from database
+      try {
+        const [dbRolesRes, memberRolesRes] = await Promise.all([
+          db()
+            .from('community_roles')
+            .select('*, community_role_permissions(permission)')
+            .eq('community_id', targetCommunityId)
+            .is('deleted_at', null)
+            .order('position', { ascending: false }),
+          db()
+            .from('community_member_roles')
+            .select('user_id, role_id')
+            .eq('community_id', targetCommunityId),
+        ]);
 
-      set({ userRoleMap: currentMap });
+        if (seq === communityFetchSeq) {
+          const dbRoles = dbRolesRes.data || [];
+          const memberRoles = memberRolesRes.data || [];
+
+          if (dbRoles.length > 0) {
+            const mappedRoles: Role[] = dbRoles.map((dr: any) => ({
+              id: dr.id,
+              name: dr.name,
+              color: dr.color || (dr.base_role === 'OWNER' ? '#f1c40f' : dr.base_role === 'ADMIN' ? '#e91e63' : dr.base_role === 'MODERATOR' ? '#2ecc71' : '#99aab5'),
+              hoist: Boolean(dr.hoist),
+              position: dr.position ?? 0,
+              memberCount: memberRoles.filter((mr: any) => mr.role_id === dr.id).length,
+              permissions: {
+                viewChannels: (dr.community_role_permissions || []).some((p: any) => p.permission === 'view_channels') ?? true,
+                manageChannels: (dr.community_role_permissions || []).some((p: any) => p.permission === 'manage_channels'),
+                manageRoles: (dr.community_role_permissions || []).some((p: any) => p.permission === 'manage_roles'),
+                kickMembers: (dr.community_role_permissions || []).some((p: any) => p.permission === 'kick_members' || p.permission === 'moderate_members' || p.permission === 'manage_members'),
+                banMembers: (dr.community_role_permissions || []).some((p: any) => p.permission === 'ban_members' || p.permission === 'moderate_members' || p.permission === 'manage_members'),
+                timeoutMembers: (dr.community_role_permissions || []).some((p: any) => p.permission === 'timeout_members' || p.permission === 'moderate_members'),
+                manageNicknames: (dr.community_role_permissions || []).some((p: any) => p.permission === 'manage_nicknames'),
+                changeNickname: (dr.community_role_permissions || []).some((p: any) => p.permission === 'change_nickname') ?? true,
+                sendMessages: (dr.community_role_permissions || []).some((p: any) => p.permission === 'send_messages') ?? true,
+                manageMessages: (dr.community_role_permissions || []).some((p: any) => p.permission === 'manage_messages'),
+                embedLinks: (dr.community_role_permissions || []).some((p: any) => p.permission === 'embed_links') ?? true,
+                attachFiles: (dr.community_role_permissions || []).some((p: any) => p.permission === 'attach_files') ?? true,
+                addReactions: (dr.community_role_permissions || []).some((p: any) => p.permission === 'add_reactions') ?? true,
+                mentionEveryone: (dr.community_role_permissions || []).some((p: any) => p.permission === 'mention_everyone'),
+                connectVoice: (dr.community_role_permissions || []).some((p: any) => p.permission === 'connect_voice') ?? true,
+                speak: (dr.community_role_permissions || []).some((p: any) => p.permission === 'speak') ?? true,
+                video: (dr.community_role_permissions || []).some((p: any) => p.permission === 'video'),
+                streamScreen: (dr.community_role_permissions || []).some((p: any) => p.permission === 'share_screen') ?? true,
+                muteMembers: (dr.community_role_permissions || []).some((p: any) => p.permission === 'mute_members'),
+                disconnectMembers: (dr.community_role_permissions || []).some((p: any) => p.permission === 'disconnect_members'),
+                manageCommunity: (dr.community_role_permissions || []).some((p: any) => p.permission === 'manage_community'),
+                viewAuditLog: (dr.community_role_permissions || []).some((p: any) => p.permission === 'view_audit_log'),
+                createInvites: (dr.community_role_permissions || []).some((p: any) => p.permission === 'create_invites') ?? true,
+                administrator: dr.base_role === 'OWNER' || (dr.community_role_permissions || []).some((p: any) => p.permission === 'manage_community' || p.permission === 'administrator'),
+              },
+            }));
+
+            set((s) => {
+              const updatedRolesMap = {
+                ...s.serverRolesMap,
+                [targetCommunityId]: mappedRoles,
+                ...(targetCommunityId === 'd3f2173f-79f0-4362-b60a-ad079f724b54' ? { 'server-lyc': mappedRoles } : {}),
+              };
+              saveServerRolesMapToStorage(updatedRolesMap);
+              return {
+                serverRolesMap: updatedRolesMap,
+                roles: s.activeServerId === targetCommunityId || (s.activeServerId === 'server-lyc' && targetCommunityId === 'd3f2173f-79f0-4362-b60a-ad079f724b54') ? mappedRoles : s.roles,
+              };
+            });
+          }
+
+          // Build complete userRoleMap from database
+          const currentMap = { ...get().userRoleMap };
+          for (const m of commMembers) {
+            const userRoles = memberRoles
+              .filter((mr: any) => mr.user_id === m.user_id)
+              .map((mr: any) => mr.role_id);
+            if (m.role_id && !userRoles.includes(m.role_id)) {
+              userRoles.push(m.role_id);
+            }
+
+            const prof = authenticProfiles.find((p) => p.id === m.user_id);
+            if (prof?.role === 'OWNER' || prof?.role === 'ADMIN') {
+              if (!userRoles.includes('role-admin')) userRoles.push('role-admin');
+            } else if (prof?.role === 'MODERATOR') {
+              if (!userRoles.includes('role-mod')) userRoles.push('role-mod');
+            }
+
+            currentMap[m.user_id] = userRoles;
+          }
+
+          saveUserRoleMapToStorage(currentMap);
+          set({ userRoleMap: currentMap });
+        }
+      } catch (rolesErr) {
+        console.warn('[discordStore] fetchCommunityMembers roles sync error:', rolesErr);
+      }
     } catch (err) {
       console.warn('[discordStore] fetchCommunityMembers failed:', err);
     }
@@ -1833,48 +2022,59 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     // 1. Cleanup any previous tracking before re-subscribing
     get().stopPresenceTracking();
 
-    if (!supabase) return;
-
-    try {
-      const channelId = `presence-tracker-${targetCommunityId}-${Date.now()}`;
-      const channel = supabase
-        .channel(channelId)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'user_presence' },
-          (payload: any) => {
-            if (payload?.new && payload.new.user_id) {
-              presenceLeaseCache.set(payload.new.user_id, payload.new.expires_at);
+    if (supabase) {
+      try {
+        const channelId = `presence-tracker-${targetCommunityId}-${Date.now()}`;
+        const channel = supabase
+          .channel(channelId)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'user_presence' },
+            (payload: any) => {
+              if (payload?.new && payload.new.user_id) {
+                presenceLeaseCache.set(payload.new.user_id, payload.new.expires_at);
+              }
+              scheduleDebouncedMemberRefresh(targetCommunityId);
             }
-            scheduleDebouncedMemberRefresh(targetCommunityId);
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'community_members' },
-          () => {
-            scheduleDebouncedMemberRefresh(targetCommunityId);
-          }
-        );
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'community_members' },
+            () => {
+              scheduleDebouncedMemberRefresh(targetCommunityId);
+            }
+          );
 
-      channel.subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') {
-          void get().fetchCommunityMembers(targetCommunityId);
-        }
-      });
+        channel.subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            void get().fetchCommunityMembers(targetCommunityId);
+          }
+        });
 
-      presenceRealtimeChannel = channel;
-    } catch (err) {
-      console.warn('[discordStore] Realtime presence subscription error:', err);
+        presenceRealtimeChannel = channel;
+      } catch (err) {
+        console.warn('[discordStore] Realtime presence subscription error:', err);
+      }
     }
 
-    // 2. Setup periodic lease sweep every 10 seconds (pure client-side timestamp comparison, zero network calls)
+    // 2. Start presence service (heartbeat + Realtime presence channel)
+    try {
+      presenceService.start(targetCommunityId);
+    } catch (e) {
+      console.warn('[discordStore] Error starting presenceService:', e);
+    }
+
+    // 3. Setup periodic lease sweep every 10 seconds (pure client-side timestamp comparison, zero network calls)
     presenceSweepInterval = setInterval(() => {
       sweepExpiredPresences(targetCommunityId);
     }, 10000);
   },
 
   stopPresenceTracking: () => {
+    try {
+      presenceService.stop();
+    } catch {}
+
     if (presenceRealtimeChannel) {
       try {
         if (supabase) {
@@ -1908,8 +2108,12 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
 
     // 1. CapyChat Oficial (official community server)
     if (server.id === 'server-lyc') {
-      const authentic = (state.communityMembers || []).filter((u) => !isTestAccount(u));
-      const hasCurUser = authentic.some((u) => u.id === curUser.id);
+      const authentic = (state.communityMembers || []).filter((u) => !isTestAccount(u)).map((m) =>
+        (m.id === curUser?.id || m.id === 'user-me' || m.name === curUser?.name)
+          ? { ...m, ...curUser }
+          : m
+      );
+      const hasCurUser = authentic.some((u) => u.id === curUser.id || u.name === curUser.name);
       if (curUser?.id && !hasCurUser) {
         return [curUser, ...authentic];
       }
@@ -2033,9 +2237,26 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
       if (updates.bannerColor !== undefined) window.localStorage.setItem('lycUserBannerColor', updates.bannerColor);
       if (updates.bannerImage !== undefined) window.localStorage.setItem('lycUserBannerImage', updates.bannerImage || '');
       if (updates.aboutMe !== undefined) window.localStorage.setItem('lycAboutMe', updates.aboutMe);
+      if (updates.nameFont !== undefined) window.localStorage.setItem('lyc_nameFont', updates.nameFont || '');
+      if (updates.nameEffect !== undefined) window.localStorage.setItem('lyc_nameEffect', updates.nameEffect || '');
+      if (updates.nameColor !== undefined) window.localStorage.setItem('lyc_nameColor', updates.nameColor || '');
+      if (updates.themePrimaryColor !== undefined) window.localStorage.setItem('lyc_themePrimaryColor', updates.themePrimaryColor || '');
+      if (updates.themeSecondaryColor !== undefined) window.localStorage.setItem('lyc_themeSecondaryColor', updates.themeSecondaryColor || '');
     }
     set((state) => ({
       currentUser: { ...state.currentUser, ...updates },
+      selectedMemberForPopout:
+        state.selectedMemberForPopout &&
+        (state.selectedMemberForPopout.id === state.currentUser.id ||
+          state.selectedMemberForPopout.id === 'user-me' ||
+          state.selectedMemberForPopout.name === state.currentUser.name)
+          ? { ...state.selectedMemberForPopout, ...updates }
+          : state.selectedMemberForPopout,
+      communityMembers: state.communityMembers.map((m) =>
+        m.id === state.currentUser.id || m.id === 'user-me' || m.name === state.currentUser.name
+          ? { ...m, ...updates }
+          : m
+      ),
     }));
 
     if (supabase) {
@@ -2046,10 +2267,18 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
         if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
         if (updates.name !== undefined) dbUpdates.username = updates.name;
         if (updates.avatar !== undefined) dbUpdates.avatar_url = updates.avatar;
-        if (updates.bannerColor !== undefined) dbUpdates.profile_primary_color = updates.bannerColor;
+        if (updates.themePrimaryColor !== undefined) {
+          dbUpdates.profile_primary_color = updates.themePrimaryColor;
+        } else if (updates.bannerColor !== undefined) {
+          dbUpdates.profile_primary_color = updates.bannerColor;
+        }
+        if (updates.themeSecondaryColor !== undefined) dbUpdates.profile_accent_color = updates.themeSecondaryColor;
         if (updates.bannerImage !== undefined) dbUpdates.banner_url = updates.bannerImage;
         if (updates.aboutMe !== undefined) dbUpdates.bio = updates.aboutMe;
         if (updates.customStatus !== undefined) dbUpdates.custom_status = updates.customStatus;
+        if (updates.nameFont !== undefined) dbUpdates.name_font = updates.nameFont;
+        if (updates.nameEffect !== undefined) dbUpdates.name_effect = updates.nameEffect;
+        if (updates.nameColor !== undefined) dbUpdates.name_color = updates.nameColor;
         if (Object.keys(dbUpdates).length > 0) {
           void db().from('profiles').update(dbUpdates).eq('id', uid);
         }
@@ -2072,6 +2301,8 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   selectedMemberForPopout: null,
   popoutPosition: null,
   isSettingsModalOpen: false,
+  isUserProfileModalOpen: false,
+  userProfileModalTarget: null,
   activeSettingsTab: 'my-account',
   isMicMuted: false,
   isDeafened: false,
@@ -2100,6 +2331,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     pingMs: 0,
     participants: [],
   },
+  channelVoiceParticipants: {},
+  setChannelVoiceParticipants: (channelVoiceParticipants) => set({ channelVoiceParticipants }),
+  focusedParticipantId: null,
+  setFocusedParticipantId: (focusedParticipantId) => set({ focusedParticipantId }),
 
   getServerById: (id: string) => {
     const { servers, folders } = get();
@@ -2172,7 +2407,12 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
 
   toggleMemberList: () => set((state) => ({ isMemberListOpen: !state.isMemberListOpen })),
 
-  openMemberPopout: (user, pos) => set({ selectedMemberForPopout: user, popoutPosition: pos }),
+  openMemberPopout: (user, pos) => {
+    const cur = get().currentUser;
+    const isSelf = user.id === cur.id || user.id === 'user-me' || user.name === cur.name;
+    const target = isSelf ? { ...user, ...cur } : user;
+    set({ selectedMemberForPopout: target, popoutPosition: pos });
+  },
 
   closeMemberPopout: () => set({ selectedMemberForPopout: null, popoutPosition: null }),
 
@@ -2180,10 +2420,55 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
 
   closeSettingsModal: () => set({ isSettingsModalOpen: false }),
 
+  openUserProfileModal: (user) => {
+    const target = user || get().currentUser;
+    set({ isUserProfileModalOpen: true, userProfileModalTarget: target });
+  },
+
+  closeUserProfileModal: () => set({ isUserProfileModalOpen: false, userProfileModalTarget: null }),
+
   setActiveSettingsTab: (tab) => set({ activeSettingsTab: tab }),
 
-  openServerSettings: (tab = 'overview') =>
-    set({ isServerSettingsOpen: true, serverSettingsTab: tab }),
+  openServerSettings: (tab = 'overview') => {
+    const state = get();
+    const targetServerId = state.activeServerId;
+    if (targetServerId === '@me') return;
+
+    const currentServer = state.servers.find((s) => s.id === targetServerId) || state.servers[0];
+    if (!currentServer) return;
+
+    const isOwner = Boolean(
+      (!state.isAuthenticated && (state.currentUser?.id === 'user-ares' || (state.currentUser?.id === 'user-me' && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+      (state.currentUser?.id && currentServer.ownerId === state.currentUser.id) ||
+      (isOfficialCommunity(currentServer) && state.currentUser?.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+    );
+
+    const canManageCommunity = isOwner || state.hasServerPermission('administrator', currentServer.id) || state.hasServerPermission('manageCommunity', currentServer.id);
+    const canManageRoles = isOwner || state.hasServerPermission('administrator', currentServer.id) || state.hasServerPermission('manageRoles', currentServer.id);
+    const canManageChannels = isOwner || state.hasServerPermission('administrator', currentServer.id) || state.hasServerPermission('manageChannels', currentServer.id);
+    const canViewAuditLog = isOwner || state.hasServerPermission('administrator', currentServer.id) || state.hasServerPermission('viewAuditLog', currentServer.id);
+    const canModerate = isOwner || state.hasServerPermission('administrator', currentServer.id) || state.hasServerPermission('kickMembers', currentServer.id) || state.hasServerPermission('banMembers', currentServer.id) || state.hasServerPermission('timeoutMembers', currentServer.id);
+
+    const canOpenSettings = isOwner || canManageCommunity || canManageRoles || canManageChannels || canViewAuditLog || canModerate;
+
+    if (!canOpenSettings) {
+      console.warn('[discordStore] Permissão negada para abrir configurações do servidor.');
+      return;
+    }
+
+    let resolvedTab = tab;
+    if ((tab === 'overview' || tab === 'server-profile' || tab === 'server-tag' || tab === 'engagement' || tab === 'security' || tab === 'enable-community' || tab === 'server-template') && !canManageCommunity) {
+      if (canManageRoles) resolvedTab = 'roles';
+      else if (canModerate) resolvedTab = 'members';
+      else if (canViewAuditLog) resolvedTab = 'audit-log';
+    } else if (tab === 'roles' && !canManageRoles) {
+      if (canManageCommunity) resolvedTab = 'server-profile';
+      else if (canModerate) resolvedTab = 'members';
+      else if (canViewAuditLog) resolvedTab = 'audit-log';
+    }
+
+    set({ isServerSettingsOpen: true, serverSettingsTab: resolvedTab });
+  },
 
   closeServerSettings: () => set({ isServerSettingsOpen: false }),
 
@@ -2241,6 +2526,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   setServerSettingsTab: (tab) => set({ serverSettingsTab: tab }),
 
   updateServer: (serverId, partial) => {
+    if (!get().hasServerPermission('manageCommunity', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageCommunity é obrigatório para alterar configurações do servidor.');
+      return;
+    }
     if (isBrowser) {
       if (partial.icon !== undefined) {
         window.localStorage.setItem(`lyc_server_icon_${serverId}`, partial.icon || '');
@@ -2257,16 +2546,26 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     }));
   },
 
-  openCreateChannel: (categoryId) =>
+  openCreateChannel: (categoryId) => {
+    const activeServerId = get().activeServerId;
+    if (!get().hasServerPermission('manageChannels', activeServerId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para criar canais.');
+      return;
+    }
     set({
       isCreateChannelOpen: true,
       targetCategoryIdForNewChannel: categoryId || null,
-    }),
+    });
+  },
 
   closeCreateChannel: () =>
     set({ isCreateChannelOpen: false, targetCategoryIdForNewChannel: null }),
 
   addChannel: (serverId, categoryId, channelData) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para criar canais.');
+      return;
+    }
     const newChannel: Channel = {
       id: `ch-${Date.now()}`,
       name: channelData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -2313,11 +2612,22 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     });
   },
 
-  openCreateCategory: () => set({ isCreateCategoryOpen: true }),
+  openCreateCategory: () => {
+    const activeServerId = get().activeServerId;
+    if (!get().hasServerPermission('manageChannels', activeServerId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para criar categorias.');
+      return;
+    }
+    set({ isCreateCategoryOpen: true });
+  },
 
   closeCreateCategory: () => set({ isCreateCategoryOpen: false }),
 
   addCategory: (serverId, catData) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para criar categorias.');
+      return;
+    }
     const newCategory: ChannelCategory = {
       id: `cat-${Date.now()}`,
       name: catData.name.toUpperCase().trim(),
@@ -2356,11 +2666,17 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
       },
     })),
 
-  toggleMute: () => set((state) => ({ isMicMuted: !state.isMicMuted })),
+  toggleMute: () =>
+    set((state) => {
+      const nextMuted = !state.isMicMuted;
+      playNotificationSound(nextMuted ? 'mute' : 'unmute');
+      return { isMicMuted: nextMuted };
+    }),
 
   toggleDeafen: () =>
     set((state) => {
       const nextDeaf = !state.isDeafened;
+      playNotificationSound(nextDeaf ? 'deafen' : 'undeafen');
       return {
         isDeafened: nextDeaf,
         isMicMuted: nextDeaf ? true : state.isMicMuted,
@@ -2372,39 +2688,11 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   toggleScreenShare: () => set((state) => ({ isScreenSharing: !state.isScreenSharing })),
 
   connectToVoice: (channelId, channelName, serverId, serverName) => {
-    set({
-      voiceState: {
-        isConnected: true,
-        channelId,
-        channelName,
-        serverId,
-        serverName,
-        pingMs: 24,
-        participants: [
-          {
-            user: currentUser,
-            isMuted: false,
-            isDeafened: false,
-            isSpeaking: false,
-            isScreenSharing: false,
-            isVideoOn: false,
-          },
-        ],
-      },
-      activeChannelId: channelId,
-      activeView: 'voice-stage',
-    });
+    void voiceService.joinChannel(channelId, channelName, serverId, serverName);
   },
 
   disconnectFromVoice: () => {
-    set({
-      voiceState: {
-        isConnected: false,
-        pingMs: 0,
-        participants: [],
-      },
-      activeView: 'chat',
-    });
+    void voiceService.leaveChannel(true);
   },
 
   // Create Server Modal & Creation
@@ -2532,7 +2820,7 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     // 3. Backend community cleanup if UUID
     if (targetServer.communityId) {
       try {
-        await communityAction('delete_community', { community_id: targetServer.communityId });
+        await communityAction('delete', { community_id: targetServer.communityId });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('proprietário') || (err as Record<string, unknown>)?.code === '42501') {
@@ -2808,11 +3096,156 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     return { success: true };
   },
 
+  createCommunityServer: async (serverName: string, icon?: string) => {
+    const trimmed = serverName.trim();
+    if (!trimmed) {
+      return { success: false, error: 'O nome do servidor é obrigatório.' };
+    }
+    const state = get();
+    const curUser = state.currentUser;
+    if (!curUser || !curUser.id) {
+      return { success: false, error: 'Você precisa estar autenticado para criar um servidor.' };
+    }
+
+    if (supabase && state.isAuthenticated) {
+      try {
+        const commId = await communityAction<string>('create', {
+          name: trimmed,
+          image_url: icon || null,
+        });
+
+        if (commId) {
+          try {
+            const { data: cats } = await db()
+              .from('channel_categories')
+              .select('id')
+              .eq('community_id', commId)
+              .limit(1);
+
+            const catId = cats?.[0]?.id;
+            if (catId) {
+              await communityAction('create_channel', {
+                community_id: commId,
+                category_id: catId,
+                name: 'geral',
+                kind: 'text',
+                description: 'Bate-papo geral da comunidade',
+              });
+              await communityAction('create_channel', {
+                community_id: commId,
+                category_id: catId,
+                name: 'Geral [Voz]',
+                kind: 'voice',
+              });
+            }
+          } catch (chErr) {
+            console.warn('[discordStore] Error creating initial channels:', chErr);
+          }
+
+          const joinRes = await get().joinCommunityServer(commId);
+          if (joinRes.success) {
+            get().setActiveServer(commId);
+            return { success: true, serverId: commId };
+          }
+        }
+      } catch (err: any) {
+        console.error('[discordStore] createCommunityServer remote error:', err);
+        return { success: false, error: err?.message || 'Erro ao criar servidor no Supabase.' };
+      }
+    }
+
+    // Local / Offline fallback
+    const initials = trimmed
+      .split(' ')
+      .map((w) => w[0])
+      .slice(0, 3)
+      .join('')
+      .toUpperCase();
+    const newServerId = `server-${Date.now()}`;
+
+    state.addServer({
+      id: newServerId,
+      name: trimmed,
+      initials: initials || 'SRV',
+      icon: icon || undefined,
+      bannerColor: 'blurple-purple',
+      bannerImage: null,
+      description: `Comunidade criada por ${curUser.displayName || curUser.name}`,
+      ownerId: curUser.id,
+      memberIds: [curUser.id],
+      memberCount: 1,
+      categories: [
+        {
+          id: `cat-${Date.now()}-1`,
+          name: 'CANAIS DE TEXTO',
+          channels: [
+            { id: `ch-${Date.now()}-general`, name: 'geral', type: 'text', topic: 'Bate-papo geral do servidor.' },
+          ],
+        },
+        {
+          id: `cat-${Date.now()}-2`,
+          name: 'CANAIS DE VOZ',
+          channels: [
+            { id: `ch-${Date.now()}-voice`, name: 'Geral [Voz]', type: 'voice' },
+          ],
+        },
+      ],
+    });
+
+    state.setActiveServer(newServerId);
+    return { success: true, serverId: newServerId };
+  },
+
   createServerFromTemplate: async (template: ServerTemplateData, serverName: string, icon?: string) => {
     const state = get();
     const curUser = state.currentUser;
     if (!curUser || !curUser.id) {
       return { success: false, error: 'Você precisa estar autenticado para criar um servidor.' };
+    }
+
+    if (supabase && state.isAuthenticated) {
+      try {
+        const commId = await communityAction<string>('create', {
+          name: serverName.trim(),
+          image_url: icon || null,
+        });
+
+        if (commId) {
+          if (template.categories && template.categories.length > 0) {
+            for (const cat of template.categories) {
+              try {
+                const catRes = await communityAction<string>('create_category', {
+                  community_id: commId,
+                  name: cat.name,
+                });
+                const catId = typeof catRes === 'string' ? catRes : (catRes as any)?.id;
+                if (catId && cat.channels) {
+                  for (const ch of cat.channels) {
+                    await communityAction('create_channel', {
+                      community_id: commId,
+                      category_id: catId,
+                      name: ch.name,
+                      kind: ch.type === 'voice' ? 'voice' : 'text',
+                      description: ch.topic || '',
+                    });
+                  }
+                }
+              } catch (catErr) {
+                console.warn('[discordStore] Error creating template category:', catErr);
+              }
+            }
+          }
+
+          const joinRes = await get().joinCommunityServer(commId);
+          if (joinRes.success) {
+            get().setActiveServer(commId);
+            return { success: true, serverId: commId };
+          }
+        }
+      } catch (err: any) {
+        console.error('[discordStore] createServerFromTemplate remote error:', err);
+        return { success: false, error: err?.message || 'Erro ao criar comunidade a partir do modelo.' };
+      }
     }
 
     const { serverData, customRoles } = buildServerFromTemplate(
@@ -2845,6 +3278,125 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
       success: true,
       serverId: newServerId,
     };
+  },
+
+  joinCommunityServer: async (communityId: string) => {
+    const state = get();
+    // 1. Check if already in servers list
+    const existing = state.servers.find(
+      (s) => s.id === communityId || s.communityId === communityId
+    );
+    if (existing) {
+      get().setActiveServer(existing.id);
+      return { success: true, server: existing };
+    }
+
+    // 2. Fetch community from Supabase Cloud
+    if (!supabase) {
+      return { success: false, error: 'Supabase não inicializado.' };
+    }
+
+    try {
+      const { data: comm, error: commErr } = await db()
+        .from('communities')
+        .select('*')
+        .eq('id', communityId)
+        .single();
+
+      if (commErr || !comm) {
+        return { success: false, error: 'Comunidade não encontrada no servidor.' };
+      }
+
+      // 3. Fetch categories and channels
+      const [catRes, chRes] = await Promise.all([
+        db()
+          .from('channel_categories')
+          .select('*')
+          .eq('community_id', communityId)
+          .is('deleted_at', null)
+          .order('position'),
+        db()
+          .from('channels')
+          .select('*')
+          .eq('community_id', communityId)
+          .is('deleted_at', null)
+          .order('position'),
+      ]);
+
+      const rawCategories = catRes.data || [];
+      const rawChannels = chRes.data || [];
+
+      let categories: ChannelCategory[] = [];
+      if (rawCategories.length > 0) {
+        categories = rawCategories.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          channels: rawChannels
+            .filter((ch: any) => ch.category_id === c.id)
+            .map((ch: any) => ({
+              id: ch.id,
+              name: ch.name,
+              type: (ch.kind === 'voice' ? 'voice' : 'text') as ChannelType,
+              topic: ch.description || '',
+              isPrivate: Boolean(ch.is_private),
+            })),
+        }));
+      } else {
+        categories = [
+          {
+            id: `cat-${communityId}-default`,
+            name: 'CANAIS DE TEXTO',
+            channels: rawChannels.length > 0
+              ? rawChannels.map((ch: any) => ({
+                  id: ch.id,
+                  name: ch.name,
+                  type: (ch.kind === 'voice' ? 'voice' : 'text') as ChannelType,
+                  topic: ch.description || '',
+                  isPrivate: Boolean(ch.is_private),
+                }))
+              : [{ id: `ch-${communityId}-geral`, name: 'geral', type: 'text' as ChannelType }],
+          },
+        ];
+      }
+
+      const curUser = state.currentUser;
+      const newServer: Server = {
+        id: comm.id,
+        communityId: comm.id,
+        name: comm.name,
+        initials: (comm.name || 'SRV').slice(0, 3).toUpperCase(),
+        icon: comm.image_url || undefined,
+        ownerId: comm.owner_id,
+        memberIds: [curUser.id],
+        isVerified: Boolean(comm.is_official),
+        isCommunity: Boolean(comm.is_community),
+        categories,
+        boostCount: 0,
+        boostLevel: 0,
+        memberCount: 1,
+        onlineCount: 1,
+      };
+
+      set((s) => {
+        const next = [...s.servers, newServer];
+        saveServersStateToStorage(next);
+        return {
+          servers: next,
+          activeServerId: newServer.id,
+          activeChannelId: newServer.categories[0]?.channels[0]?.id || 'ch-geral',
+          activeView: 'chat',
+        };
+      });
+
+      // Background sync members and presence for the new server
+      void get().fetchCommunityMembers(communityId);
+      get().startPresenceTracking(communityId);
+
+      return { success: true, server: newServer };
+    } catch (err: any) {
+      console.error('[discordStore] joinCommunityServer exception:', err);
+      return { success: false, error: err?.message || 'Erro ao carregar servidor.' };
+    }
   },
 
   leaveServer: async (serverId) => {
@@ -3386,6 +3938,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   },
 
   editChannel: (serverId, categoryId, channelId, updates) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para editar canais.');
+      return;
+    }
     set((state) => {
       const updatedServers = state.servers.map((s) => {
         if (s.id !== serverId) return s;
@@ -3408,6 +3964,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   },
 
   deleteChannel: (serverId, categoryId, channelId) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para excluir canais.');
+      return;
+    }
     const curUser = get().currentUser;
     const targetServer = get().servers.find(s => s.id === serverId);
     let chName = channelId;
@@ -3449,6 +4009,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   },
 
   duplicateChannel: (serverId, categoryId, channelId) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para duplicar canais.');
+      return;
+    }
     set((state) => {
       let duplicatedId = '';
       const updatedServers = state.servers.map((s) => {
@@ -3566,6 +4130,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   },
 
   editCategory: (serverId, categoryId, updates) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para editar categorias.');
+      return;
+    }
     set((state) => {
       const updatedServers = state.servers.map((s) => {
         if (s.id !== serverId) return s;
@@ -3582,6 +4150,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
   },
 
   deleteCategory: (serverId, categoryId) => {
+    if (!get().hasServerPermission('manageChannels', serverId)) {
+      console.warn('[discordStore] Permissão negada: manageChannels é obrigatório para excluir categorias.');
+      return;
+    }
     set((state) => {
       const updatedServers = state.servers.map((s) => {
         if (s.id !== serverId) return s;
@@ -3876,6 +4448,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
 
   addRole: (role: Role) => {
     const activeServerId = get().activeServerId;
+    if (!get().hasServerPermission('manageRoles', activeServerId)) {
+      console.warn('[discordStore] Permissão negada: manageRoles é obrigatório para criar cargos.');
+      return;
+    }
     const curUser = get().currentUser;
     set((state) => {
       const everyoneRole = state.roles.find((r) => r.id === 'role-everyone');
@@ -3901,12 +4477,52 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     });
   },
 
-  updateRole: (roleId: string, updates: Partial<Role>) => {
+  updateRole: async (roleId: string, updates: Partial<Role>) => {
     const activeServerId = get().activeServerId;
+    if (!get().hasServerPermission('manageRoles', activeServerId)) {
+      console.warn('[discordStore] Permissão negada: manageRoles é obrigatório para atualizar cargos.');
+      return;
+    }
+
     const curUser = get().currentUser;
-    const targetRole = get().roles.find((r) => r.id === roleId);
+    const currentServer = get().servers.find((s) => s.id === activeServerId) || get().servers[0];
+    const isOwner = Boolean(
+      (!get().isAuthenticated && (curUser.id === 'user-ares' || (curUser.id === 'user-me' && currentServer && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+      (currentServer && curUser.id && currentServer.ownerId === curUser.id) ||
+      (isOfficialCommunity(currentServer) && curUser.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+    );
+
+    const currentServerRoles = get().serverRolesMap[activeServerId] || get().roles;
+    const targetRole = currentServerRoles.find((r) => r.id === roleId);
+
+    // Hierarchy & protection checks for non-owner
+    if (!isOwner) {
+      if (targetRole?.base_role === 'OWNER') {
+        console.warn('[discordStore] Não é permitido modificar o cargo de proprietário.');
+        return;
+      }
+      const userRoleIds = get().userRoleMap[curUser.id] || [];
+      const actorRoles = currentServerRoles.filter((r) => userRoleIds.includes(r.id));
+      const actorMaxPos = Math.max(0, ...actorRoles.map((r) => r.position ?? 0));
+
+      if (targetRole && (targetRole.position ?? 0) >= actorMaxPos) {
+        console.warn('[discordStore] Não é permitido modificar um cargo de hierarquia igual ou superior.');
+        return;
+      }
+      if (typeof updates.position === 'number' && updates.position >= actorMaxPos) {
+        console.warn('[discordStore] Não é permitido definir uma posição igual ou superior à do seu cargo mais alto.');
+        return;
+      }
+      const hasAdmin = actorRoles.some((r) => r.permissions?.administrator);
+      if (updates.permissions?.administrator && !hasAdmin) {
+        console.warn('[discordStore] Apenas administradores podem conceder permissão de administrador.');
+        return;
+      }
+    }
+
     set((state) => {
-      const updatedRoles = state.roles.map((r) => (r.id === roleId ? { ...r, ...updates } : r));
+      const currentServerRoles = state.serverRolesMap[activeServerId] || state.roles;
+      const updatedRoles = currentServerRoles.map((r) => (r.id === roleId ? { ...r, ...updates } : r));
       saveRolesToStorage(updatedRoles);
       const updatedRolesMap = {
         ...state.serverRolesMap,
@@ -3923,15 +4539,70 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
       target: updates.name || targetRole?.name || roleId,
       color: updates.color || targetRole?.color || '#5865f2',
     });
+
+    // Remote sync to Supabase if connected
+    const isUuid = (id?: string) => !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const commId = currentServer?.communityId || (activeServerId === 'server-lyc' ? 'd3f2173f-79f0-4362-b60a-ad079f724b54' : activeServerId);
+
+    if (supabase && get().isAuthenticated && isUuid(roleId) && isUuid(commId)) {
+      try {
+        const payload: Record<string, any> = {
+          community_id: commId,
+          role_id: roleId,
+        };
+        if (updates.name) payload.name = updates.name.trim();
+        if (updates.color) payload.color = updates.color;
+        if (typeof updates.position === 'number') payload.position = updates.position;
+        if (updates.permissions) {
+          payload.permissions = Object.entries(updates.permissions)
+            .filter(([_, enabled]) => !!enabled)
+            .map(([key]) => PERMISSION_KEY_MAP[key as keyof RolePermissions])
+            .filter(Boolean);
+        }
+        await communityAction('edit_role', payload);
+      } catch (e) {
+        console.warn('[discordStore] updateRole Supabase sync error:', e);
+      }
+    }
   },
 
   deleteRole: (roleId: string) => {
     if (roleId === 'role-everyone') return;
     const activeServerId = get().activeServerId;
+    if (!get().hasServerPermission('manageRoles', activeServerId)) {
+      console.warn('[discordStore] Permissão negada: manageRoles é obrigatório para excluir cargos.');
+      return;
+    }
+
     const curUser = get().currentUser;
-    const targetRole = get().roles.find((r) => r.id === roleId);
+    const currentServer = get().servers.find((s) => s.id === activeServerId) || get().servers[0];
+    const isOwner = Boolean(
+      (!get().isAuthenticated && (curUser.id === 'user-ares' || (curUser.id === 'user-me' && currentServer && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+      (currentServer && curUser.id && currentServer.ownerId === curUser.id) ||
+      (isOfficialCommunity(currentServer) && curUser.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+    );
+
+    const currentServerRoles = get().serverRolesMap[activeServerId] || get().roles;
+    const targetRole = currentServerRoles.find((r) => r.id === roleId);
+
+    if (targetRole?.base_role === 'OWNER') {
+      console.warn('[discordStore] Não é permitido excluir o cargo de proprietário.');
+      return;
+    }
+
+    if (!isOwner) {
+      const userRoleIds = get().userRoleMap[curUser.id] || [];
+      const actorRoles = currentServerRoles.filter((r) => userRoleIds.includes(r.id));
+      const actorMaxPos = Math.max(0, ...actorRoles.map((r) => r.position ?? 0));
+      if (targetRole && (targetRole.position ?? 0) >= actorMaxPos) {
+        console.warn('[discordStore] Não é permitido excluir um cargo de hierarquia igual ou superior.');
+        return;
+      }
+    }
+
     set((state) => {
-      const updatedRoles = state.roles
+      const currentServerRoles = state.serverRolesMap[activeServerId] || state.roles;
+      const updatedRoles = currentServerRoles
         .filter((r) => r.id !== roleId)
         .map((r, idx) => ({ ...r, position: idx + 1 }));
       saveRolesToStorage(updatedRoles);
@@ -3954,6 +4625,10 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
 
   reorderRoles: (sourceRoleId: string, targetIndex: number) => {
     const activeServerId = get().activeServerId;
+    if (!get().hasServerPermission('manageRoles', activeServerId)) {
+      console.warn('[discordStore] Permissão negada: manageRoles é obrigatório para reordenar cargos.');
+      return;
+    }
     set((state) => {
       const everyoneRole = state.roles.find((r) => r.id === 'role-everyone');
       const moveableRoles = state.roles.filter((r) => r.id !== 'role-everyone');
@@ -4042,45 +4717,237 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
     return roles.find((r) => r.id === 'role-everyone');
   },
 
-  setUserRoles: (userId: string, roleIds: string[]) => {
-    set((state) => {
-      const newMap = {
-        ...state.userRoleMap,
-        [userId]: roleIds,
-      };
-      saveUserRoleMapToStorage(newMap);
-      return { userRoleMap: newMap };
-    });
+  setUserRoles: async (userId: string, roleIds: string[], serverId?: string) => {
+    const state = get();
+    const targetServerId = serverId || state.activeServerId;
+    const currentServer = state.servers.find((s) => s.id === targetServerId) || state.servers[0];
+    const previousRoleIds = state.userRoleMap[userId] || [];
+
+    // Check permissions
+    const perms = state.canUserModerate(state.currentUser.id, userId, targetServerId);
+    if (!perms.canManageRoles && !perms.isAdmin) {
+      return { success: false, error: 'Você não possui permissão para alterar cargos deste membro.' };
+    }
+
+    // Optimistic local state update
+    const newMap = {
+      ...state.userRoleMap,
+      [userId]: roleIds,
+    };
+    saveUserRoleMapToStorage(newMap);
+    set({ userRoleMap: newMap });
+
+    // Sync to Supabase if community context and valid UUIDs
+    const isUuid = (id?: string) => !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const commId = currentServer?.communityId || (targetServerId === 'server-lyc' ? 'd3f2173f-79f0-4362-b60a-ad079f724b54' : targetServerId);
+
+    if (supabase && state.isAuthenticated && targetServerId !== '@me' && isUuid(userId) && isUuid(commId)) {
+
+      try {
+        let commRoles = state.serverRolesMap[commId] || state.serverRolesMap['server-lyc'] || [];
+        if (commRoles.length === 0) {
+          const { data: dbRoles } = await db()
+            .from('community_roles')
+            .select('*')
+            .eq('community_id', commId)
+            .is('deleted_at', null);
+          if (dbRoles && dbRoles.length > 0) {
+            commRoles = dbRoles as any;
+          }
+        }
+
+        const resolveToUuid = (roleId: string): string | null => {
+          if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roleId)) {
+            return roleId;
+          }
+          const matched = commRoles.find((r: any) =>
+            r.id === roleId ||
+            (roleId === 'role-admin' && (r.base_role === 'ADMIN' || r.name.toLowerCase().includes('admin'))) ||
+            (roleId === 'role-mod' && (r.base_role === 'MODERATOR' || r.name.toLowerCase().includes('mod'))) ||
+            (roleId === 'role-vip' && r.name.toLowerCase().includes('vip')) ||
+            (roleId === 'role-competitor' && r.name.toLowerCase().includes('compet'))
+          );
+          return matched ? (matched as any).id : null;
+        };
+
+        const added = roleIds.filter((id) => !previousRoleIds.includes(id));
+        const removed = previousRoleIds.filter((id) => !roleIds.includes(id));
+
+        for (const addId of added) {
+          const uuid = resolveToUuid(addId);
+          if (uuid) {
+            await communityAction('assign_role', {
+              community_id: commId,
+              user_id: userId,
+              role_id: uuid,
+            });
+          }
+        }
+
+        for (const remId of removed) {
+          const uuid = resolveToUuid(remId);
+          if (uuid) {
+            await communityAction('remove_role', {
+              community_id: commId,
+              user_id: userId,
+              role_id: uuid,
+            });
+          }
+        }
+
+        await get().fetchCommunityMembers(commId);
+        return { success: true };
+      } catch (err: any) {
+        console.error('[discordStore] setUserRoles remote sync error:', err);
+        // Rollback optimistic update on error
+        const rollbackMap = {
+          ...get().userRoleMap,
+          [userId]: previousRoleIds,
+        };
+        saveUserRoleMapToStorage(rollbackMap);
+        set({ userRoleMap: rollbackMap });
+        return { success: false, error: err?.message || 'Falha ao salvar cargo no servidor.' };
+      }
+    }
+
+    return { success: true };
   },
 
   canUserModerate: (actorUserId: string, targetUserId?: string, serverId?: string) => {
     const state = get();
-    const currentServer = (serverId ? state.servers.find(s => s.id === serverId) : null) || state.servers.find(s => s.id === state.activeServerId) || state.servers[0];
-    const isOwner = actorUserId === 'user-ares' 
-      || (currentServer && actorUserId === currentServer.ownerId)
-      || (actorUserId === state.currentUser?.id && currentServer?.ownerId === state.currentUser?.id);
+    const targetServerId = serverId || state.activeServerId;
+    const currentServer = state.servers.find(s => s.id === targetServerId) || state.servers[0];
+    const isOwner = Boolean(
+      (!state.isAuthenticated && (actorUserId === 'user-ares' || (actorUserId === 'user-me' && currentServer && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+      (currentServer && actorUserId && currentServer.ownerId === actorUserId) ||
+      (isOfficialCommunity(currentServer) && actorUserId === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+    );
     
-    const actorRoleIds = state.userRoleMap[actorUserId] || (actorUserId === state.currentUser.id ? state.userRoleMap['user-me'] || [] : []);
-    const actorRoles = state.roles.filter(r => actorRoleIds.includes(r.id));
+    const actorRoleIds = state.userRoleMap[actorUserId] || (actorUserId === state.currentUser?.id ? (state.userRoleMap['user-me'] || state.userRoleMap[state.currentUser.id] || []) : []);
+    const serverRoles = (currentServer && (state.serverRolesMap[currentServer.id] || (currentServer.communityId ? state.serverRolesMap[currentServer.communityId] : null) || (currentServer.id === 'server-lyc' ? state.serverRolesMap['server-lyc'] : null))) || [];
+    const actorRoles = serverRoles.filter(r => actorRoleIds.includes(r.id));
     
-    const isAdmin = isOwner || actorRoles.some(r => r.permissions.administrator);
-    const canKick = isAdmin || actorRoles.some(r => r.permissions.kickMembers);
-    const canBan = isAdmin || actorRoles.some(r => r.permissions.banMembers);
-    const canManageRoles = isAdmin || actorRoles.some(r => r.permissions.manageRoles);
+    const isAdmin = isOwner || actorRoles.some(r => r.permissions?.administrator);
+    const canKick = isAdmin || actorRoles.some(r => r.permissions?.kickMembers);
+    const canBan = isAdmin || actorRoles.some(r => r.permissions?.banMembers);
+    const canManageRoles = isAdmin || actorRoles.some(r => r.permissions?.manageRoles);
 
     if (targetUserId) {
-      if (targetUserId === actorUserId || targetUserId === state.currentUser.id) {
+      if (targetUserId === actorUserId || targetUserId === state.currentUser?.id) {
+        return { canKick: false, canBan: false, canManageRoles: isOwner, isAdmin: isOwner };
+      }
+      const targetIsOwner = (!state.isAuthenticated && (targetUserId === 'user-ares' || (targetUserId === 'user-me' && currentServer && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me')))
+        || (currentServer && targetUserId && currentServer.ownerId === targetUserId)
+        || (isOfficialCommunity(currentServer) && targetUserId === 'f8fcd139-cf43-4873-bd7d-a807ecd73567');
+      if (targetIsOwner) {
         return { canKick: false, canBan: false, canManageRoles: false, isAdmin: false };
       }
       const targetRoleIds = state.userRoleMap[targetUserId] || [];
-      const targetRoles = state.roles.filter(r => targetRoleIds.includes(r.id));
-      const targetIsAdmin = targetUserId === 'user-ares' || targetRoles.some(r => r.permissions.administrator);
+      const targetRoles = serverRoles.filter(r => targetRoleIds.includes(r.id));
+      const targetIsAdmin = targetRoles.some(r => r.permissions?.administrator);
       if (targetIsAdmin && !isOwner) {
         return { canKick: false, canBan: false, canManageRoles: false, isAdmin };
+      }
+
+      // Hierarchy check: non-owner actor cannot moderate member with equal or higher role
+      if (!isOwner && targetRoles.length > 0) {
+        const actorMaxPos = Math.max(0, ...actorRoles.map((r) => r.position ?? 0));
+        const targetMaxPos = Math.max(0, ...targetRoles.map((r) => r.position ?? 0));
+        if (targetMaxPos >= actorMaxPos) {
+          return { canKick: false, canBan: false, canManageRoles: false, isAdmin: false };
+        }
       }
     }
 
     return { canKick, canBan, canManageRoles, isAdmin };
+  },
+
+  hasServerPermission: (permission: keyof RolePermissions, serverId?: string, channelId?: string): boolean => {
+    const state = get();
+    const curUser = state.currentUser;
+    if (!curUser) return false;
+
+    const targetServerId = serverId || state.activeServerId;
+    if (targetServerId === '@me') return true;
+
+    const currentServer = state.servers.find((s) => s.id === targetServerId) || (serverId ? null : state.servers[0]);
+    if (!currentServer) return false;
+
+    // 1. Owner always has all permissions
+    const isOwner = Boolean(
+      (!state.isAuthenticated && (curUser.id === 'user-ares' || (curUser.id === 'user-me' && currentServer.id !== 'server-lyc' && currentServer.ownerId === 'user-me'))) ||
+      (curUser.id && currentServer.ownerId === curUser.id) ||
+      (isOfficialCommunity(currentServer) && curUser.id === 'f8fcd139-cf43-4873-bd7d-a807ecd73567')
+    );
+    if (isOwner) return true;
+
+    // 2. Fetch actor roles strictly for target server
+    const userRoleIds = state.userRoleMap[curUser.id] || (state.userRoleMap['user-me'] || state.userRoleMap[curUser.id] || []);
+    const serverRoles = (state.serverRolesMap[currentServer.id] || (currentServer.communityId ? state.serverRolesMap[currentServer.communityId] : null) || (currentServer.id === 'server-lyc' ? state.serverRolesMap['server-lyc'] : null)) || [];
+
+    // Default / @everyone role
+    const defaultRole = serverRoles.find((r) => r.id === 'role-everyone' || r.name === '@everyone' || r.name === '@todos' || r.isDefault);
+    const assignedRoles = serverRoles.filter((r) => userRoleIds.includes(r.id));
+    if (defaultRole && !assignedRoles.some((r) => r.id === defaultRole.id)) {
+      assignedRoles.push(defaultRole);
+    }
+
+    // 3. Administrator role grants all permissions
+    if (assignedRoles.some((r) => r.permissions?.administrator)) {
+      return true;
+    }
+
+    // 4. Channel permission overrides if channelId provided
+    if (channelId) {
+      const channel = currentServer.categories?.flatMap((c) => c.channels || []).find((ch) => ch.id === channelId);
+      if (channel && channel.permissionOverrides) {
+        for (const role of assignedRoles) {
+          const override = channel.permissionOverrides[role.id];
+          if (override) {
+            if (permission === 'viewChannels') {
+              if (override.viewChannel === 'deny') return false;
+              if (override.viewChannel === 'allow') return true;
+            }
+            if (permission === 'sendMessages') {
+              if (override.sendMessages === 'deny') return false;
+              if (override.sendMessages === 'allow') return true;
+            }
+            if (permission === 'connectVoice') {
+              if (override.connectVoice === 'deny') return false;
+              if (override.connectVoice === 'allow') return true;
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Default allowed keys for common member interactions if not explicitly configured
+    const defaultAllowedKeys: (keyof RolePermissions)[] = [
+      'viewChannels',
+      'sendMessages',
+      'connectVoice',
+      'speak',
+      'streamScreen',
+      'attachFiles',
+      'addReactions',
+      'createInvites',
+      'changeNickname',
+    ];
+
+    // Check if any assigned role has the permission enabled
+    for (const r of assignedRoles) {
+      if (r.permissions && r.permissions[permission] === true) {
+        return true;
+      }
+    }
+
+    // If default role has explicit boolean, use it
+    if (defaultRole && defaultRole.permissions && defaultRole.permissions[permission] !== undefined) {
+      return defaultRole.permissions[permission] === true;
+    }
+
+    // Fallback to default allowed keys ONLY for member non-administrative keys
+    return defaultAllowedKeys.includes(permission);
   },
 
   kickMember: async (serverId: string, userId: string) => {
@@ -4280,9 +5147,18 @@ export const sweepExpiredPresences = (communityId = 'd3f2173f-79f0-4362-b60a-ad0
   if (!currentMembers || currentMembers.length === 0) return;
 
   const curId = state.currentUser?.id;
+  const realtimeIds = state.realtimeOnlineIds;
 
   const updatedMembers = currentMembers.map((m) => {
     if (m.id === curId) return m;
+
+    if (realtimeIds.has(m.id)) {
+      if (m.status === 'offline') {
+        changed = true;
+        return { ...m, status: 'online' as const };
+      }
+      return m;
+    }
 
     if (m.status !== 'offline') {
       const expiresAt = presenceLeaseCache.get(m.id);
@@ -4309,5 +5185,9 @@ export const sweepExpiredPresences = (communityId = 'd3f2173f-79f0-4362-b60a-ad0
     }));
   }
 };
+
+if (typeof window !== 'undefined') {
+  (window as any).__useDiscordStore = useDiscord;
+}
 
 

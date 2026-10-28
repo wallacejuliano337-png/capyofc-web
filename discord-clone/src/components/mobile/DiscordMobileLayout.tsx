@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDiscord } from '../../store/discordStore';
 import { useTheme } from '../../store/themeStore';
 import { getAvatarUrl } from '../../utils/avatar';
+import { getAssetUrl } from '../../utils/assets';
 import { isOfficialCommunity, getCommunityBoostLevel, getCommunityLevelMedal } from '../../services/communityLevel';
 import { OfflineBanner } from './OfflineBanner';
 import { PWAInstallGuideModal } from './PWAInstallGuideModal';
@@ -179,7 +180,7 @@ export const DiscordMobileLayout: React.FC = () => {
                 <div className="p-3 bg-[#1e1f22] border-b border-[#111214] flex items-center justify-between pt-safe">
                   <div className="flex items-center gap-2 truncate">
                     <img
-                      src="/logos/capy-white.png"
+                      src={getAssetUrl('logos/capy-white.png')}
                       alt=""
                       className="w-6 h-6 object-contain rounded bg-[#5865f2] p-0.5 flex-shrink-0"
                     />
@@ -529,7 +530,7 @@ export const DiscordMobileLayout: React.FC = () => {
                       }`}
                     >
                       <img
-                        src="/logos/capy-white.png"
+                        src={getAssetUrl('logos/capy-white.png')}
                         alt=""
                         className="w-8 h-8 rounded-lg p-1 bg-black/20 object-contain flex-shrink-0"
                       />

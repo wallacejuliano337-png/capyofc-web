@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useDiscord, currentUser } from '../../store/discordStore';
 import { useTheme } from '../../store/themeStore';
+import { useVoiceStreamStore, getVoiceAudioConstraints } from '../../store/voiceStreamStore';
 import { SettingsTab } from '../../types/discord';
+import { getAssetUrl } from '../../utils/assets';
 import {
   X,
   User,
@@ -16,6 +18,8 @@ import {
   Monitor,
   Eye,
   Volume2,
+  VolumeX,
+  AlertCircle,
   Bell,
   Keyboard,
   Globe,
@@ -34,11 +38,15 @@ import {
   ShieldAlert,
   Upload,
   RefreshCw,
+  Download,
   Award,
+  Info,
+  CheckCircle2,
 } from 'lucide-react';
 import { DiscordUltraPassView } from './DiscordUltraPassView';
 import { DiscordBadgesSettingsSection } from './DiscordBadgesSettingsSection';
 import { CapyBadgeIcon } from './CapyBadgeIcon';
+import { DiscordBadgesGroup } from './DiscordBadgesGroup';
 import { getUserUnlockedBadgeIds, getDisplayedBadgeIds } from '../../types/badges';
 import { useAutoUpdate } from '../../services/autoUpdateService';
 
@@ -57,8 +65,17 @@ export const DiscordSettingsModal: React.FC = () => {
   const {
     currentVersion,
     isUpdateAvailable,
+    isDownloading,
+    isDownloaded,
+    updateProgress,
+    availableVersion,
     isChecking,
+    updateError,
+    lastChecked,
     checkForUpdates,
+    downloadUpdate,
+    applyUpdate,
+    openUpdateModal,
     simulateUpdate,
   } = useAutoUpdate();
 
@@ -147,8 +164,14 @@ export const DiscordSettingsModal: React.FC = () => {
   // Teste de microfone
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [micVolumeLevel, setMicVolumeLevel] = useState<number>(0);
+  const [micTestError, setMicTestError] = useState<string | null>(null);
+  const [micTestWarning, setMicTestWarning] = useState<string | null>(null);
+  const [isLoopbackMuted, setIsLoopbackMuted] = useState(false);
+  const [hasDetectedAudioSignal, setHasDetectedAudioSignal] = useState(false);
+
   const testMicAudioCtxRef = useRef<AudioContext | null>(null);
   const testMicStreamRef = useRef<MediaStream | null>(null);
+  const testMicGainRef = useRef<GainNode | null>(null);
   const testMicRafRef = useRef<number>(0);
 
   // Teste de vídeo
@@ -179,14 +202,14 @@ export const DiscordSettingsModal: React.FC = () => {
           setAudioOutputDevices(outputs);
           setVideoDevices(cameras);
 
-          if (inputs.length > 0 && selectedInputDevice === 'default') {
-            setSelectedInputDevice(inputs[0].deviceId || 'default');
+          if (inputs.length > 0 && selectedInputDevice === 'default' && inputs[0].deviceId) {
+            setSelectedInputDevice(inputs[0].deviceId);
           }
-          if (outputs.length > 0 && selectedOutputDevice === 'default') {
-            setSelectedOutputDevice(outputs[0].deviceId || 'default');
+          if (outputs.length > 0 && selectedOutputDevice === 'default' && outputs[0].deviceId) {
+            setSelectedOutputDevice(outputs[0].deviceId);
           }
-          if (cameras.length > 0 && selectedVideoDevice === 'default') {
-            setSelectedVideoDevice(cameras[0].deviceId || 'default');
+          if (cameras.length > 0 && selectedVideoDevice === 'default' && cameras[0].deviceId) {
+            setSelectedVideoDevice(cameras[0].deviceId);
           }
         }
       } catch (err) {
@@ -199,11 +222,30 @@ export const DiscordSettingsModal: React.FC = () => {
 
   // Cleanup de testes de áudio e vídeo ao fechar ou trocar de aba
   const stopMicTest = useCallback(() => {
-    if (testMicRafRef.current) cancelAnimationFrame(testMicRafRef.current);
-    testMicStreamRef.current?.getTracks().forEach((t) => t.stop());
-    testMicStreamRef.current = null;
-    testMicAudioCtxRef.current?.close().catch(() => {});
-    testMicAudioCtxRef.current = null;
+    if (testMicRafRef.current) {
+      cancelAnimationFrame(testMicRafRef.current);
+      testMicRafRef.current = 0;
+    }
+    if (testMicStreamRef.current) {
+      testMicStreamRef.current.getTracks().forEach((t) => {
+        try {
+          t.stop();
+        } catch {}
+      });
+      testMicStreamRef.current = null;
+    }
+    if (testMicGainRef.current) {
+      try {
+        testMicGainRef.current.disconnect();
+      } catch {}
+      testMicGainRef.current = null;
+    }
+    if (testMicAudioCtxRef.current) {
+      try {
+        void testMicAudioCtxRef.current.close().catch(() => {});
+      } catch {}
+      testMicAudioCtxRef.current = null;
+    }
     setIsTestingMic(false);
     setMicVolumeLevel(0);
   }, []);
@@ -222,43 +264,169 @@ export const DiscordSettingsModal: React.FC = () => {
     };
   }, [stopMicTest, stopVideoTest, activeSettingsTab, isSettingsModalOpen]);
 
-  // Handler do teste de microfone em tempo real
-  const toggleMicTest = async () => {
-    if (isTestingMic) {
+  // Se a aba mudar ou a janela fechar, garante interrupção completa e limpa mensagens
+  useEffect(() => {
+    if (!isSettingsModalOpen || activeSettingsTab !== 'voice-video') {
       stopMicTest();
+      stopVideoTest();
+      setMicTestError(null);
+      setMicTestWarning(null);
+      setHasDetectedAudioSignal(false);
+    }
+  }, [isSettingsModalOpen, activeSettingsTab, stopMicTest, stopVideoTest]);
+
+  // Atualiza o ganho do loopback em tempo real caso os sliders ou o botão mudo mudem
+  useEffect(() => {
+    if (testMicGainRef.current && testMicAudioCtxRef.current) {
+      const targetGain = isLoopbackMuted ? 0 : Math.max(0, Math.min(1, (outputVolume / 100) * (inputVolume / 100) * 0.85));
+      try {
+        if (typeof testMicGainRef.current.gain.setTargetAtTime === 'function') {
+          testMicGainRef.current.gain.setTargetAtTime(targetGain, testMicAudioCtxRef.current.currentTime, 0.03);
+        } else {
+          testMicGainRef.current.gain.value = targetGain;
+        }
+      } catch {}
+    }
+  }, [inputVolume, outputVolume, isLoopbackMuted]);
+
+  // Handler do teste de microfone em tempo real com retorno de voz e medidor real
+  const toggleMicTest = async (overrideDeviceId?: string) => {
+    if (isTestingMic && !overrideDeviceId) {
+      stopMicTest();
+      setHasDetectedAudioSignal(false);
       return;
     }
 
+    // Se já estava rodando e recebemos override, encerra anterior
+    if (isTestingMic) {
+      stopMicTest();
+    }
+
+    setMicTestError(null);
+    setMicTestWarning(null);
+    setHasDetectedAudioSignal(false);
+
     try {
-      const constraints: MediaStreamConstraints = {
-        audio: selectedInputDevice !== 'default' ? { deviceId: { exact: selectedInputDevice } } : true,
-        video: false,
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const targetDev = overrideDeviceId !== undefined ? overrideDeviceId : selectedInputDevice;
+      const audioConstraints = getVoiceAudioConstraints(targetDev);
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: audioConstraints,
+          video: false,
+        });
+      } catch (err: any) {
+        console.warn('[DiscordSettingsModal] Falha na captura com restrições ideais, tentando genérico:', err);
+        if (targetDev !== 'default') {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: { echoCancellation: true, noiseSuppression: true },
+              video: false,
+            });
+            setMicTestWarning('Dispositivo selecionado indisponível. Usando microfone padrão do sistema.');
+          } catch {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
+
       testMicStreamRef.current = stream;
 
-      const audioCtx = new AudioContext();
+      const AudioCtxClass = typeof window !== 'undefined'
+        ? (window.AudioContext || (window as any).webkitAudioContext)
+        : null;
+
+      if (!AudioCtxClass) {
+        throw new Error('Web Audio API não está disponível neste ambiente.');
+      }
+
+      const audioCtx: AudioContext = new AudioCtxClass();
       testMicAudioCtxRef.current = audioCtx;
+
+      // Desbloqueia o AudioContext se estiver suspenso
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      // Configura saída se o ambiente suportar setSinkId
+      if ((audioCtx as any).setSinkId && selectedOutputDevice && selectedOutputDevice !== 'default') {
+        try {
+          await (audioCtx as any).setSinkId(selectedOutputDevice);
+        } catch (sinkErr) {
+          console.warn('[DiscordSettingsModal] Aviso setSinkId:', sinkErr);
+        }
+      }
+
+      const source = audioCtx.createMediaStreamSource(stream);
+
+      // Analisador para o medidor de ondas / VU
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
-      const source = audioCtx.createMediaStreamSource(stream);
+      analyser.smoothingTimeConstant = 0.35;
       source.connect(analyser);
+
+      // Nó de ganho para o retorno de voz local (loopback)
+      try {
+        const gainNode = audioCtx.createGain();
+        testMicGainRef.current = gainNode;
+        const initialGain = isLoopbackMuted ? 0 : Math.max(0, Math.min(1, (outputVolume / 100) * (inputVolume / 100) * 0.85));
+        if (gainNode.gain && typeof gainNode.gain.setValueAtTime === 'function') {
+          gainNode.gain.setValueAtTime(initialGain, audioCtx.currentTime);
+        } else if (gainNode.gain) {
+          gainNode.gain.value = initialGain;
+        }
+        source.connect(gainNode);
+        if (audioCtx.destination) {
+          gainNode.connect(audioCtx.destination);
+        }
+      } catch (loopErr) {
+        console.warn('[DiscordSettingsModal] Aviso ao conectar loopback de áudio:', loopErr);
+      }
 
       const data = new Uint8Array(analyser.frequencyBinCount);
       setIsTestingMic(true);
 
       const loop = () => {
         analyser.getByteFrequencyData(data);
-        const avg = data.reduce((a, b) => a + b, 0) / data.length;
-        // Normaliza de 0 a 100
-        const normalized = Math.min(100, Math.round((avg / 128) * 100));
+        let sum = 0;
+        let peak = 0;
+        for (let i = 0; i < data.length; i++) {
+          sum += data[i];
+          if (data[i] > peak) peak = data[i];
+        }
+        const avg = sum / data.length;
+
+        // Combina média espectral com pico para resposta rápida à fala humana
+        const rawLevel = (avg * 0.65 + peak * 0.35) / 135;
+        const normalized = Math.min(100, Math.max(0, Math.round(rawLevel * (inputVolume / 100) * 100)));
         setMicVolumeLevel(normalized);
+
+        if (normalized > 6) {
+          setHasDetectedAudioSignal(true);
+        }
+
         testMicRafRef.current = requestAnimationFrame(loop);
       };
       testMicRafRef.current = requestAnimationFrame(loop);
-    } catch (err) {
-      console.warn('Erro ao iniciar teste de microfone:', err);
-      setIsTestingMic(false);
+    } catch (err: any) {
+      console.error('[DiscordSettingsModal] Erro ao iniciar teste de microfone:', err);
+      let errorMsg = 'Não foi possível acessar o microfone.';
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        errorMsg = 'Permissão de microfone negada. Permita o acesso ao microfone nas configurações de privacidade do Windows ou do aplicativo.';
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        errorMsg = 'Nenhum microfone encontrado. Conecte um microfone ou headset ao computador.';
+      } else if (err?.name === 'OverconstrainedError') {
+        errorMsg = 'O dispositivo de microfone selecionado não pôde ser acessado com as restrições atuais.';
+      } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+        errorMsg = 'O microfone está sendo usado por outro programa ou o driver de áudio não respondeu.';
+      } else if (err?.message) {
+        errorMsg = `Falha na captura: ${err.message}`;
+      }
+      setMicTestError(errorMsg);
+      stopMicTest();
     }
   };
 
@@ -530,11 +698,11 @@ export const DiscordSettingsModal: React.FC = () => {
                   }`}
                 >
                   <img
-                    src="/ultra-pass.svg"
+                    src={getAssetUrl('ultra-pass.svg')}
                     alt="Ultra Pass"
                     className="w-4 h-4 object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(244,127,255,0.45)] group-hover:scale-110 transition-transform"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/brand/03_UI_Icons_SVG/icon_ultrapass.svg';
+                      (e.currentTarget as HTMLImageElement).src = getAssetUrl('brand/03_UI_Icons_SVG/icon_ultrapass.svg');
                     }}
                   />
                   <span className="font-semibold bg-gradient-to-r from-[#f47fff] to-[#ff73fa] bg-clip-text text-transparent group-hover:brightness-110 transition-all">
@@ -649,6 +817,18 @@ export const DiscordSettingsModal: React.FC = () => {
                   <Globe className={`w-4 h-4 flex-shrink-0 transition-colors ${activeSettingsTab === 'language' ? 'text-white' : 'text-[#949ba4] group-hover:text-white'}`} />
                   <span>Idioma</span>
                 </button>
+
+                <button
+                  onClick={() => setActiveSettingsTab('about')}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all cursor-pointer text-left group ${
+                    activeSettingsTab === 'about'
+                      ? 'bg-[#35373c] text-white font-semibold'
+                      : 'text-[#b5bac1] hover:bg-[#35373c]/50 hover:text-[#dbdee1]'
+                  }`}
+                >
+                  <Info className={`w-4 h-4 flex-shrink-0 transition-colors ${activeSettingsTab === 'about' ? 'text-white' : 'text-[#949ba4] group-hover:text-white'}`} />
+                  <span>Sobre o Capy.ofc</span>
+                </button>
               </div>
             </div>
 
@@ -676,23 +856,68 @@ export const DiscordSettingsModal: React.FC = () => {
 
           <div className="px-2 pt-3 text-[10px] text-[#80848e] leading-relaxed space-y-2">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-[#949ba4]">CapyChat v{currentVersion} (Stable)</p>
-              {isUpdateAvailable && (
-                <span className="bg-[#23a55a]/20 text-[#23a55a] px-1.5 py-0.5 rounded text-[9px] font-bold">
-                  Atualização Pronta
-                </span>
-              )}
-            </div>
-            <p>Electron 33 • Chromium 130</p>
-            <div className="pt-1 flex flex-col gap-1.5">
               <button
                 type="button"
-                onClick={() => checkForUpdates(false)}
-                className="w-full py-1.5 px-2 rounded-md bg-[#35373c] hover:bg-[#404249] text-white text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => setActiveSettingsTab('about')}
+                title="Ver detalhes da versão e atualizações"
+                className="font-semibold text-[#949ba4] hover:text-white transition-colors cursor-pointer text-left"
               >
-                <RefreshCw className={`w-3 h-3 ${isChecking ? 'animate-spin' : ''}`} />
-                <span>{isChecking ? 'Verificando...' : 'Verificar atualizações'}</span>
+                Capy.ofc v{currentVersion} (Stable)
               </button>
+              {isDownloaded ? (
+                <span className="bg-[#23a55a]/20 text-[#23a55a] px-1.5 py-0.5 rounded text-[9px] font-bold">
+                  Pronto para instalar
+                </span>
+              ) : isDownloading ? (
+                <span className="bg-[#5865f2]/20 text-[#5865f2] px-1.5 py-0.5 rounded text-[9px] font-bold">
+                  Baixando {updateProgress}%
+                </span>
+              ) : isUpdateAvailable ? (
+                <span className="bg-[#8b5cf6]/20 text-[#8b5cf6] px-1.5 py-0.5 rounded text-[9px] font-bold">
+                  Nova versão
+                </span>
+              ) : null}
+            </div>
+            <p>Electron 33 • Chromium 130 • Windows x64</p>
+            <div className="pt-1 flex flex-col gap-1.5">
+              {isDownloaded ? (
+                <button
+                  type="button"
+                  onClick={applyUpdate}
+                  className="w-full py-1.5 px-2 rounded-md bg-[#23a55a] hover:bg-[#1f934f] text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reiniciar e Atualizar Agora</span>
+                </button>
+              ) : isDownloading ? (
+                <button
+                  type="button"
+                  onClick={openUpdateModal}
+                  className="w-full py-1.5 px-2 rounded-md bg-[#5865f2] text-white text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Baixando atualização ({updateProgress}%)...</span>
+                </button>
+              ) : isUpdateAvailable ? (
+                <button
+                  type="button"
+                  onClick={downloadUpdate}
+                  className="w-full py-1.5 px-2 rounded-md bg-[#5865f2] hover:bg-[#4752c4] text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Baixar Versão {availableVersion}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => checkForUpdates(false)}
+                  disabled={isChecking}
+                  className="w-full py-1.5 px-2 rounded-md bg-[#35373c] hover:bg-[#404249] text-white text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isChecking ? 'animate-spin' : ''}`} />
+                  <span>{isChecking ? 'Verificando...' : 'Verificar atualizações'}</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -774,21 +999,6 @@ export const DiscordSettingsModal: React.FC = () => {
                       />
                       <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[#23a55a] border-2 border-[#2b2d31]" />
                     </div>
-
-                    {(() => {
-                      const displayed = getDisplayedBadgeIds(
-                        getUserUnlockedBadgeIds(currentUser),
-                        currentUser.displayedBadges
-                      );
-                      if (displayed.length === 0) return null;
-                      return (
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-[#111214]/80 rounded-full border border-[#35373c]/40 mb-1 shadow-xs">
-                          {displayed.map((id) => (
-                            <CapyBadgeIcon key={id} badgeId={id} size={15} showTooltip />
-                          ))}
-                        </div>
-                      );
-                    })()}
                   </div>
 
                   {/* Nome e Tag */}
@@ -796,7 +1006,10 @@ export const DiscordSettingsModal: React.FC = () => {
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
                       {displayName}
                     </h3>
-                    <span className="text-xs text-[#949ba4]">@{username}#{currentUser.tag || '0001'}</span>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap min-w-0">
+                      <span className="text-xs text-[#949ba4]">@{username}#{currentUser.tag || '0001'}</span>
+                      <DiscordBadgesGroup user={currentUser} size={16} />
+                    </div>
                   </div>
 
                   {/* Card interno escuro (#1e1f22) agrupando os campos editáveis */}
@@ -1192,11 +1405,7 @@ export const DiscordSettingsModal: React.FC = () => {
                             <span className="text-[10px] font-bold uppercase text-[#949ba4] tracking-wider mr-1">
                               Insígnias:
                             </span>
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#111214]/80 rounded-full border border-[#35373c]/40 shadow-xs">
-                              {displayed.map((id) => (
-                                <CapyBadgeIcon key={id} badgeId={id} size={15} showTooltip />
-                              ))}
-                            </div>
+                            <DiscordBadgesGroup badgeIds={displayed} size={16} />
                           </div>
                         );
                       })()}
@@ -1260,6 +1469,10 @@ export const DiscordSettingsModal: React.FC = () => {
                         if (typeof window !== 'undefined') {
                           localStorage.setItem('lyc_selected_input_device', val);
                         }
+                        void useVoiceStreamStore.getState().applyAudioConstraints(val);
+                        if (isTestingMic) {
+                          void toggleMicTest(val);
+                        }
                       }}
                       className="w-full bg-[#1e1f22] border border-[#1f2023] hover:border-black text-white text-xs p-2.5 rounded-[4px] focus:outline-none cursor-pointer"
                     >
@@ -1298,11 +1511,18 @@ export const DiscordSettingsModal: React.FC = () => {
                     </label>
                     <select
                       value={selectedOutputDevice}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const val = e.target.value;
                         setSelectedOutputDevice(val);
                         if (typeof window !== 'undefined') {
                           localStorage.setItem('lyc_selected_output_device', val);
+                        }
+                        if (testMicAudioCtxRef.current && (testMicAudioCtxRef.current as any).setSinkId && val !== 'default') {
+                          try {
+                            await (testMicAudioCtxRef.current as any).setSinkId(val);
+                          } catch (sinkErr) {
+                            console.warn('[DiscordSettingsModal] Erro ao redirecionar áudio:', sinkErr);
+                          }
                         }
                       }}
                       className="w-full bg-[#1e1f22] border border-[#1f2023] hover:border-black text-white text-xs p-2.5 rounded-[4px] focus:outline-none cursor-pointer"
@@ -1351,15 +1571,16 @@ export const DiscordSettingsModal: React.FC = () => {
                 <div className="flex items-center gap-3">
                   {/* Botão Teste do microfone */}
                   <button
-                    onClick={toggleMicTest}
-                    className={`px-4 py-2 rounded text-sm font-medium transition-colors cursor-pointer flex-shrink-0 flex items-center justify-center gap-2 ${
+                    type="button"
+                    onClick={() => toggleMicTest()}
+                    className={`px-4 py-2 rounded text-sm font-medium transition-all cursor-pointer flex-shrink-0 flex items-center justify-center gap-2 ${
                       isTestingMic
-                        ? 'bg-[#da373c] hover:bg-[#a12828] text-white'
+                        ? 'bg-[#da373c] hover:bg-[#a12828] text-white shadow-md shadow-[#da373c]/30'
                         : 'bg-[#5865f2] hover:bg-[#4752c4] text-white'
                     }`}
                   >
                     {isTestingMic && <Square className="w-3.5 h-3.5 fill-current" />}
-                    <span>{isTestingMic ? 'Parar teste' : 'Teste do microfone'}</span>
+                    <span>{isTestingMic ? 'Parar teste' : 'Testar microfone'}</span>
                   </button>
 
                   {/* Waveform / Medidor de Barras Verticais */}
@@ -1397,6 +1618,56 @@ export const DiscordSettingsModal: React.FC = () => {
                     })}
                   </div>
                 </div>
+
+                {/* Status em tempo real do teste de microfone e controle de retorno */}
+                {isTestingMic && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${hasDetectedAudioSignal ? 'bg-[#23a55a] animate-pulse' : 'bg-[#f0b232]'}`} />
+                      <span className={hasDetectedAudioSignal ? 'text-[#23a55a] font-medium' : 'text-[#f0b232]'}>
+                        {hasDetectedAudioSignal
+                          ? (isLoopbackMuted
+                              ? 'Captação ativa (Retorno de voz silenciado)'
+                              : 'Captação ativa • Fale no microfone para ouvir seu retorno em tempo real')
+                          : 'Aguardando sinal de voz... (Fale próximo ao microfone)'}
+                      </span>
+                    </div>
+
+                    {/* Botão de retorno local para fones/caixas */}
+                    <button
+                      type="button"
+                      onClick={() => setIsLoopbackMuted(!isLoopbackMuted)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer border ${
+                        isLoopbackMuted
+                          ? 'bg-[#2b2d31] hover:bg-[#35373c] text-[#f23f43] border-[#da373c]/40'
+                          : 'bg-[#2b2d31] hover:bg-[#35373c] text-[#dbdee1] border-[#1f2023]'
+                      }`}
+                      title={isLoopbackMuted ? 'Ativar retorno local de voz' : 'Silenciar retorno local de voz para evitar eco'}
+                    >
+                      {isLoopbackMuted ? <VolumeX className="w-3.5 h-3.5 text-[#f23f43]" /> : <Volume2 className="w-3.5 h-3.5 text-[#23a55a]" />}
+                      <span>{isLoopbackMuted ? 'Retorno Mudo' : 'Ouvindo Retorno'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Exibição de aviso/fallback amigável */}
+                {micTestWarning && (
+                  <div className="text-xs text-[#f0b232] bg-[#f0b232]/10 border border-[#f0b232]/20 px-3 py-2 rounded flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{micTestWarning}</span>
+                  </div>
+                )}
+
+                {/* Exibição de erro estruturado */}
+                {micTestError && (
+                  <div className="text-xs text-[#f23f43] bg-[#da373c]/10 border border-[#da373c]/30 px-3 py-2 rounded flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <span className="font-semibold block">Erro no Microfone</span>
+                      <span>{micTestError}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="h-[1px] bg-[#2b2d31]" />
@@ -1539,7 +1810,16 @@ export const DiscordSettingsModal: React.FC = () => {
                   <label
                     onClick={() => {
                       setAudioProfile('voice-isolation');
-                      if (typeof window !== 'undefined') localStorage.setItem('lyc_audio_profile', 'voice-isolation');
+                      setEchoCancellation(true);
+                      setAutomaticGainControl(true);
+                      if (noiseSuppression === 'none') setNoiseSuppression('krisp');
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('lyc_audio_profile', 'voice-isolation');
+                        localStorage.setItem('lyc_echo_cancellation', 'true');
+                        localStorage.setItem('lyc_auto_gain', 'true');
+                      }
+                      void useVoiceStreamStore.getState().applyAudioConstraints();
+                      if (isTestingMic) void toggleMicTest();
                     }}
                     className="flex items-start gap-3 cursor-pointer group select-none"
                   >
@@ -1576,7 +1856,17 @@ export const DiscordSettingsModal: React.FC = () => {
                   <label
                     onClick={() => {
                       setAudioProfile('studio');
-                      if (typeof window !== 'undefined') localStorage.setItem('lyc_audio_profile', 'studio');
+                      setEchoCancellation(false);
+                      setAutomaticGainControl(false);
+                      setNoiseSuppression('none');
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('lyc_audio_profile', 'studio');
+                        localStorage.setItem('lyc_echo_cancellation', 'false');
+                        localStorage.setItem('lyc_auto_gain', 'false');
+                        localStorage.setItem('lyc_noise_suppression', 'none');
+                      }
+                      void useVoiceStreamStore.getState().applyAudioConstraints();
+                      if (isTestingMic) void toggleMicTest();
                     }}
                     className="flex items-start gap-3 cursor-pointer group select-none"
                   >
@@ -1609,6 +1899,8 @@ export const DiscordSettingsModal: React.FC = () => {
                     onClick={() => {
                       setAudioProfile('custom');
                       if (typeof window !== 'undefined') localStorage.setItem('lyc_audio_profile', 'custom');
+                      void useVoiceStreamStore.getState().applyAudioConstraints();
+                      if (isTestingMic) void toggleMicTest();
                     }}
                     className="flex items-start gap-3 cursor-pointer group select-none"
                   >
@@ -1670,6 +1962,8 @@ export const DiscordSettingsModal: React.FC = () => {
                       const val = e.target.value as any;
                       setNoiseSuppression(val);
                       if (typeof window !== 'undefined') localStorage.setItem('lyc_noise_suppression', val);
+                      void useVoiceStreamStore.getState().applyAudioConstraints();
+                      if (isTestingMic) void toggleMicTest();
                     }}
                     className="bg-[#1e1f22] border border-[#2b2d31] text-white text-xs p-2 rounded focus:outline-none cursor-pointer"
                   >
@@ -1694,6 +1988,8 @@ export const DiscordSettingsModal: React.FC = () => {
                       const next = !echoCancellation;
                       setEchoCancellation(next);
                       if (typeof window !== 'undefined') localStorage.setItem('lyc_echo_cancellation', String(next));
+                      void useVoiceStreamStore.getState().applyAudioConstraints();
+                      if (isTestingMic) void toggleMicTest();
                     }}
                     className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer ${
                       echoCancellation ? 'bg-[#5865f2]' : 'bg-[#4e5058]'
@@ -1722,6 +2018,8 @@ export const DiscordSettingsModal: React.FC = () => {
                       const next = !automaticGainControl;
                       setAutomaticGainControl(next);
                       if (typeof window !== 'undefined') localStorage.setItem('lyc_auto_gain', String(next));
+                      void useVoiceStreamStore.getState().applyAudioConstraints();
+                      if (isTestingMic) void toggleMicTest();
                     }}
                     className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer ${
                       automaticGainControl ? 'bg-[#5865f2]' : 'bg-[#4e5058]'
@@ -1992,6 +2290,225 @@ export const DiscordSettingsModal: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════════
+              ABA 7: SOBRE O CAPY.OFC (about) - Versão do App e Auto-Update
+             ══════════════════════════════════════════════════════════════════════ */}
+          {activeSettingsTab === 'about' && (
+            <div className="space-y-6 animate-in fade-in duration-100">
+              <div className="flex items-center gap-3.5 pb-3 border-b border-[#3f4147]/40">
+                <div className="w-12 h-12 rounded-2xl bg-[#5865f2]/20 border border-[#5865f2]/30 flex items-center justify-center p-2 shadow-inner flex-shrink-0">
+                  <img
+                    src={getAssetUrl('icon.png')}
+                    alt="Capy.ofc"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = getAssetUrl('brand/03_UI_Icons_SVG/icon_capy.svg');
+                    }}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-white tracking-tight">Sobre o Capy.ofc</h2>
+                    <span className="bg-[#23a55a]/20 text-[#23a55a] border border-[#23a55a]/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Oficial
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#949ba4] mt-0.5">
+                    Aplicativo Desktop oficial para comunicação por voz em alta fidelidade, vídeo e chat.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card Principal: Versão Instalada e Atualizações */}
+              <div className="bg-[#1e1f22] rounded-xl p-6 border border-[#2b2d31] shadow-xl space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2b2d31]">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#949ba4] block mb-1">
+                      Versão Atual Instalada
+                    </span>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-2xl font-black text-white tracking-tight">
+                        v{currentVersion}
+                      </span>
+                      <span className="text-xs font-semibold text-[#b5bac1] bg-[#2b2d31] px-2 py-0.5 rounded-md border border-white/5">
+                        Canal Estável (Stable)
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-[#80848e] mt-1 block">
+                      Versão real registrada nos metadados do aplicativo com suporte a atualizações contínuas.
+                    </span>
+                  </div>
+
+                  <div className="flex-shrink-0">
+                    {isDownloaded ? (
+                      <button
+                        type="button"
+                        onClick={applyUpdate}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-[#23a55a] hover:bg-[#1f934f] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#23a55a]/20 transition-all cursor-pointer"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Reiniciar e Instalar Agora</span>
+                      </button>
+                    ) : isDownloading ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-[#5865f2] text-white text-xs font-semibold flex items-center justify-center gap-2 opacity-90 cursor-wait"
+                      >
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Baixando ({updateProgress}%)...</span>
+                      </button>
+                    ) : isUpdateAvailable ? (
+                      <button
+                        type="button"
+                        onClick={downloadUpdate}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#5865f2]/25 transition-all cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Baixar Versão {availableVersion}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => checkForUpdates(false)}
+                        disabled={isChecking}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-md bg-[#35373c] hover:bg-[#404249] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
+                        <span>{isChecking ? 'Verificando...' : 'Verificar atualizações'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner de Estado Reativo */}
+                {isDownloaded ? (
+                  <div className="p-4 rounded-lg bg-[#23a55a]/10 border border-[#23a55a]/30 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-[#23a55a] flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-[#23a55a]">
+                        Atualização v{availableVersion} pronta para instalação!
+                      </p>
+                      <p className="text-[11px] text-[#dbdee1] leading-relaxed">
+                        Os arquivos foram baixados e a integridade criptográfica SHA-512 foi validada com sucesso. Ao reiniciar, o instalador aplicará os novos binários mantendo todas as suas conversas e configurações preservadas.
+                      </p>
+                    </div>
+                  </div>
+                ) : isDownloading ? (
+                  <div className="p-4 rounded-lg bg-[#5865f2]/15 border border-[#5865f2]/30 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#dbdee1]">
+                        Baixando atualização da versão v{availableVersion}...
+                      </span>
+                      <span className="font-bold text-[#5865f2]">{updateProgress}%</span>
+                    </div>
+                    <div className="w-full bg-[#111214] h-2 rounded-full overflow-hidden border border-white/5">
+                      <div
+                        className="bg-gradient-to-r from-[#5865f2] to-[#8b5cf6] h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${updateProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-[#949ba4]">
+                      Download diferencial via mapa de blocos (.blockmap). Você pode continuar usando o aplicativo normalmente.
+                    </p>
+                  </div>
+                ) : isUpdateAvailable ? (
+                  <div className="p-4 rounded-lg bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 flex items-start gap-3">
+                    <Download className="w-5 h-5 text-[#8b5cf6] flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-[#dbdee1]">
+                        Nova versão v{availableVersion} disponível para instalação!
+                      </p>
+                      <p className="text-[11px] text-[#b5bac1] leading-relaxed">
+                        Esta versão contém melhorias de qualidade de áudio WebRTC, estabilidade de conexão e refinamentos de interface.
+                      </p>
+                    </div>
+                  </div>
+                ) : isChecking ? (
+                  <div className="p-4 rounded-lg bg-[#2b2d31]/60 border border-[#3f4147]/30 flex items-center gap-3">
+                    <RefreshCw className="w-4 h-4 text-[#5865f2] animate-spin flex-shrink-0" />
+                    <p className="text-xs text-[#dbdee1]">
+                      Consultando o manifesto remoto latest.yml no repositório oficial de releases...
+                    </p>
+                  </div>
+                ) : updateError ? (
+                  <div className="p-4 rounded-lg bg-[#f23f43]/15 border border-[#f23f43]/30 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-[#f23f43] flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-[#f23f43]">
+                        Erro na verificação de atualização
+                      </p>
+                      <p className="text-[11px] text-[#dbdee1] leading-relaxed">
+                        {updateError}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-lg bg-[#23a55a]/10 border border-[#23a55a]/20 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-[#23a55a] flex-shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-[#23a55a]">
+                        O Capy.ofc está atualizado!
+                      </p>
+                      <p className="text-[11px] text-[#949ba4] leading-relaxed">
+                        Você está utilizando a versão mais recente disponível no canal oficial.
+                        {lastChecked ? ` Última verificação realizada às ${new Date(lastChecked).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.` : ''}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Card de Informações Técnicas e Ambiente */}
+              <div className="bg-[#1e1f22] rounded-xl p-5 border border-[#2b2d31] space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#949ba4]">
+                  Especificações do Aplicativo
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-lg bg-[#2b2d31]/60 border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[#80848e] tracking-wider block">
+                      Identificador Oficial (AppId)
+                    </span>
+                    <span className="font-mono text-white text-[11px]">com.capyofc.app</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#2b2d31]/60 border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[#80848e] tracking-wider block">
+                      Repositório de Atualizações
+                    </span>
+                    <span className="font-mono text-white text-[11px]">wallacejuliano337-png/capyofc-releases</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#2b2d31]/60 border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[#80848e] tracking-wider block">
+                      Mecanismo de Atualização
+                    </span>
+                    <span className="text-white text-[11px]">Auto-Update Diferencial (NSIS + Blockmap)</span>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#2b2d31]/60 border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-[#80848e] tracking-wider block">
+                      Plataforma & Arquitetura
+                    </span>
+                    <span className="text-white text-[11px]">Windows 10/11 (x64) • Electron 33</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card de Recursos e Tecnologias */}
+              <div className="bg-[#1e1f22] rounded-xl p-5 border border-[#2b2d31] text-xs text-[#949ba4] space-y-2">
+                <div className="flex items-center gap-2 text-white font-semibold">
+                  <Shield className="w-4 h-4 text-[#5865f2]" />
+                  <span>Segurança e Integridade</span>
+                </div>
+                <p className="text-[11px] text-[#80848e] leading-relaxed">
+                  Todas as compilações e atualizações automáticas são protegidas com checagens criptográficas SHA-512 distribuídas através de canais seguros HTTPS com suporte a fallback de reconexão.
+                </p>
               </div>
             </div>
           )}
