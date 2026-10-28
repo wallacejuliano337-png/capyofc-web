@@ -1,13 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-export const configured = Boolean(url && key);
+
+export const DEFAULT_SUPABASE_URL = "https://tfjkinffnksmiqatdhnb.supabase.co";
+export const DEFAULT_SUPABASE_KEY = "sb_publishable_TJ044Vhx0EW8lEH_u_lg7Q_lRqCop_Q";
+
+export const supabaseUrl =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_URL) ||
+  DEFAULT_SUPABASE_URL;
+
+export const supabaseKey =
+  (typeof import.meta !== "undefined" &&
+    (import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env?.VITE_SUPABASE_ANON_KEY)) ||
+  DEFAULT_SUPABASE_KEY;
+
+export const configured = Boolean(supabaseUrl && supabaseKey);
+
 export const supabase = configured
-  ? createClient(url, key, {
+  ? createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: typeof window !== "undefined",
+        storage: typeof window !== "undefined" ? window.localStorage : undefined,
       },
     })
   : null;

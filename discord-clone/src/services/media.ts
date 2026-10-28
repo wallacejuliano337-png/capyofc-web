@@ -1,5 +1,5 @@
 import { Room, Track, LocalAudioTrack, LocalVideoTrack } from "livekit-client";
-import { db } from "../lib/supabase";
+import { db, supabaseUrl, supabaseKey } from "../lib/supabase";
 export const qualities = {
   "144p10": { width: 256, height: 144, frameRate: 10 },
   "240p15": { width: 426, height: 240, frameRate: 15 },
@@ -15,8 +15,8 @@ export async function requestVoiceToken(
 ) {
   const endpoint =
     import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT ||
-    (import.meta.env.VITE_SUPABASE_URL
-      ? import.meta.env.VITE_SUPABASE_URL + "/functions/v1/livekit-token"
+    (supabaseUrl
+      ? supabaseUrl + "/functions/v1/livekit-token"
       : "");
   if (!endpoint)
     throw new Error(
@@ -31,7 +31,7 @@ export async function requestVoiceToken(
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer " + data.session.access_token,
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      apikey: supabaseKey,
     },
     body: JSON.stringify({ channelId }),
     signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
@@ -63,8 +63,8 @@ export async function requestCallToken(
 ) {
   const endpoint =
     import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT ||
-    (import.meta.env.VITE_SUPABASE_URL
-      ? import.meta.env.VITE_SUPABASE_URL + "/functions/v1/livekit-token"
+    (supabaseUrl
+      ? supabaseUrl + "/functions/v1/livekit-token"
       : "");
   if (!endpoint)
     throw new Error(
@@ -80,7 +80,7 @@ export async function requestCallToken(
     headers: {
       "Content-Type": "application/json",
       Authorization: "Bearer " + data.session.access_token,
-      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      apikey: supabaseKey,
     },
     body: JSON.stringify({ callId }),
     signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),

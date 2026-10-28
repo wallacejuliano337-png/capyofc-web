@@ -107,11 +107,14 @@ export function validateWebhookMessage(content: string): string | null {
   return null;
 }
 
+import { supabaseUrl } from "../lib/supabase";
+
 export function buildWebhookUrl(webhookId: string, token: string): string {
   const apiBase =
     (typeof import.meta !== "undefined" &&
       import.meta.env &&
       import.meta.env.VITE_SUPABASE_URL) ||
+    supabaseUrl ||
     "https://api.lyc.arena";
   return `${apiBase}/functions/v1/community-webhook?id=${webhookId}&token=${token}`;
 }
