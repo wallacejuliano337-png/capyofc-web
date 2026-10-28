@@ -79,12 +79,12 @@ for (const f of filesToUpload) {
 
 // 4. Criar release no GitHub como DRAFT inicialmente
 console.log(`\n2. Criando release ${tag} no GitHub...`);
-const releaseNotes = `## O que h√° de novo no Capy.ofc v${version}
+const releaseNotes = `## O que h· de novo no Capy.ofc v${version}
 
-- **Se√ß√£o "Sobre o Capy.ofc"**: visualiza√ß√£o din√¢mica da vers√£o instalada via metadados nativos do Electron (\`app.getVersion()\`).
-- **Verifica√ß√£o de Atualiza√ß√µes Integrada**: acione a busca por novas vers√µes diretamente nas Configura√ß√µes, com exibi√ß√£o de progresso em tempo real e reinicializa√ß√£o com um clique.
-- **Otimiza√ß√µes de Voz & WebRTC**: calibra√ß√£o do codec Opus (64 kbps, FEC, DTX), tratamento robusto de candidatos ICE e gerenciamento de permiss√µes de microfone.
-- **Transmiss√£o e Compartilhamento de Tela**: melhorias de estabilidade na captura de √°udio e v√≠deo em chamadas de voz.
+- **SeleÁ„o e Altern‚ncia entre M˙ltiplas Telas Compartilhadas**: quando dois ou mais participantes transmitem tela simultaneamente, agora È possÌvel selecionar e alternar livremente entre as transmissıes no palco principal.
+- **Miniaturas de VÌdeo em Tempo Real**: visualizaÁ„o em tempo real de cada tela ativa na faixa inferior com indicadores de status ASSISTINDO e AO VIVO.
+- **Fallback Autom·tico e Inteligente**: se uma transmiss„o for encerrada pelo transmissor, o palco seleciona automaticamente outra tela ativa remanescente.
+- **Estabilidade WebRTC e Isolamento de Listeners**: tratamento robusto de eventos de vÌdeo sem interferÍncia entre componentes e serviÁo de voz.
 `;
 
 const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {
