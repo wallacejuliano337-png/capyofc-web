@@ -86,16 +86,19 @@ export const DiscordVoiceStage: React.FC = () => {
 
   const remoteScreenParticipant = participants.find((p) => {
     if (p.user.id === currentUser.id || p.user.name === currentUser.name) return false;
-    const hasVideoTrack = Boolean(p.mediaStream && p.mediaStream.getVideoTracks().length > 0);
+    const hasLiveVideoTrack = Boolean(
+      p.mediaStream &&
+      p.mediaStream.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted)
+    );
     if (focusedParticipantId) {
-      return p.user.id === focusedParticipantId && (p.isScreenSharing || hasVideoTrack);
+      return p.user.id === focusedParticipantId && (p.isScreenSharing || hasLiveVideoTrack);
     }
-    return (p.isScreenSharing || hasVideoTrack) && Boolean(p.mediaStream);
+    return (p.isScreenSharing || hasLiveVideoTrack) && Boolean(p.mediaStream);
   });
 
   const activeStream =
     screenStream ||
-    (remoteScreenParticipant?.mediaStream?.getVideoTracks()?.length
+    (remoteScreenParticipant?.mediaStream?.getVideoTracks()?.some((t) => t.readyState === 'live' && !t.muted)
       ? remoteScreenParticipant.mediaStream
       : null);
 
@@ -107,11 +110,20 @@ export const DiscordVoiceStage: React.FC = () => {
   useEffect(() => {
     const videoEl = screenVideoRef.current;
     if (videoEl && activeStream) {
+      const hasLiveTrack = activeStream
+        .getVideoTracks()
+        .some((t) => t.readyState === 'live' && !t.muted);
+
+      if (!hasLiveTrack) {
+        videoEl.srcObject = null;
+        return;
+      }
+
       if (videoEl.srcObject !== activeStream) {
         videoEl.srcObject = activeStream;
       }
       const playVideo = () => {
-        if (videoEl.paused) {
+        if (videoEl && videoEl.paused) {
           videoEl.play().catch((err) => {
             console.warn('[DiscordVoiceStage] Error playing stream video:', err);
           });
@@ -123,15 +135,23 @@ export const DiscordVoiceStage: React.FC = () => {
       videoTracks.forEach((t) => {
         t.enabled = true;
         t.onunmute = playVideo;
+        t.onmute = () => {
+          if (videoEl && (!remoteScreenParticipant || !remoteScreenParticipant.isScreenSharing)) {
+            videoEl.srcObject = null;
+          }
+        };
       });
       videoEl.onloadedmetadata = playVideo;
 
       return () => {
         videoTracks.forEach((t) => {
           if (t.onunmute === playVideo) t.onunmute = null;
+          if (t.onmute) t.onmute = null;
         });
         if (videoEl.onloadedmetadata === playVideo) videoEl.onloadedmetadata = null;
       };
+    } else if (videoEl && !activeStream) {
+      videoEl.srcObject = null;
     }
   }, [activeStream, viewMode]);
 

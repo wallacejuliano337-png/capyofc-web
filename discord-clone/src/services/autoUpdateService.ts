@@ -36,6 +36,25 @@ interface AutoUpdateState {
   closeUpdateModal: () => void;
 }
 
+/**
+ * Compara duas versões em formato semver (ex: "0.1.4" vs "0.1.0").
+ * Retorna true APENAS se remote for estritamente superior a local.
+ */
+export function isSemverGreater(remote: string, local: string): boolean {
+  if (!remote || !local) return false;
+  const parse = (v: string) =>
+    v.replace(/^[^\d]*/, '').split('.').map((p) => parseInt(p, 10) || 0);
+  const r = parse(remote);
+  const l = parse(local);
+  for (let i = 0; i < Math.max(r.length, l.length); i++) {
+    const rPart = r[i] ?? 0;
+    const lPart = l[i] ?? 0;
+    if (rPart > lPart) return true;
+    if (rPart < lPart) return false;
+  }
+  return false;
+}
+
 export const useAutoUpdate = create<AutoUpdateState>((set, get) => ({
   currentVersion: CURRENT_APP_VERSION,
   currentBuild: CURRENT_APP_BUILD,
@@ -110,13 +129,13 @@ export const useAutoUpdate = create<AutoUpdateState>((set, get) => ({
       }
 
       const manifest: VersionManifest = await response.json();
-      const currentBuild = get().currentBuild;
       const currentVer = get().currentVersion;
 
-      // Check if version or build time is newer
+      // Na Web/PWA, só marca atualização se o manifesto trouxer versão estritamente mais recente
       const hasNewVersion = Boolean(
-        manifest.version !== currentVer ||
-        (manifest.build && manifest.build !== currentBuild)
+        manifest &&
+        manifest.version &&
+        isSemverGreater(manifest.version, currentVer)
       );
 
       set({

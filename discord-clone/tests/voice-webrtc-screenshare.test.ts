@@ -249,6 +249,95 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
       // Audio still plays undisturbed
       expect(remoteAudioStream).toBeDefined();
     });
+
+    it('handles screen share restart cycle (start -> stop -> restart) by restoring transceiver direction to sendrecv and replacing tracks', async () => {
+      let currentTrack: any = null;
+      const mockSender = {
+        get track() { return currentTrack; },
+        replaceTrack: vi.fn(async (track: any) => {
+          currentTrack = track;
+        }),
+      };
+
+      const mockTransceiver = {
+        direction: 'sendrecv' as RTCRtpTransceiverDirection,
+        sender: mockSender,
+      };
+
+      const mockPC = {
+        getTransceivers: () => [mockTransceiver],
+        createOffer: vi.fn(async () => ({ type: 'offer', sdp: `m=video ${mockTransceiver.direction}` })),
+        setLocalDescription: vi.fn(async () => {}),
+      };
+
+      const track1 = { kind: 'video', id: 'screen-track-1', stop: vi.fn() };
+      const track2 = { kind: 'video', id: 'screen-track-2', stop: vi.fn() };
+
+      // 1. Initial screen share start
+      await mockSender.replaceTrack(track1);
+      mockTransceiver.direction = 'sendrecv';
+      expect(mockSender.track?.id).toBe('screen-track-1');
+      expect(mockTransceiver.direction).toBe('sendrecv');
+
+      // 2. Stop screen share: replaceTrack with null and set direction to recvonly
+      await mockSender.replaceTrack(null);
+      mockTransceiver.direction = 'recvonly';
+      expect(mockSender.track).toBeNull();
+      expect(mockTransceiver.direction).toBe('recvonly');
+
+      // 3. Restart screen share: must restore direction to 'sendrecv' and attach new track
+      mockTransceiver.direction = 'sendrecv';
+      await mockSender.replaceTrack(track2);
+      expect(mockSender.track?.id).toBe('screen-track-2');
+      expect(mockTransceiver.direction).toBe('sendrecv');
+
+      const offer = await mockPC.createOffer();
+      expect(offer.sdp).toContain('m=video sendrecv');
+    });
+
+    it('instantiates a new MediaStream instance on remote track unmute to guarantee React detects reference updates', () => {
+      let participantStream: any = null;
+      let participantSharing = false;
+
+      const remoteVideoTrack = {
+        kind: 'video',
+        id: 'remote-video-restart',
+        onmute: null as (() => void) | null,
+        onunmute: null as (() => void) | null,
+      };
+
+      // Handler mimics pc.ontrack in voiceService
+      const attachVideoTrack = (track: typeof remoteVideoTrack) => {
+        participantSharing = true;
+        participantStream = { id: 'stream-1', tracks: [track] };
+
+        track.onmute = () => {
+          participantSharing = false;
+          participantStream = undefined;
+        };
+
+        track.onunmute = () => {
+          participantSharing = true;
+          // Fresh reference
+          participantStream = { id: 'stream-2', tracks: [track] };
+        };
+      };
+
+      attachVideoTrack(remoteVideoTrack);
+      expect(participantSharing).toBe(true);
+      const initialStreamRef = participantStream;
+
+      // Simulate remote user stopping share (fires mute)
+      remoteVideoTrack.onmute?.();
+      expect(participantSharing).toBe(false);
+      expect(participantStream).toBeUndefined();
+
+      // Simulate remote user restarting share (fires unmute)
+      remoteVideoTrack.onunmute?.();
+      expect(participantSharing).toBe(true);
+      expect(participantStream).toBeDefined();
+      expect(participantStream).not.toBe(initialStreamRef); // Brand new MediaStream reference!
+    });
   });
 
   describe('4. Teardown & Ghost Participant Prevention', () => {

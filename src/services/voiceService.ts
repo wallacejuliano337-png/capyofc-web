@@ -617,60 +617,80 @@ class VoiceService {
         this.remoteStreams.set(peerId, peerStream);
       }
 
-      // Para vídeo, substitui faixa anterior para evitar feeds fantasmas
       if (track.kind === 'video') {
+        // Remove quaisquer faixas antigas de vídeo para evitar feeds fantasmas
         peerStream.getVideoTracks().forEach((t) => {
           if (t.id !== track.id) {
-            peerStream?.removeTrack(t);
+            try { peerStream?.removeTrack(t); } catch {}
           }
         });
-      }
-      if (!peerStream.getTracks().some((t) => t.id === track.id)) {
-        peerStream.addTrack(track);
+        if (!peerStream.getTracks().some((t) => t.id === track.id)) {
+          peerStream.addTrack(track);
+        }
+
+        // Instância dedicada e renovada para sinalizar re-renderização precisa aos componentes React
+        const videoStream = new MediaStream([track]);
+        this.remoteStreams.set(peerId, videoStream);
+
+        const syncVideoState = (isSharing: boolean) => {
+          this.updateParticipantState(peerId, {
+            isScreenSharing: isSharing,
+            mediaStream: isSharing ? videoStream : undefined,
+          });
+          useDiscord.setState((prev) => ({
+            voiceState: {
+              ...prev.voiceState,
+              participants: prev.voiceState.participants.map((p) =>
+                p.user.id === peerId
+                  ? {
+                      ...p,
+                      mediaStream: isSharing ? videoStream : undefined,
+                      isScreenSharing: isSharing,
+                    }
+                  : p
+              ),
+            },
+          }));
+        };
+
+        track.onmute = () => {
+          console.log(`[voiceService] Remote video track muted from peer ${peerId}`);
+          syncVideoState(false);
+        };
+
+        track.onunmute = () => {
+          console.log(`[voiceService] Remote video track unmuted from peer ${peerId}`);
+          syncVideoState(true);
+        };
+
+        track.onended = () => {
+          console.log(`[voiceService] Remote video track ended from peer ${peerId}`);
+          syncVideoState(false);
+        };
+
+        if (!track.muted) {
+          syncVideoState(true);
+        }
       }
 
-      track.onended = () => {
-        peerStream?.removeTrack(track);
-        if (track.kind === 'video') {
-          this.updateParticipantState(peerId, { isScreenSharing: false });
-        } else if (track.kind === 'audio') {
+      if (track.kind === 'audio') {
+        if (!peerStream.getTracks().some((t) => t.id === track.id)) {
+          peerStream.addTrack(track);
+        }
+        track.onended = () => {
+          peerStream?.removeTrack(track);
           const remainingAudio = peerStream?.getAudioTracks() || [];
           if (remainingAudio.length > 0) {
             this.setupRemoteAudioPlayback(peerId, new MediaStream(remainingAudio));
           }
-        }
-      };
+        };
 
-      if (track.kind === 'audio') {
         // Envia todas as faixas ativas do participante (voz e som da tela compartilhada)
         const allAudio = peerStream.getAudioTracks();
         const peerAudioStream = new MediaStream(allAudio);
         this.setupRemoteAudioPlayback(peerId, peerAudioStream);
         this.setupRemoteAudioVAD(peerId, new MediaStream([track]));
       }
-
-      if (track.kind === 'video') {
-        this.updateParticipantState(peerId, {
-          isScreenSharing: true,
-          mediaStream: peerStream,
-        });
-      }
-
-      // Re-trigger participant state update so UI has reference to remote stream
-      useDiscord.setState((prev) => ({
-        voiceState: {
-          ...prev.voiceState,
-          participants: prev.voiceState.participants.map((p) =>
-            p.user.id === peerId
-              ? {
-                  ...p,
-                  mediaStream: peerStream,
-                  isScreenSharing: track.kind === 'video' ? true : p.isScreenSharing,
-                }
-              : p
-          ),
-        },
-      }));
     };
 
     // 7. Polite peer negotiation: user with lexicographically higher ID initiates offer
@@ -737,7 +757,21 @@ class VoiceService {
 
     // 1. Rapid state update (speaking, mute, deafen, video, screen)
     if (payload.type === 'state' && payload.state) {
-      this.updateParticipantState(payload.senderId, payload.state);
+      if (payload.state.isScreenSharing === false) {
+        this.updateParticipantState(payload.senderId, {
+          ...payload.state,
+          mediaStream: undefined,
+        });
+      } else if (payload.state.isScreenSharing === true) {
+        const stream = this.remoteStreams.get(payload.senderId);
+        const liveTrack = stream?.getVideoTracks().find((t) => t.readyState === 'live' && !t.muted);
+        this.updateParticipantState(payload.senderId, {
+          ...payload.state,
+          mediaStream: liveTrack ? stream : undefined,
+        });
+      } else {
+        this.updateParticipantState(payload.senderId, payload.state);
+      }
       return;
     }
 
@@ -924,28 +958,55 @@ class VoiceService {
   private async handleLocalScreenStreamAdded(stream: MediaStream): Promise<void> {
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) return;
+    videoTrack.enabled = true;
 
     for (const [peerId, pc] of this.peerConnections.entries()) {
       try {
-        const senders = pc.getSenders();
-        stream.getTracks().forEach((track) => {
-          track.enabled = true;
-          const matchingSender = senders.find(
-            (s) => s.track?.kind === track.kind || (track.kind === 'video' && s.track === null)
-          );
-          if (matchingSender && typeof matchingSender.replaceTrack === 'function') {
-            matchingSender.replaceTrack(track).catch(() => {});
-          } else {
-            try {
-              pc.addTrack(track, stream);
-            } catch {}
+        const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+        const videoTransceiver = transceivers.find(
+          (t) =>
+            t.sender.track?.kind === 'video' ||
+            (t.receiver.track && t.receiver.track.kind === 'video') ||
+            (t.sender.track === null && t.receiver.track?.kind !== 'audio')
+        );
+
+        if (videoTransceiver) {
+          // Reativa a direção de envio para que o navegador transmita os pacotes de vídeo
+          videoTransceiver.direction = 'sendrecv';
+          if (typeof videoTransceiver.sender?.replaceTrack === 'function') {
+            await videoTransceiver.sender.replaceTrack(videoTrack);
           }
-        });
+        } else {
+          try {
+            pc.addTrack(videoTrack, stream);
+          } catch {
+            const senders = pc.getSenders();
+            const matchingSender = senders.find(
+              (s) => s.track?.kind === 'video' || s.track === null
+            );
+            if (matchingSender && typeof matchingSender.replaceTrack === 'function') {
+              await matchingSender.replaceTrack(videoTrack);
+            }
+          }
+        }
+
+        // Áudio da tela compartilhada se presente
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = true;
+          const matchingAudioSender = pc.getSenders().find((s) => s.track === audioTrack);
+          if (!matchingAudioSender) {
+            try { pc.addTrack(audioTrack, stream); } catch {}
+          }
+        }
+
         await this.renegotiatePeer(peerId);
       } catch (err) {
         console.warn(`[voiceService] Error adding screen stream to peer ${peerId}:`, err);
       }
     }
+
+    this.broadcastState({ isScreenSharing: true });
     void presenceService.syncVoicePresence();
   }
 
@@ -955,16 +1016,31 @@ class VoiceService {
   private async handleLocalScreenStreamRemoved(): Promise<void> {
     for (const [peerId, pc] of this.peerConnections.entries()) {
       try {
-        const senders = pc.getSenders();
+        const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
         let needsRenegotiate = false;
-        senders.forEach((sender) => {
-          if (sender.track && sender.track.kind === 'video') {
+
+        for (const t of transceivers) {
+          if (t.sender.track && t.sender.track.kind === 'video') {
             try {
-              pc.removeTrack(sender);
+              // Limpa o track do sender e desativa a direção para recvonly
+              await t.sender.replaceTrack(null);
+              t.direction = 'recvonly';
               needsRenegotiate = true;
             } catch {}
           }
-        });
+        }
+
+        if (!needsRenegotiate) {
+          pc.getSenders().forEach((sender) => {
+            if (sender.track && sender.track.kind === 'video') {
+              try {
+                pc.removeTrack(sender);
+                needsRenegotiate = true;
+              } catch {}
+            }
+          });
+        }
+
         if (needsRenegotiate) {
           await this.renegotiatePeer(peerId);
         }
@@ -972,6 +1048,8 @@ class VoiceService {
         console.warn(`[voiceService] Error removing screen stream from peer ${peerId}:`, err);
       }
     }
+
+    this.broadcastState({ isScreenSharing: false });
     void presenceService.syncVoicePresence();
   }
 

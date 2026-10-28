@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { UpdateInfoPayload, UpdateState } from "../src/types";
+import { isSemverGreater } from "../src/services/autoUpdateService";
 
 describe("LYC Arena — Auto-Updater System Specification", () => {
   describe("Update State Machine & Lifecycle Transitions", () => {
@@ -274,6 +275,25 @@ describe("LYC Arena — Auto-Updater System Specification", () => {
       expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: true, isDownloading: false, isDownloaded: true, updateError: null })).toBe("Pronto para instalar");
       expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: false, isDownloading: false, isDownloaded: false, updateError: "Falha de rede" })).toBe("Erro na verificação");
       expect(getStatusDescriptor({ isChecking: false, isUpdateAvailable: false, isDownloading: false, isDownloaded: false, updateError: null })).toBe("Aplicativo atualizado");
+    });
+  });
+
+  describe("Semver Comparison & Ghost Update Prevention on Web", () => {
+    it("correctly identifies when remote version is strictly greater", () => {
+      expect(isSemverGreater("0.2.0", "0.1.4")).toBe(true);
+      expect(isSemverGreater("0.1.5", "0.1.4")).toBe(true);
+      expect(isSemverGreater("1.0.0", "0.1.4")).toBe(true);
+      expect(isSemverGreater("v0.1.5", "0.1.4")).toBe(true);
+    });
+
+    it("rejects equal, older, or invalid versions as updates (prevents ghost update banner)", () => {
+      // Stale version in version.json (e.g. 0.1.0 vs app 0.1.4) must NOT trigger update
+      expect(isSemverGreater("0.1.0", "0.1.4")).toBe(false);
+      expect(isSemverGreater("0.0.9", "0.1.4")).toBe(false);
+      // Identical version must NOT trigger update
+      expect(isSemverGreater("0.1.4", "0.1.4")).toBe(false);
+      expect(isSemverGreater("", "0.1.4")).toBe(false);
+      expect(isSemverGreater("0.1.4", "")).toBe(false);
     });
   });
 });

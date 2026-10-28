@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "build": "2026.10.19-01",
-  "buildTime": 1729317600000,
-  "releaseNotes": "CapyChat v0.1.0: Nova tela de login personalizada, Ultra Pass consolidado e sistema inteligente de auto-update."
+  "version": "0.1.4",
+  "build": "2026.10.28-03",
+  "buildTime": 1793213800000,
+  "releaseNotes": "Capy.ofc v0.1.4: Suporte completo Web/PWA, calibração WebRTC e seção Sobre o Capy.ofc."
 }
