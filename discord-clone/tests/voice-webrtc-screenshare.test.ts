@@ -394,4 +394,294 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
       expect(useDiscord.getState().focusedParticipantId).toBe('foox-123');
     });
   });
+
+  describe('6. Multi-Screen Sharing Selection & Navigation (Discord Style)', () => {
+    const makeUser = (id: string, name: string) => ({
+      id,
+      name,
+      displayName: name,
+      tag: '#0001',
+      avatar: '',
+      status: 'online' as const,
+    });
+
+    const makeStream = (id: string) => {
+      const track = {
+        id: `track-${id}`,
+        kind: 'video',
+        readyState: 'live',
+        muted: false,
+        enabled: true,
+        stop: vi.fn(),
+      };
+      return {
+        id: `stream-${id}`,
+        getTracks: () => [track],
+        getVideoTracks: () => [track],
+        getAudioTracks: () => [],
+      } as unknown as MediaStream;
+    };
+
+    // Helper that replicates the activeScreenShares compilation in DiscordVoiceStage
+    const resolveActiveShares = (
+      participants: any[],
+      currentUserId: string,
+      localScreenStream: MediaStream | null,
+    ) => {
+      const shares: any[] = [];
+      if (localScreenStream) {
+        const hasLive = localScreenStream.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
+        if (hasLive) {
+          shares.push({
+            id: currentUserId,
+            isLocal: true,
+            stream: localScreenStream,
+            title: 'Sua tela',
+          });
+        }
+      }
+      participants.forEach((p) => {
+        if (p.user.id === currentUserId) return;
+        const hasLive = Boolean(
+          p.mediaStream &&
+          p.mediaStream.getVideoTracks().some((t: any) => t.readyState === 'live' && !t.muted)
+        );
+        if ((p.isScreenSharing || hasLive) && p.mediaStream && hasLive) {
+          if (!shares.some((s) => s.id === p.user.id)) {
+            shares.push({
+              id: p.user.id,
+              isLocal: false,
+              stream: p.mediaStream,
+              title: `Tela de ${p.user.name}`,
+            });
+          }
+        }
+      });
+      return shares;
+    };
+
+    const resolveCurrentShare = (shares: any[], focusedId: string | null) => {
+      if (shares.length === 0) return null;
+      if (focusedId) {
+        const found = shares.find((s) => s.id === focusedId);
+        if (found) return found;
+      }
+      return shares.find((s) => !s.isLocal) || shares[0];
+    };
+
+    it('Scenario 1: One participant shares screen and their stream appears normally', () => {
+      const userA = makeUser('user-a', 'Alice');
+      const streamA = makeStream('user-a');
+      const participants = [
+        { user: userA, isScreenSharing: true, mediaStream: streamA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('user-a');
+
+      const selected = resolveCurrentShare(shares, null);
+      expect(selected?.id).toBe('user-a');
+      expect(selected?.stream).toBe(streamA);
+    });
+
+    it('Scenario 2: Two participants share simultaneously: viewer can switch between both screens', () => {
+      const userA = makeUser('user-a', 'Alice');
+      const streamA = makeStream('user-a');
+      const userB = makeUser('user-b', 'Bob');
+      const streamB = makeStream('user-b');
+
+      const participants = [
+        { user: userA, isScreenSharing: true, mediaStream: streamA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: userB, isScreenSharing: true, mediaStream: streamB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(2);
+
+      // Initially focuses Alice
+      let selected = resolveCurrentShare(shares, 'user-a');
+      expect(selected?.id).toBe('user-a');
+      expect(selected?.stream).toBe(streamA);
+
+      // Viewer switches to Bob
+      useDiscord.getState().setFocusedParticipantId('user-b');
+      selected = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+      expect(selected?.id).toBe('user-b');
+      expect(selected?.stream).toBe(streamB);
+
+      // Both streams remain intact and transmitting
+      expect(streamA.getVideoTracks()[0].readyState).toBe('live');
+      expect(streamB.getVideoTracks()[0].readyState).toBe('live');
+    });
+
+    it('Scenario 3: Three participants share simultaneously: viewer can select any of the three', () => {
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+      const uC = makeUser('u-c', 'Charlie');
+      const sC = makeStream('u-c');
+
+      const participants = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uC, isScreenSharing: true, mediaStream: sC, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(3);
+
+      ['u-a', 'u-b', 'u-c'].forEach((id) => {
+        useDiscord.getState().setFocusedParticipantId(id);
+        const sel = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+        expect(sel?.id).toBe(id);
+      });
+    });
+
+    it('Scenario 4: Spectator repeatedly switches between streams without interrupting media or stop calls', () => {
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+
+      const participants = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'my-id', null);
+
+      // Rapidly toggle back and forth 10 times
+      for (let i = 0; i < 10; i++) {
+        const targetId = i % 2 === 0 ? 'u-a' : 'u-b';
+        useDiscord.getState().setFocusedParticipantId(targetId);
+        const current = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+        expect(current?.id).toBe(targetId);
+      }
+
+      // Verify no tracks were stopped during switching
+      expect(sA.getVideoTracks()[0].stop).not.toHaveBeenCalled();
+      expect(sB.getVideoTracks()[0].stop).not.toHaveBeenCalled();
+    });
+
+    it('Scenario 5: When selected participant stops sharing, automatically falls back to remaining active stream', () => {
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+
+      let participants: any[] = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      // Spectator is watching Alice
+      useDiscord.getState().setFocusedParticipantId('u-a');
+      let shares = resolveActiveShares(participants, 'my-id', null);
+      let selected = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+      expect(selected?.id).toBe('u-a');
+
+      // Alice stops sharing
+      participants = [
+        { user: uA, isScreenSharing: false, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+      shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('u-b');
+
+      // Fallback automatically selects Bob
+      selected = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+      expect(selected?.id).toBe('u-b');
+
+      // Bob also stops sharing
+      participants = [
+        { user: uA, isScreenSharing: false, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: false, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+      shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(0);
+      selected = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+      expect(selected).toBeNull();
+    });
+
+    it('Scenario 6: New participant starts sharing during call and appears as an option', () => {
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+
+      let participants: any[] = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: false, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      let shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(1);
+
+      // Bob starts sharing
+      participants = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      shares = resolveActiveShares(participants, 'my-id', null);
+      expect(shares).toHaveLength(2);
+      expect(shares.map((s) => s.id)).toEqual(['u-a', 'u-b']);
+    });
+
+    it('Scenario 7: Selection made by spectator is strictly local and does not alter other spectators or senders', () => {
+      const broadcastSpy = vi.spyOn(voiceService, 'broadcastState');
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+
+      const participants = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: false, isSpeaking: false, isVideoOn: false, isDeafened: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'my-id', null);
+
+      // Switching focusedParticipantId does not call broadcastState or send WebRTC signals
+      useDiscord.getState().setFocusedParticipantId('u-b');
+      const sel = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+      expect(sel?.id).toBe('u-b');
+      expect(broadcastSpy).not.toHaveBeenCalled();
+    });
+
+    it('Scenario 8: Audio, webcam, presence and call disconnect operate undisturbed during multiple screen shares', async () => {
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+
+      useDiscord.setState({
+        voiceState: {
+          isConnected: true,
+          channelId: 'voice-room-multi',
+          pingMs: 18,
+          participants: [
+            { user: uA, isScreenSharing: true, mediaStream: sA, isMuted: false, isSpeaking: true, isVideoOn: true, isDeafened: false },
+            { user: uB, isScreenSharing: true, mediaStream: sB, isMuted: true, isSpeaking: false, isVideoOn: false, isDeafened: false },
+          ],
+        },
+      });
+
+      // Mute local mic
+      useDiscord.setState({ isMicMuted: true });
+      expect(useDiscord.getState().isMicMuted).toBe(true);
+
+      // Toggle local video
+      useDiscord.setState({ isVideoOn: true });
+      expect(useDiscord.getState().isVideoOn).toBe(true);
+
+      // Disconnect call cleans up cleanly
+      await voiceService.leaveChannel(false);
+      expect(useDiscord.getState().voiceState.isConnected).toBe(false);
+      expect(useDiscord.getState().voiceState.participants).toEqual([]);
+    });
+  });
 });

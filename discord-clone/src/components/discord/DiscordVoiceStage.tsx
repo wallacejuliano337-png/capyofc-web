@@ -20,6 +20,53 @@ import {
   Layers,
 } from 'lucide-react';
 
+/**
+ * Miniatura de vídeo dedicada para visualização em tempo real de transmissões secundárias.
+ */
+interface StreamMiniThumbnailProps {
+  stream: MediaStream;
+}
+
+const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !stream) return;
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+    }
+    const play = () => {
+      if (el && el.paused) {
+        el.play().catch(() => {});
+      }
+    };
+    play();
+    el.onloadedmetadata = play;
+    return () => {
+      if (el) el.srcObject = null;
+    };
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="w-full h-full object-cover bg-black pointer-events-none"
+    />
+  );
+};
+
+export interface ActiveScreenShare {
+  id: string; // user.id
+  user: User;
+  isLocal: boolean;
+  stream: MediaStream;
+  title: string;
+}
+
 export const DiscordVoiceStage: React.FC = () => {
   const {
     voiceState,
@@ -84,29 +131,79 @@ export const DiscordVoiceStage: React.FC = () => {
     return p;
   });
 
-  const remoteScreenParticipant = participants.find((p) => {
-    if (p.user.id === currentUser.id || p.user.name === currentUser.name) return false;
-    const hasLiveVideoTrack = Boolean(
+  // 1. Compilação de todas as transmissões de tela ativas (locais e remotas)
+  const activeScreenShares: ActiveScreenShare[] = [];
+
+  // Transmissão local (se o usuário estiver compartilhando sua tela)
+  if (screenStream) {
+    const hasLiveVideo = screenStream
+      .getVideoTracks()
+      .some((t) => t.readyState === 'live' && !t.muted);
+    if (hasLiveVideo) {
+      activeScreenShares.push({
+        id: currentUser.id,
+        user: currentUser,
+        isLocal: true,
+        stream: screenStream,
+        title: `${currentUser.displayName || currentUser.name} (${activeSourceName || 'Sua tela'})`,
+      });
+    }
+  }
+
+  // Transmissões remotas (recebidas via WebRTC dos outros participantes)
+  participants.forEach((p) => {
+    if (p.user.id === currentUser.id || p.user.name === currentUser.name) return;
+    const hasLiveVideo = Boolean(
       p.mediaStream &&
       p.mediaStream.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted)
     );
-    if (focusedParticipantId) {
-      return p.user.id === focusedParticipantId && (p.isScreenSharing || hasLiveVideoTrack);
+    if ((p.isScreenSharing || hasLiveVideo) && p.mediaStream && hasLiveVideo) {
+      if (!activeScreenShares.some((s) => s.id === p.user.id)) {
+        activeScreenShares.push({
+          id: p.user.id,
+          user: p.user,
+          isLocal: false,
+          stream: p.mediaStream,
+          title: `Tela de ${p.user.displayName || p.user.name}`,
+        });
+      }
     }
-    return (p.isScreenSharing || hasLiveVideoTrack) && Boolean(p.mediaStream);
   });
 
-  const activeStream =
-    screenStream ||
-    (remoteScreenParticipant?.mediaStream?.getVideoTracks()?.some((t) => t.readyState === 'live' && !t.muted)
-      ? remoteScreenParticipant.mediaStream
-      : null);
+  const hasActiveStream = activeScreenShares.length > 0;
 
-  const activeStreamOwner = remoteScreenParticipant
-    ? `${remoteScreenParticipant.user.displayName || remoteScreenParticipant.user.name}`
-    : `${currentUser.displayName || currentUser.name} (${activeSourceName})`;
+  // 2. Determinação da transmissão selecionada para exibição em destaque no palco
+  let currentSelectedShare: ActiveScreenShare | null = null;
+  if (hasActiveStream) {
+    if (focusedParticipantId) {
+      currentSelectedShare =
+        activeScreenShares.find((s) => s.id === focusedParticipantId) || null;
+    }
+    if (!currentSelectedShare) {
+      // Prioriza transmissão remota se o usuário local também estiver transmitindo, ou a primeira ativa
+      currentSelectedShare =
+        activeScreenShares.find((s) => !s.isLocal) || activeScreenShares[0];
+    }
+  }
 
-  // Re-bind screen stream to main video element when stream or view mode changes
+  // 3. Fallback automático quando a transmissão selecionada é encerrada ou fica indisponível
+  useEffect(() => {
+    if (activeScreenShares.length === 0) {
+      if (focusedParticipantId !== null) {
+        setFocusedParticipantId(null);
+      }
+    } else if (focusedParticipantId && !activeScreenShares.some((s) => s.id === focusedParticipantId)) {
+      const nextShare = activeScreenShares.find((s) => !s.isLocal) || activeScreenShares[0];
+      setFocusedParticipantId(nextShare ? nextShare.id : null);
+    }
+  }, [activeScreenShares, focusedParticipantId, setFocusedParticipantId]);
+
+  const activeStream = currentSelectedShare ? currentSelectedShare.stream : null;
+  const activeStreamOwner = currentSelectedShare
+    ? currentSelectedShare.title
+    : 'Transmissão Ao Vivo';
+
+  // Vincula a transmissão selecionada ao elemento de vídeo principal do palco
   useEffect(() => {
     const videoEl = screenVideoRef.current;
     if (videoEl && activeStream) {
@@ -136,7 +233,7 @@ export const DiscordVoiceStage: React.FC = () => {
         t.enabled = true;
         t.onunmute = playVideo;
         t.onmute = () => {
-          if (videoEl && (!remoteScreenParticipant || !remoteScreenParticipant.isScreenSharing)) {
+          if (videoEl && !currentSelectedShare) {
             videoEl.srcObject = null;
           }
         };
@@ -153,7 +250,7 @@ export const DiscordVoiceStage: React.FC = () => {
     } else if (videoEl && !activeStream) {
       videoEl.srcObject = null;
     }
-  }, [activeStream, viewMode]);
+  }, [activeStream, viewMode, currentSelectedShare]);
 
   const handleToggleScreenShare = () => {
     if (screenStream) {
@@ -162,18 +259,6 @@ export const DiscordVoiceStage: React.FC = () => {
       openShareModal();
     }
   };
-
-  const hasActiveStream = Boolean(
-    screenStream ||
-    participants.some(
-      (p) =>
-        p.user.id !== currentUser.id &&
-        p.user.name !== currentUser.name &&
-        p.isScreenSharing &&
-        p.mediaStream &&
-        p.mediaStream.getVideoTracks().length > 0
-    )
-  );
 
   const getGridClass = (count: number) => {
     if (count <= 1) return 'max-w-md w-full aspect-video';
@@ -187,14 +272,81 @@ export const DiscordVoiceStage: React.FC = () => {
     p: VoiceParticipant,
     isSingle = false,
     isCompact = false,
+    activeShare?: ActiveScreenShare,
   ) => {
     const isUserSpeaking = p.isSpeaking;
+    const isSelected = activeShare && currentSelectedShare?.id === activeShare.id;
 
     if (isCompact) {
-      // Usado na faixa horizontal inferior abaixo do palco da transmissão de tela
+      // Se este participante estiver compartilhando tela, exibe card com miniatura de vídeo em tempo real
+      if (activeShare) {
+        return (
+          <div
+            key={`compact-share-${p.user.id}`}
+            onClick={() => {
+              setFocusedParticipantId(p.user.id);
+              setViewMode('stage');
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setVoiceContextMenu({
+                user: p.user,
+                position: { x: e.clientX, y: e.clientY },
+              });
+            }}
+            title={isSelected ? `Assistindo à tela de ${p.user.displayName || p.user.name}` : `Clique para assistir à tela de ${p.user.displayName || p.user.name}`}
+            className={`relative bg-[#111214] rounded-xl overflow-hidden flex flex-col items-center justify-center border transition-all duration-150 cursor-pointer select-none w-36 h-22 sm:w-44 sm:h-26 flex-shrink-0 group ${
+              isSelected
+                ? 'border-[#5865f2] ring-2 ring-[#5865f2] shadow-[0_0_16px_rgba(88,101,242,0.45)]'
+                : 'border-[#ef4444]/60 hover:border-[#5865f2] hover:ring-1 hover:ring-[#5865f2]/60'
+            }`}
+          >
+            {/* Miniatura de vídeo em tempo real da transmissão */}
+            <StreamMiniThumbnail stream={activeShare.stream} />
+
+            {/* Selo superior (ASSISTINDO vs AO VIVO) */}
+            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 pointer-events-none">
+              {isSelected ? (
+                <span className="bg-[#5865f2] text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow">
+                  <Tv className="w-2.5 h-2.5" />
+                  ASSISTINDO
+                </span>
+              ) : (
+                <span className="bg-[#ef4444] text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  AO VIVO
+                </span>
+              )}
+            </div>
+
+            {/* Identificação inferior do participante */}
+            <div className="absolute bottom-1 left-1.5 right-1.5 flex items-center justify-between text-[11px] bg-black/75 backdrop-blur-sm px-1.5 py-0.5 rounded text-white pointer-events-none">
+              <div className="flex items-center gap-1.5 truncate">
+                <img
+                  src={getAvatarUrl(p.user.avatar)}
+                  alt={p.user.name}
+                  className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                />
+                <span className="truncate max-w-[95px] font-medium text-[11px]">
+                  {activeShare.isLocal ? 'Sua Tela' : (p.user.displayName || p.user.name)}
+                </span>
+              </div>
+              {p.isMuted && <MicOff className="w-3 h-3 text-[#ef4444] flex-shrink-0 ml-1" />}
+            </div>
+          </div>
+        );
+      }
+
+      // Participante apenas em áudio/voz na faixa inferior
       return (
         <div
           key={p.user.id}
+          onClick={() => {
+            if (p.isScreenSharing) {
+              setFocusedParticipantId(p.user.id);
+              setViewMode('stage');
+            }
+          }}
           onContextMenu={(e) => {
             e.preventDefault();
             setVoiceContextMenu({
@@ -232,7 +384,7 @@ export const DiscordVoiceStage: React.FC = () => {
       <div
         key={p.user.id}
         onClick={() => {
-          if (p.isScreenSharing) {
+          if (p.isScreenSharing || activeShare) {
             setFocusedParticipantId(p.user.id);
             setViewMode('stage');
           }
@@ -297,7 +449,7 @@ export const DiscordVoiceStage: React.FC = () => {
               <VolumeX className="w-4 h-4 text-[#ef4444] flex-shrink-0" />
             </span>
           )}
-          {p.isScreenSharing && (
+          {(p.isScreenSharing || activeShare) && (
             <button
               type="button"
               onClick={(e) => {
@@ -401,6 +553,75 @@ export const DiscordVoiceStage: React.FC = () => {
             isOled ? 'bg-black' : 'bg-[#313338]'
           } pb-24`}
         >
+          {/* Seletor de Transmissões Múltiplas (Estilo Clássico do Discord) */}
+          {activeScreenShares.length > 1 && (
+            <div className="flex-shrink-0 flex items-center justify-between bg-[#1e1f22]/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-[#2b2d31] shadow-lg">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-6 h-6 rounded-md bg-[#5865f2]/20 text-[#5865f2]">
+                  <Tv className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-[#f2f3f5] flex items-center gap-1.5">
+                    <span>Transmissões Disponíveis</span>
+                    <span className="bg-[#5865f2] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                      {activeScreenShares.length}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#949ba4] hidden sm:block">
+                    Selecione qual tela deseja assistir no palco principal
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto py-0.5">
+                {activeScreenShares.map((share) => {
+                  const isSelected = currentSelectedShare?.id === share.id;
+                  return (
+                    <button
+                      key={`stream-selector-${share.id}`}
+                      type="button"
+                      onClick={() => {
+                        setFocusedParticipantId(share.id);
+                        setViewMode('stage');
+                      }}
+                      title={`Assistir transmissão de ${share.user.displayName || share.user.name}`}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border select-none ${
+                        isSelected
+                          ? 'bg-[#5865f2] text-white border-[#5865f2] shadow-md shadow-[#5865f2]/30 ring-1 ring-white/20'
+                          : 'bg-[#2b2d31] hover:bg-[#35373c] text-[#dbdee1] border-[#1f2023] hover:border-[#404249]'
+                      }`}
+                    >
+                      <div className="relative">
+                        <img
+                          src={getAvatarUrl(share.user.avatar)}
+                          alt={share.user.name}
+                          className="w-5 h-5 rounded-full object-cover"
+                        />
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-black ${
+                            isSelected ? 'bg-white' : 'bg-[#ef4444]'
+                          }`}
+                        />
+                      </div>
+                      <span className="truncate max-w-[130px]">
+                        {share.isLocal ? 'Sua Tela' : (share.user.displayName || share.user.name)}
+                      </span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                          isSelected
+                            ? 'bg-black/30 text-white'
+                            : 'bg-[#ef4444]/20 text-[#f23f43]'
+                        }`}
+                      >
+                        {isSelected ? 'Assistindo' : 'Assistir'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Spotlight screen-share area */}
           <div className="flex-1 bg-[#111214] rounded-xl overflow-hidden relative flex items-center justify-center border border-[#1f2023] shadow-lg min-h-0">
             <video
@@ -413,12 +634,18 @@ export const DiscordVoiceStage: React.FC = () => {
 
             {/* Top left stream info */}
             <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 pointer-events-none">
-              <span className="bg-[#ef4444] text-white text-[9px] font-bold px-1.5 py-0.5 rounded leading-none">
+              <span className="bg-[#ef4444] text-white text-[9px] font-bold px-1.5 py-0.5 rounded leading-none flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 AO VIVO
               </span>
               <span className="text-xs font-medium text-white">
                 {activeStreamOwner}
               </span>
+              {activeScreenShares.length > 1 && currentSelectedShare && (
+                <span className="bg-[#5865f2]/80 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded">
+                  {activeScreenShares.findIndex((s) => s.id === currentSelectedShare?.id) + 1} de {activeScreenShares.length} telas
+                </span>
+              )}
             </div>
 
             {/* Top right stream actions */}
@@ -441,36 +668,71 @@ export const DiscordVoiceStage: React.FC = () => {
             </div>
           </div>
 
-          {/* Compact participants row below stage */}
-          <div className="flex-shrink-0 flex items-center justify-center gap-2 overflow-x-auto py-0.5">
-            {participants.map((p) => renderParticipantCard(p, false, true))}
+          {/* Compact participants row below stage with live mini thumbnails */}
+          <div className="flex-shrink-0 flex items-center justify-center gap-2 overflow-x-auto py-1 px-2 max-w-full">
+            {participants.map((p) => {
+              const activeShare = activeScreenShares.find((s) => s.id === p.user.id);
+              return renderParticipantCard(p, false, true, activeShare);
+            })}
           </div>
         </div>
       ) : hasActiveStream && viewMode === 'grid' ? (
         /* ── MODO GRADE COM STREAM ATIVO ── */
         <div
-          className={`flex-1 flex items-center justify-center p-4 overflow-hidden relative ${
+          className={`flex-1 flex flex-col p-4 overflow-hidden relative ${
             isOled ? 'bg-black' : 'bg-[#313338]'
           } pb-24`}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 max-w-5xl w-full gap-3 h-full max-h-[550px]">
-            {/* Stream tile */}
-            <div className="relative bg-black rounded-lg overflow-hidden flex items-center justify-center border border-[#1f2023] w-full h-full min-h-[140px] max-h-[380px]">
-              <video
-                ref={screenVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-contain bg-black"
-              />
-              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-bold text-white border border-white/10">
-                <span className="bg-[#ef4444] px-1 py-0.2 rounded text-[9px]">AO VIVO</span>
-                <span>{activeSourceName}</span>
-              </div>
+          {/* Top selector if multiple streams in grid mode too */}
+          {activeScreenShares.length > 1 && (
+            <div className="flex-shrink-0 flex items-center justify-between bg-[#1e1f22]/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-[#2b2d31] shadow mb-3">
+              <span className="text-xs text-[#dbdee1] flex items-center gap-1.5">
+                <Tv className="w-3.5 h-3.5 text-[#5865f2]" />
+                {activeScreenShares.length} transmissões simultâneas ativas
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewMode('stage')}
+                className="text-xs text-[#5865f2] hover:underline font-medium cursor-pointer"
+              >
+                Voltar ao Modo Palco
+              </button>
             </div>
+          )}
 
-            {/* Participants */}
-            {participants.map((p) => renderParticipantCard(p, false, false))}
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 max-w-5xl w-full mx-auto gap-3 h-full overflow-y-auto">
+            {/* Stream tiles for each active share */}
+            {activeScreenShares.map((share) => {
+              const isSelected = currentSelectedShare?.id === share.id;
+              return (
+                <div
+                  key={`grid-stream-${share.id}`}
+                  onClick={() => {
+                    setFocusedParticipantId(share.id);
+                    setViewMode('stage');
+                  }}
+                  className={`relative bg-black rounded-xl overflow-hidden flex items-center justify-center border transition-all cursor-pointer w-full h-full min-h-[160px] max-h-[360px] shadow-lg ${
+                    isSelected
+                      ? 'border-[#5865f2] ring-2 ring-[#5865f2]'
+                      : 'border-[#1f2023] hover:border-[#5865f2]/70'
+                  }`}
+                >
+                  <StreamMiniThumbnail stream={share.stream} />
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/75 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-bold text-white border border-white/10 pointer-events-none">
+                    <span className="bg-[#ef4444] px-1 py-0.2 rounded text-[9px]">AO VIVO</span>
+                    <span className="truncate max-w-[120px]">{share.title}</span>
+                  </div>
+                  <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] text-white/90 pointer-events-none">
+                    Clique para focar
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Non-sharing participants in grid */}
+            {participants
+              .filter((p) => !activeScreenShares.some((s) => s.id === p.user.id))
+              .map((p) => renderParticipantCard(p, false, false))}
           </div>
         </div>
       ) : (
