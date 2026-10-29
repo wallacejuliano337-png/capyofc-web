@@ -1,6 +1,6 @@
-﻿{
-  "version": "0.1.5",
-  "build": "2026.10.28-04",
-  "buildTime": 1793217000000,
-  "releaseNotes": "Capy.ofc v0.1.5: Seleção e alternância entre múltiplas telas compartilhadas simultâneas, miniaturas em tempo real e estabilidade WebRTC."
+{
+  "version": "0.1.6",
+  "build": "2026.10.28-05",
+  "buildTime": 1793229600000,
+  "releaseNotes": "Capy.ofc v0.1.6: Correção crítica para sincronização e exibição imediata de tela compartilhada para participantes que entram após o início da transmissão (late joiners)."
 }

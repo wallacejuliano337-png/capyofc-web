@@ -79,12 +79,12 @@ for (const f of filesToUpload) {
 
 // 4. Criar release no GitHub como DRAFT inicialmente
 console.log(`\n2. Criando release ${tag} no GitHub...`);
-const releaseNotes = `## O que h� de novo no Capy.ofc v${version}
+const releaseNotes = `## O que há de novo no Capy.ofc v${version}
 
-- **Sele��o e Altern�ncia entre M�ltiplas Telas Compartilhadas**: quando dois ou mais participantes transmitem tela simultaneamente, agora � poss�vel selecionar e alternar livremente entre as transmiss�es no palco principal.
-- **Miniaturas de V�deo em Tempo Real**: visualiza��o em tempo real de cada tela ativa na faixa inferior com indicadores de status ASSISTINDO e AO VIVO.
-- **Fallback Autom�tico e Inteligente**: se uma transmiss�o for encerrada pelo transmissor, o palco seleciona automaticamente outra tela ativa remanescente.
-- **Estabilidade WebRTC e Isolamento de Listeners**: tratamento robusto de eventos de v�deo sem interfer�ncia entre componentes e servi�o de voz.
+- **Correção Crítica para Late Joiners no Compartilhamento de Tela**: participantes que entram em uma chamada após o início de um compartilhamento de tela agora recebem e visualizam a transmissão ativa automaticamente no palco central, sem exigir que o apresentador reinicie a transmissão.
+- **Associação Direta de Transceiver WebRTC**: prevenção de transceivers duplicados ou linhas de vídeo secundárias no SDP durante a negociação com novos participantes.
+- **Sincronização Imediata e Não-Destrutiva**: renderização instantânea da stream de vídeo ao chegar e tratamento resiliente de oscilações de pacotes na rede sem perda do estado de compartilhamento.
+- **Seleção e Alternância entre Múltiplas Telas**: seleção fluida entre múltiplas transmissões simultâneas com miniaturas em tempo real e fallback automático mantidos integralmente.
 `;
 
 const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {

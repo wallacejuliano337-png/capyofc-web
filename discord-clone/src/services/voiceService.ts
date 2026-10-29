@@ -478,7 +478,7 @@ class VoiceService {
           isSpeaking: existingParticipant?.isSpeaking ?? Boolean(latestPresence.isSpeaking),
           isVideoOn: existingParticipant?.isVideoOn ?? Boolean(latestPresence.isVideoOn),
           isScreenSharing: existingParticipant?.isScreenSharing ?? Boolean(latestPresence.isScreenSharing),
-          mediaStream: this.remoteStreams.get(u.id),
+          mediaStream: this.remoteStreams.get(u.id) || existingParticipant?.mediaStream,
         });
       }
     });
@@ -544,8 +544,21 @@ class VoiceService {
     } catch {
       // Ignored if transceiver is not supported in test environment
     }
+
+    const screenStream = useVoiceStreamStore.getState().screenStream;
+    const screenVideoTrack = screenStream?.getVideoTracks().find((t) => t.readyState === 'live') || screenStream?.getVideoTracks()[0];
+
+    let videoTransceiver: RTCRtpTransceiver | null = null;
     try {
-      pc.addTransceiver('video', { direction: 'sendrecv' });
+      if (screenVideoTrack && screenStream) {
+        // Se já temos uma tela compartilhada ativa, vincula a faixa diretamente ao transceiver para evitar transceiver duplicado
+        videoTransceiver = pc.addTransceiver(screenVideoTrack, {
+          direction: 'sendrecv',
+          streams: [screenStream],
+        });
+      } else {
+        videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
+      }
     } catch {}
 
     // 2. Add local microphone audio tracks
@@ -559,14 +572,24 @@ class VoiceService {
       });
     }
 
-    // 3. Add local screen share tracks if currently active
-    const screenStream = useVoiceStreamStore.getState().screenStream;
+    // 3. Garante associação das faixas de tela compartilhada ao peer
     if (screenStream) {
-      screenStream.getTracks().forEach((track) => {
+      if (screenVideoTrack) {
+        if (videoTransceiver && typeof videoTransceiver.sender?.replaceTrack === 'function') {
+          videoTransceiver.direction = 'sendrecv';
+          videoTransceiver.sender.replaceTrack(screenVideoTrack).catch(() => {});
+        } else {
+          try {
+            pc.addTrack(screenVideoTrack, screenStream);
+          } catch {}
+        }
+      }
+      const screenAudioTrack = screenStream.getAudioTracks()[0];
+      if (screenAudioTrack) {
         try {
-          pc.addTrack(track, screenStream);
+          pc.addTrack(screenAudioTrack, screenStream);
         } catch {}
-      });
+      }
     }
 
     // 4. Handle ICE candidates
@@ -654,8 +677,7 @@ class VoiceService {
         };
 
         const handleTrackMute = () => {
-          console.log(`[voiceService] Remote video track muted from peer ${peerId}`);
-          syncVideoState(false);
+          console.log(`[voiceService] Remote video track temporarily muted from peer ${peerId}`);
         };
 
         const handleTrackUnmute = () => {
@@ -675,9 +697,8 @@ class VoiceService {
         track.onunmute = handleTrackUnmute;
         track.onended = handleTrackEnded;
 
-        if (!track.muted) {
-          syncVideoState(true);
-        }
+        // Sempre sincroniza imediatamente a chegada da faixa de vídeo
+        syncVideoState(true);
       }
 
       if (track.kind === 'audio') {
@@ -771,7 +792,7 @@ class VoiceService {
         });
       } else if (payload.state.isScreenSharing === true) {
         const stream = this.remoteStreams.get(payload.senderId);
-        const liveTrack = stream?.getVideoTracks().find((t) => t.readyState === 'live' && !t.muted);
+        const liveTrack = stream?.getVideoTracks().find((t) => t.readyState === 'live');
         this.updateParticipantState(payload.senderId, {
           ...payload.state,
           mediaStream: liveTrack ? stream : undefined,

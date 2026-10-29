@@ -139,7 +139,7 @@ export const DiscordVoiceStage: React.FC = () => {
   if (screenStream) {
     const hasLiveVideo = screenStream
       .getVideoTracks()
-      .some((t) => t.readyState === 'live' && !t.muted);
+      .some((t) => t.readyState === 'live');
     if (hasLiveVideo) {
       activeScreenShares.push({
         id: currentUser.id,
@@ -156,7 +156,7 @@ export const DiscordVoiceStage: React.FC = () => {
     if (p.user.id === currentUser.id || p.user.name === currentUser.name) return;
     const hasLiveVideo = Boolean(
       p.mediaStream &&
-      p.mediaStream.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted)
+      p.mediaStream.getVideoTracks().some((t) => t.readyState === 'live')
     );
     if ((p.isScreenSharing || hasLiveVideo) && p.mediaStream && hasLiveVideo) {
       if (!activeScreenShares.some((s) => s.id === p.user.id)) {
@@ -210,7 +210,7 @@ export const DiscordVoiceStage: React.FC = () => {
     if (videoEl && activeStream) {
       const hasLiveTrack = activeStream
         .getVideoTracks()
-        .some((t) => t.readyState === 'live' && !t.muted);
+        .some((t) => t.readyState === 'live');
 
       if (!hasLiveTrack) {
         videoEl.srcObject = null;
@@ -231,23 +231,16 @@ export const DiscordVoiceStage: React.FC = () => {
 
       const videoTracks = activeStream.getVideoTracks();
       const onTrackUnmute = () => playVideo();
-      const onTrackMute = () => {
-        if (videoEl && !currentSelectedShare) {
-          videoEl.srcObject = null;
-        }
-      };
 
       videoTracks.forEach((t) => {
         t.enabled = true;
         t.addEventListener('unmute', onTrackUnmute);
-        t.addEventListener('mute', onTrackMute);
       });
       videoEl.addEventListener('loadedmetadata', playVideo);
 
       return () => {
         videoTracks.forEach((t) => {
           t.removeEventListener('unmute', onTrackUnmute);
-          t.removeEventListener('mute', onTrackMute);
         });
         videoEl.removeEventListener('loadedmetadata', playVideo);
       };

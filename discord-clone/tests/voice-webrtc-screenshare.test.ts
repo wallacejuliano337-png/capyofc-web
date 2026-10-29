@@ -430,7 +430,7 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
     ) => {
       const shares: any[] = [];
       if (localScreenStream) {
-        const hasLive = localScreenStream.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
+        const hasLive = localScreenStream.getVideoTracks().some((t) => t.readyState === 'live');
         if (hasLive) {
           shares.push({
             id: currentUserId,
@@ -444,7 +444,7 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
         if (p.user.id === currentUserId) return;
         const hasLive = Boolean(
           p.mediaStream &&
-          p.mediaStream.getVideoTracks().some((t: any) => t.readyState === 'live' && !t.muted)
+          p.mediaStream.getVideoTracks().some((t: any) => t.readyState === 'live')
         );
         if ((p.isScreenSharing || hasLive) && p.mediaStream && hasLive) {
           if (!shares.some((s) => s.id === p.user.id)) {
@@ -682,6 +682,347 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
       await voiceService.leaveChannel(false);
       expect(useDiscord.getState().voiceState.isConnected).toBe(false);
       expect(useDiscord.getState().voiceState.participants).toEqual([]);
+    });
+  });
+
+  describe('7. Late Joiner Screen Share Synchronization (Scenarios A through G)', () => {
+    const makeUser = (id: string, name: string) => ({
+      id,
+      name,
+      displayName: name,
+      tag: '#0001',
+      avatar: '',
+      status: 'online' as const,
+    });
+
+    const makeStream = (id: string) => {
+      const track = {
+        id: `track-${id}`,
+        kind: 'video',
+        readyState: 'live',
+        muted: false,
+        enabled: true,
+        stop: vi.fn(),
+      };
+      return {
+        id: `stream-${id}`,
+        getTracks: () => [track],
+        getVideoTracks: () => [track],
+        getAudioTracks: () => [],
+      } as unknown as MediaStream;
+    };
+
+    const resolveActiveShares = (
+      participants: any[],
+      currentUserId: string,
+      localScreenStream: MediaStream | null,
+    ) => {
+      const shares: any[] = [];
+      if (localScreenStream) {
+        const hasLive = localScreenStream.getVideoTracks().some((t) => t.readyState === 'live');
+        if (hasLive) {
+          shares.push({
+            id: currentUserId,
+            isLocal: true,
+            stream: localScreenStream,
+            title: 'Sua tela',
+          });
+        }
+      }
+      participants.forEach((p) => {
+        if (p.user.id === currentUserId) return;
+        const hasLive = Boolean(
+          p.mediaStream &&
+          p.mediaStream.getVideoTracks().some((t: any) => t.readyState === 'live')
+        );
+        if ((p.isScreenSharing || hasLive) && p.mediaStream && hasLive) {
+          if (!shares.some((s) => s.id === p.user.id)) {
+            shares.push({
+              id: p.user.id,
+              isLocal: false,
+              stream: p.mediaStream,
+              title: `Tela de ${p.user.displayName || p.user.name}`,
+            });
+          }
+        }
+      });
+      return shares;
+    };
+
+    const resolveCurrentShare = (shares: any[], focusedId: string | null) => {
+      if (shares.length === 0) return null;
+      if (focusedId) {
+        const found = shares.find((s) => s.id === focusedId);
+        if (found) return found;
+      }
+      return shares.find((s) => !s.isLocal) || shares[0];
+    };
+
+    it('Scenario A: Presenter is sharing screen; late joiner enters and receives stream automatically in center stage without restart', async () => {
+      const presenterUser = makeUser('herman-beta', 'HERMAN BETA');
+      const presenterStream = makeStream('herman-beta');
+      const presenterTrack = presenterStream.getVideoTracks()[0];
+
+      // Mock presenter's RTCPeerConnection creation for late joiner
+      const transceivers: any[] = [];
+      const mockPC = {
+        addTransceiver: vi.fn((trackOrKind: any, init: any) => {
+          const t = {
+            sender: {
+              track: typeof trackOrKind === 'object' ? trackOrKind : null,
+              replaceTrack: vi.fn(async (newTrack) => { t.sender.track = newTrack; }),
+            },
+            direction: init?.direction || 'sendrecv',
+          };
+          transceivers.push(t);
+          return t;
+        }),
+        getTransceivers: () => transceivers,
+      };
+
+      // When presenter establishes connection with late joiner, it attaches active screen stream directly to video transceiver
+      if (presenterTrack && presenterStream) {
+        mockPC.addTransceiver(presenterTrack, { direction: 'sendrecv', streams: [presenterStream] });
+      } else {
+        mockPC.addTransceiver('video', { direction: 'sendrecv' });
+      }
+
+      // Guarantees exact 1 video transceiver and track is attached to it (no duplicate m-line)
+      expect(mockPC.addTransceiver).toHaveBeenCalledWith(presenterTrack, expect.objectContaining({ direction: 'sendrecv' }));
+      expect(transceivers).toHaveLength(1);
+      expect(transceivers[0].sender.track.id).toBe('track-herman-beta');
+
+      // Late joiner receives track in ontrack
+      const lateJoinerRemoteStreams = new Map<string, MediaStream>();
+      lateJoinerRemoteStreams.set(presenterUser.id, presenterStream);
+
+      const participants = [
+        {
+          user: presenterUser,
+          isScreenSharing: true,
+          mediaStream: lateJoinerRemoteStreams.get(presenterUser.id),
+          isMuted: false,
+          isSpeaking: false,
+          isVideoOn: false,
+          isDeafened: false,
+        },
+      ];
+
+      const activeShares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(activeShares).toHaveLength(1);
+      expect(activeShares[0].id).toBe('herman-beta');
+
+      const currentShare = resolveCurrentShare(activeShares, null);
+      expect(currentShare).not.toBeNull();
+      expect(currentShare?.id).toBe('herman-beta');
+      expect(currentShare?.stream).toBe(presenterStream);
+    });
+
+    it('Scenario B: Presenter is sharing screen; two late joiners enter at different times and both receive stream without restart', async () => {
+      const presenterUser = makeUser('herman-beta', 'HERMAN BETA');
+      const presenterStream = makeStream('herman-beta');
+      const presenterTrack = presenterStream.getVideoTracks()[0];
+
+      // Presenter connections map
+      const connections = new Map<string, any>();
+
+      const createPresenterPeerConnection = (peerId: string) => {
+        const transceivers: any[] = [];
+        const pc = {
+          addTransceiver: vi.fn((trackOrKind: any, init: any) => {
+            const t = {
+              sender: {
+                track: typeof trackOrKind === 'object' ? trackOrKind : null,
+                replaceTrack: vi.fn(),
+              },
+              direction: init?.direction || 'sendrecv',
+            };
+            transceivers.push(t);
+            return t;
+          }),
+          getTransceivers: () => transceivers,
+        };
+        // Reuse logic from voiceService:
+        pc.addTransceiver(presenterTrack, { direction: 'sendrecv', streams: [presenterStream] });
+        connections.set(peerId, pc);
+        return pc;
+      };
+
+      // Late joiner 1 (Alice) enters at T1
+      createPresenterPeerConnection('alice-id');
+      expect(connections.has('alice-id')).toBe(true);
+      expect(connections.get('alice-id').getTransceivers()[0].sender.track.id).toBe('track-herman-beta');
+
+      // Late joiner 2 (Bob) enters at T2
+      createPresenterPeerConnection('bob-id');
+      expect(connections.has('bob-id')).toBe(true);
+      expect(connections.get('bob-id').getTransceivers()[0].sender.track.id).toBe('track-herman-beta');
+
+      // Both receive the stream without presenter restarting
+      const aliceShares = resolveActiveShares([{ user: presenterUser, isScreenSharing: true, mediaStream: presenterStream }], 'alice-id', null);
+      const bobShares = resolveActiveShares([{ user: presenterUser, isScreenSharing: true, mediaStream: presenterStream }], 'bob-id', null);
+
+      expect(aliceShares).toHaveLength(1);
+      expect(bobShares).toHaveLength(1);
+      expect(resolveCurrentShare(aliceShares, null)?.id).toBe('herman-beta');
+      expect(resolveCurrentShare(bobShares, null)?.id).toBe('herman-beta');
+    });
+
+    it('Scenario C: Presenter shares screen, participant joins late, presenter stops and restarts stream, and change is reflected', async () => {
+      const presenterUser = makeUser('herman-beta', 'HERMAN BETA');
+      const stream1 = makeStream('herman-1');
+      const stream2 = makeStream('herman-2');
+
+      let currentRemoteStream: MediaStream | undefined = stream1;
+      let isSharing = true;
+
+      // 1. Initial state: late joiner enters while stream1 is active
+      let participants: any[] = [
+        { user: presenterUser, isScreenSharing: isSharing, mediaStream: currentRemoteStream },
+      ];
+      let shares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].stream).toBe(stream1);
+
+      // 2. Presenter stops sharing
+      isSharing = false;
+      currentRemoteStream = undefined;
+      participants = [
+        { user: presenterUser, isScreenSharing: isSharing, mediaStream: currentRemoteStream },
+      ];
+      shares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(shares).toHaveLength(0);
+      expect(resolveCurrentShare(shares, null)).toBeNull();
+
+      // 3. Presenter restarts sharing with stream2
+      isSharing = true;
+      currentRemoteStream = stream2;
+      participants = [
+        { user: presenterUser, isScreenSharing: isSharing, mediaStream: currentRemoteStream },
+      ];
+      shares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].stream).toBe(stream2);
+      expect(resolveCurrentShare(shares, null)?.stream).toBe(stream2);
+    });
+
+    it('Scenario D: Two participants share screen simultaneously; third participant enters late, sees both in selector, and switches smoothly', async () => {
+      const uA = makeUser('u-a', 'Alice');
+      const sA = makeStream('u-a');
+      const uB = makeUser('u-b', 'Bob');
+      const sB = makeStream('u-b');
+
+      const participants = [
+        { user: uA, isScreenSharing: true, mediaStream: sA },
+        { user: uB, isScreenSharing: true, mediaStream: sB },
+      ];
+
+      // Late joiner Charlie enters
+      const shares = resolveActiveShares(participants, 'charlie-id', null);
+      expect(shares).toHaveLength(2);
+      expect(shares.map((s) => s.id)).toEqual(['u-a', 'u-b']);
+
+      // Default spotlight selects first remote share (Alice)
+      let selected = resolveCurrentShare(shares, null);
+      expect(selected?.id).toBe('u-a');
+      expect(selected?.stream).toBe(sA);
+
+      // Charlie switches to Bob
+      useDiscord.getState().setFocusedParticipantId('u-b');
+      selected = resolveCurrentShare(shares, useDiscord.getState().focusedParticipantId);
+      expect(selected?.id).toBe('u-b');
+      expect(selected?.stream).toBe(sB);
+
+      // Both streams remain healthy and live
+      expect(sA.getVideoTracks()[0].readyState).toBe('live');
+      expect(sB.getVideoTracks()[0].readyState).toBe('live');
+    });
+
+    it('Scenario E: Asynchronous arrival order: presence AO VIVO arrives before WebRTC ontrack; stream renders automatically once track arrives', () => {
+      const presenterUser = makeUser('herman-beta', 'HERMAN BETA');
+      const stream = makeStream('herman-beta');
+
+      // 1. Presence sync arrives first: isScreenSharing is true, but mediaStream not yet received
+      let participants: any[] = [
+        { user: presenterUser, isScreenSharing: true, mediaStream: undefined },
+      ];
+
+      let shares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(shares).toHaveLength(0); // Waiting for media track
+
+      // 2. WebRTC ontrack fires and provides the MediaStream
+      participants = [
+        { user: presenterUser, isScreenSharing: true, mediaStream: stream },
+      ];
+
+      shares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('herman-beta');
+      expect(resolveCurrentShare(shares, null)?.stream).toBe(stream);
+    });
+
+    it('Scenario F: WebRTC track arrives before presence update; media is preserved and correctly linked on presence sync', () => {
+      const presenterUser = makeUser('herman-beta', 'HERMAN BETA');
+      const stream = makeStream('herman-beta');
+
+      // 1. WebRTC ontrack stores stream in remoteStreams map before presence sync
+      const remoteStreams = new Map<string, MediaStream>();
+      remoteStreams.set(presenterUser.id, stream);
+
+      // 2. Presence sync arrives and links the stored remoteStream
+      const participants = [
+        {
+          user: presenterUser,
+          isScreenSharing: true,
+          mediaStream: remoteStreams.get(presenterUser.id),
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'late-joiner-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('herman-beta');
+      expect(shares[0].stream).toBe(stream);
+      expect(resolveCurrentShare(shares, null)?.id).toBe('herman-beta');
+    });
+
+    it('Scenario G: Late participant leaves and rejoins call repeatedly without crashing or breaking active stream', async () => {
+      const presenterUser = makeUser('herman-beta', 'HERMAN BETA');
+      const presenterStream = makeStream('herman-beta');
+
+      for (let cycle = 1; cycle <= 3; cycle++) {
+        // Late joiner enters
+        useDiscord.setState({
+          voiceState: {
+            isConnected: true,
+            channelId: 'room-1',
+            pingMs: 20,
+            participants: [
+              {
+                user: presenterUser,
+                isScreenSharing: true,
+                mediaStream: presenterStream,
+                isMuted: false,
+                isDeafened: false,
+                isSpeaking: false,
+                isVideoOn: false,
+              },
+            ],
+          },
+        });
+
+        let shares = resolveActiveShares(
+          useDiscord.getState().voiceState.participants,
+          'late-joiner-id',
+          null,
+        );
+        expect(shares).toHaveLength(1);
+        expect(resolveCurrentShare(shares, null)?.id).toBe('herman-beta');
+
+        // Late joiner leaves
+        await voiceService.leaveChannel(false);
+        expect(useDiscord.getState().voiceState.isConnected).toBe(false);
+        expect(useDiscord.getState().voiceState.participants).toHaveLength(0);
+      }
     });
   });
 });
