@@ -1,3 +1,4 @@
+import { voiceService } from '../../services/voiceService';
 import React, { useState, useEffect } from 'react';
 import { useDiscord, mockServers, currentUser } from '../../store/discordStore';
 import { getServerBannerGradient, User, Channel, ChannelCategory } from '../../types/discord';
@@ -1131,7 +1132,7 @@ export const DiscordChannelsSidebar: React.FC = () => {
                                     </div>
 
                                     <div className="flex items-center gap-1 text-[#80848e]">
-                                      {p.isScreenSharing && (
+                                      {p.isScreenSharing && voiceService.isParticipantSharing(p.user.id) && (
                                         <span className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm">
                                           <Monitor className="w-2.5 h-2.5" />
                                           AO VIVO

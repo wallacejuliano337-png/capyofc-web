@@ -557,7 +557,7 @@ export const DiscordVoiceStage: React.FC = () => {
               <VolumeX className="w-4 h-4 text-[#ef4444] flex-shrink-0" />
             </span>
           )}
-          {(p.isScreenSharing || activeShare) && (
+          {voiceService.isParticipantSharing(p.user.id) && (
             <button
               type="button"
               onClick={(e) => {
