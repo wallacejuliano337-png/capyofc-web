@@ -1025,4 +1025,267 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
       }
     });
   });
+
+  describe('8. Remote Screen Share Reception & Simultaneous Sharing (Scenarios A through F)', () => {
+    const makeUser = (id: string, name: string) => ({
+      id,
+      name,
+      displayName: name,
+      tag: '#0001',
+      avatar: '',
+      status: 'online' as const,
+    });
+
+    const makeStream = (id: string) => {
+      const track = {
+        id: `track-${id}`,
+        kind: 'video',
+        readyState: 'live',
+        muted: false,
+        enabled: true,
+        stop: vi.fn(),
+      };
+      return {
+        id: `stream-${id}`,
+        getTracks: () => [track],
+        getVideoTracks: () => [track],
+        getAudioTracks: () => [],
+      } as unknown as MediaStream;
+    };
+
+    const resolveActiveShares = (
+      participants: any[],
+      currentUserId: string,
+      localScreenStream: MediaStream | null,
+    ) => {
+      const shares: any[] = [];
+      if (localScreenStream) {
+        const hasLive = localScreenStream.getVideoTracks().some((t) => t.readyState === 'live');
+        if (hasLive) {
+          shares.push({
+            id: currentUserId,
+            isLocal: true,
+            stream: localScreenStream,
+            title: 'Sua tela',
+          });
+        }
+      }
+      participants.forEach((p) => {
+        if (p.user.id === currentUserId) return;
+        const remoteStream = p.mediaStream || voiceService.getRemoteStream(p.user.id);
+        const hasLive = Boolean(
+          remoteStream &&
+          remoteStream.getVideoTracks().some((t: any) => t.readyState === 'live')
+        );
+        if ((p.isScreenSharing || hasLive) && remoteStream && hasLive) {
+          if (!shares.some((s) => s.id === p.user.id)) {
+            shares.push({
+              id: p.user.id,
+              isLocal: false,
+              stream: remoteStream,
+              title: `Tela de ${p.user.displayName || p.user.name}`,
+            });
+          }
+        }
+      });
+      return shares;
+    };
+
+    const resolveCurrentShare = (shares: any[], focusedId: string | null) => {
+      if (shares.length === 0) return null;
+      if (focusedId) {
+        const found = shares.find((s) => s.id === focusedId);
+        if (found) return found;
+      }
+      return shares.find((s) => !s.isLocal) || shares[0];
+    };
+
+    it('Scenario A: Coronel and HERMAN BETA in call. Only HERMAN shares screen. Coronel views HERMAN screen', () => {
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+      const hermanStream = makeStream('herman-id');
+
+      // Coronel perspective (localScreenStream: null)
+      const participants = [
+        {
+          user: herman,
+          isScreenSharing: true,
+          mediaStream: hermanStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'coronel-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('herman-id');
+      expect(shares[0].isLocal).toBe(false);
+
+      const currentShare = resolveCurrentShare(shares, null);
+      expect(currentShare?.id).toBe('herman-id');
+      expect(currentShare?.stream).toBe(hermanStream);
+    });
+
+    it('Scenario B: Only Coronel shares screen. HERMAN views Coronel screen', () => {
+      const coronel = makeUser('coronel-id', 'Coronel');
+      const coronelStream = makeStream('coronel-id');
+
+      // HERMAN perspective: receives Coronel's screen as remote stream
+      const participants = [
+        {
+          user: coronel,
+          isScreenSharing: true,
+          mediaStream: coronelStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'herman-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('coronel-id');
+      expect(shares[0].isLocal).toBe(false);
+
+      const currentShare = resolveCurrentShare(shares, null);
+      expect(currentShare?.id).toBe('coronel-id');
+      expect(currentShare?.stream).toBe(coronelStream);
+    });
+
+    it('Scenario C: Both share simultaneously. Each participant views the other stream and switches between both', () => {
+      const coronel = makeUser('coronel-id', 'Coronel');
+      const coronelStream = makeStream('coronel-id');
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+      const hermanStream = makeStream('herman-id');
+
+      // Coronel perspective: Coronel has local stream, HERMAN has remote stream
+      const participants = [
+        {
+          user: herman,
+          isScreenSharing: true,
+          mediaStream: hermanStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'coronel-id', coronelStream);
+      expect(shares).toHaveLength(2);
+      expect(shares.find((s) => s.id === 'coronel-id')?.isLocal).toBe(true);
+      expect(shares.find((s) => s.id === 'herman-id')?.isLocal).toBe(false);
+
+      // Default spotlight selection on Coronel prioritizes HERMAN's remote screen
+      let currentShare = resolveCurrentShare(shares, null);
+      expect(currentShare?.id).toBe('herman-id');
+
+      // Coronel switches to view their own screen ("Sua Tela")
+      currentShare = resolveCurrentShare(shares, 'coronel-id');
+      expect(currentShare?.id).toBe('coronel-id');
+      expect(currentShare?.stream).toBe(coronelStream);
+
+      // Coronel switches back to HERMAN
+      currentShare = resolveCurrentShare(shares, 'herman-id');
+      expect(currentShare?.id).toBe('herman-id');
+      expect(currentShare?.stream).toBe(hermanStream);
+    });
+
+    it('Scenario D: Coronel stops sharing, HERMAN continues. HERMAN screen remains visible and focused', () => {
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+      const hermanStream = makeStream('herman-id');
+
+      const participants = [
+        {
+          user: herman,
+          isScreenSharing: true,
+          mediaStream: hermanStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      // Coronel's localScreenStream is now null
+      const shares = resolveActiveShares(participants, 'coronel-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('herman-id');
+
+      const currentShare = resolveCurrentShare(shares, null);
+      expect(currentShare?.id).toBe('herman-id');
+      expect(currentShare?.stream).toBe(hermanStream);
+    });
+
+    it('Scenario E: HERMAN stops sharing, Coronel continues. Coronel screen remains visible and focused', () => {
+      const coronelStream = makeStream('coronel-id');
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+
+      // HERMAN is no longer sharing screen
+      const participants = [
+        {
+          user: herman,
+          isScreenSharing: false,
+          mediaStream: undefined,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'coronel-id', coronelStream);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe('coronel-id');
+      expect(shares[0].isLocal).toBe(true);
+
+      const currentShare = resolveCurrentShare(shares, null);
+      expect(currentShare?.id).toBe('coronel-id');
+      expect(currentShare?.stream).toBe(coronelStream);
+    });
+
+    it('Scenario F: Third participant enters and can view both streams in selector and switch between them', () => {
+      const coronel = makeUser('coronel-id', 'Coronel');
+      const coronelStream = makeStream('coronel-id');
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+      const hermanStream = makeStream('herman-id');
+
+      // Participant C (Charlie) enters
+      const participants = [
+        {
+          user: coronel,
+          isScreenSharing: true,
+          mediaStream: coronelStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+        {
+          user: herman,
+          isScreenSharing: true,
+          mediaStream: hermanStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'charlie-id', null);
+      expect(shares).toHaveLength(2);
+      expect(shares.every((s) => !s.isLocal)).toBe(true);
+
+      // Charlie switches between Coronel and HERMAN
+      let currentShare = resolveCurrentShare(shares, 'coronel-id');
+      expect(currentShare?.id).toBe('coronel-id');
+      expect(currentShare?.stream).toBe(coronelStream);
+
+      currentShare = resolveCurrentShare(shares, 'herman-id');
+      expect(currentShare?.id).toBe('herman-id');
+      expect(currentShare?.stream).toBe(hermanStream);
+    });
+  });
 });

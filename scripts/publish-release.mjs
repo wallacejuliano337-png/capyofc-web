@@ -81,10 +81,11 @@ for (const f of filesToUpload) {
 console.log(`\n2. Criando release ${tag} no GitHub...`);
 const releaseNotes = `## O que há de novo no Capy.ofc v${version}
 
-- **Correção Crítica para Late Joiners no Compartilhamento de Tela**: participantes que entram em uma chamada após o início de um compartilhamento de tela agora recebem e visualizam a transmissão ativa automaticamente no palco central, sem exigir que o apresentador reinicie a transmissão.
-- **Associação Direta de Transceiver WebRTC**: prevenção de transceivers duplicados ou linhas de vídeo secundárias no SDP durante a negociação com novos participantes.
-- **Sincronização Imediata e Não-Destrutiva**: renderização instantânea da stream de vídeo ao chegar e tratamento resiliente de oscilações de pacotes na rede sem perda do estado de compartilhamento.
-- **Seleção e Alternância entre Múltiplas Telas**: seleção fluida entre múltiplas transmissões simultâneas com miniaturas em tempo real e fallback automático mantidos integralmente.
+- **Correção Crítica para Visualização Remota de Compartilhamento de Tela**: correção definitiva na recepção e renderização da tela compartilhada por outro participante remoto na chamada de voz.
+- **Sincronização Ativa de Transceivers WebRTC**: vinculação e escuta imediata de faixas de vídeo recebidas (\`receiver.track\`) nas etapas de oferta (\`offer\`) e resposta (\`answer\`), garantindo detecção e exibição da transmissão mesmo quando o evento \`ontrack\` não é redisparado por reutilização de transceivers WebRTC.
+- **Proteção do Estado de Transmissão Remota**: correção do tratamento de sinalização e presença para evitar que a stream remota seja definida como indefinida prematuramente antes da conclusão da troca de SDP.
+- **Renderização Resiliente no Palco e Miniaturas**: palco central e seletores agora verificam tanto o estado dos participantes quanto as streams remotas ativas do serviço de voz (\`voiceService.getRemoteStream\`).
+- **Suporte Total a Compartilhamento Simultâneo**: seleção e alternância contínua entre telas quando dois ou mais participantes transmitem ao mesmo tempo.
 `;
 
 const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {

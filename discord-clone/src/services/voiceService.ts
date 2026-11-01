@@ -471,14 +471,21 @@ class VoiceService {
         const u = latestPresence.user as User;
         const existingParticipant = useDiscord.getState().voiceState.participants.find((p) => p.user.id === u.id);
 
+        const remoteStream = this.getRemoteStream(u.id) || existingParticipant?.mediaStream;
+        const isSharing = Boolean(
+          latestPresence.isScreenSharing !== undefined
+            ? latestPresence.isScreenSharing
+            : (existingParticipant?.isScreenSharing ?? false)
+        );
+
         participantsMap.set(u.id, {
           user: u,
           isMuted: existingParticipant?.isMuted ?? Boolean(latestPresence.isMuted),
           isDeafened: existingParticipant?.isDeafened ?? Boolean(latestPresence.isDeafened),
           isSpeaking: existingParticipant?.isSpeaking ?? Boolean(latestPresence.isSpeaking),
           isVideoOn: existingParticipant?.isVideoOn ?? Boolean(latestPresence.isVideoOn),
-          isScreenSharing: existingParticipant?.isScreenSharing ?? Boolean(latestPresence.isScreenSharing),
-          mediaStream: this.remoteStreams.get(u.id) || existingParticipant?.mediaStream,
+          isScreenSharing: isSharing,
+          mediaStream: isSharing ? remoteStream : undefined,
         });
       }
     });
@@ -641,64 +648,7 @@ class VoiceService {
       }
 
       if (track.kind === 'video') {
-        // Remove quaisquer faixas antigas de vídeo para evitar feeds fantasmas
-        peerStream.getVideoTracks().forEach((t) => {
-          if (t.id !== track.id) {
-            try { peerStream?.removeTrack(t); } catch {}
-          }
-        });
-        if (!peerStream.getTracks().some((t) => t.id === track.id)) {
-          peerStream.addTrack(track);
-        }
-
-        // Instância dedicada e renovada para sinalizar re-renderização precisa aos componentes React
-        const videoStream = new MediaStream([track]);
-        this.remoteStreams.set(peerId, videoStream);
-
-        const syncVideoState = (isSharing: boolean) => {
-          this.updateParticipantState(peerId, {
-            isScreenSharing: isSharing,
-            mediaStream: isSharing ? videoStream : undefined,
-          });
-          useDiscord.setState((prev) => ({
-            voiceState: {
-              ...prev.voiceState,
-              participants: prev.voiceState.participants.map((p) =>
-                p.user.id === peerId
-                  ? {
-                      ...p,
-                      mediaStream: isSharing ? videoStream : undefined,
-                      isScreenSharing: isSharing,
-                    }
-                  : p
-              ),
-            },
-          }));
-        };
-
-        const handleTrackMute = () => {
-          console.log(`[voiceService] Remote video track temporarily muted from peer ${peerId}`);
-        };
-
-        const handleTrackUnmute = () => {
-          console.log(`[voiceService] Remote video track unmuted from peer ${peerId}`);
-          syncVideoState(true);
-        };
-
-        const handleTrackEnded = () => {
-          console.log(`[voiceService] Remote video track ended from peer ${peerId}`);
-          syncVideoState(false);
-        };
-
-        track.addEventListener('mute', handleTrackMute);
-        track.addEventListener('unmute', handleTrackUnmute);
-        track.addEventListener('ended', handleTrackEnded);
-        track.onmute = handleTrackMute;
-        track.onunmute = handleTrackUnmute;
-        track.onended = handleTrackEnded;
-
-        // Sempre sincroniza imediatamente a chegada da faixa de vídeo
-        syncVideoState(true);
+        this.syncRemoteVideoTrack(peerId, track);
       }
 
       if (track.kind === 'audio') {
@@ -791,11 +741,10 @@ class VoiceService {
           mediaStream: undefined,
         });
       } else if (payload.state.isScreenSharing === true) {
-        const stream = this.remoteStreams.get(payload.senderId);
-        const liveTrack = stream?.getVideoTracks().find((t) => t.readyState === 'live');
+        const stream = this.getRemoteStream(payload.senderId);
         this.updateParticipantState(payload.senderId, {
           ...payload.state,
-          mediaStream: liveTrack ? stream : undefined,
+          mediaStream: stream,
         });
       } else {
         this.updateParticipantState(payload.senderId, payload.state);
@@ -832,6 +781,14 @@ class VoiceService {
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
         await this.drainPendingCandidates(payload.senderId, pc);
 
+        // Extrai e sincroniza faixa de vídeo recebida na oferta
+        const videoTransceiver = typeof pc.getTransceivers === 'function'
+          ? pc.getTransceivers().find((t) => t.receiver.track && t.receiver.track.kind === 'video')
+          : null;
+        if (videoTransceiver?.receiver?.track) {
+          this.syncRemoteVideoTrack(payload.senderId, videoTransceiver.receiver.track);
+        }
+
         const rawAnswer = await pc.createAnswer();
         const tunedAnswer = {
           type: rawAnswer.type,
@@ -857,6 +814,14 @@ class VoiceService {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           await this.drainPendingCandidates(payload.senderId, pc);
           this.configureAudioSenders(pc);
+
+          // Extrai e sincroniza faixa de vídeo recebida na resposta
+          const videoTransceiver = typeof pc.getTransceivers === 'function'
+            ? pc.getTransceivers().find((t) => t.receiver.track && t.receiver.track.kind === 'video')
+            : null;
+          if (videoTransceiver?.receiver?.track) {
+            this.syncRemoteVideoTrack(payload.senderId, videoTransceiver.receiver.track);
+          }
         } else {
           console.warn(`[voiceService] Answer received in non-offer state: ${pc.signalingState}`);
         }
@@ -1215,10 +1180,73 @@ class VoiceService {
   }
 
   /**
+   * Sincroniza e associa com segurança uma faixa de vídeo remota ao participante correto
+   */
+  public syncRemoteVideoTrack(peerId: string, track: MediaStreamTrack): void {
+    if (!track || track.kind !== 'video') return;
+    track.enabled = true;
+
+    console.log(`[voiceService Diagnostic] syncRemoteVideoTrack: peerId=${peerId} trackId=${track.id} readyState=${track.readyState} muted=${track.muted}`);
+
+    let videoStream = this.remoteStreams.get(peerId);
+    if (!videoStream || !videoStream.getTracks().some((t) => t.id === track.id)) {
+      videoStream = new MediaStream([track]);
+      this.remoteStreams.set(peerId, videoStream);
+    }
+
+    const onTrackEnded = () => {
+      console.log(`[voiceService Diagnostic] Remote video track ended from peer ${peerId}`);
+      this.updateParticipantState(peerId, {
+        isScreenSharing: false,
+        mediaStream: undefined,
+      });
+    };
+
+    const onTrackUnmute = () => {
+      console.log(`[voiceService Diagnostic] Remote video track unmuted from peer ${peerId}`);
+      const freshStream = new MediaStream([track]);
+      this.remoteStreams.set(peerId, freshStream);
+      this.updateParticipantState(peerId, {
+        isScreenSharing: true,
+        mediaStream: freshStream,
+      });
+    };
+
+    track.removeEventListener('ended', onTrackEnded);
+    track.removeEventListener('unmute', onTrackUnmute);
+    track.addEventListener('ended', onTrackEnded);
+    track.addEventListener('unmute', onTrackUnmute);
+    track.onended = onTrackEnded;
+    track.onunmute = onTrackUnmute;
+
+    // Atualiza imediatamente o participante no estado de voz
+    this.updateParticipantState(peerId, {
+      isScreenSharing: true,
+      mediaStream: videoStream,
+    });
+  }
+
+  /**
    * Get active remote media stream for video/screen sharing
    */
   getRemoteStream(peerId: string): MediaStream | undefined {
-    return this.remoteStreams.get(peerId);
+    let stream = this.remoteStreams.get(peerId);
+    const hasLiveTrack = stream?.getVideoTracks().some((t) => t.readyState === 'live');
+
+    if (!stream || !hasLiveTrack) {
+      const pc = this.peerConnections.get(peerId);
+      if (pc) {
+        const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+        const videoTransceiver = transceivers.find(
+          (t) => t.receiver.track && t.receiver.track.kind === 'video' && t.receiver.track.readyState === 'live'
+        );
+        if (videoTransceiver?.receiver?.track) {
+          stream = new MediaStream([videoTransceiver.receiver.track]);
+          this.remoteStreams.set(peerId, stream);
+        }
+      }
+    }
+    return stream;
   }
 }
 

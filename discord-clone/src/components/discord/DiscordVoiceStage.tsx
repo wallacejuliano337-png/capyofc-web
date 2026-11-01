@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useDiscord, currentUser } from '../../store/discordStore';
 import { useVoiceStreamStore } from '../../store/voiceStreamStore';
 import { useTheme } from '../../store/themeStore';
+import { voiceService } from '../../services/voiceService';
 import { DiscordUserContextMenu } from './DiscordUserContextMenu';
 import { getAvatarUrl } from '../../utils/avatar';
 import { getAssetUrl } from '../../utils/assets';
@@ -154,17 +155,18 @@ export const DiscordVoiceStage: React.FC = () => {
   // Transmissões remotas (recebidas via WebRTC dos outros participantes)
   participants.forEach((p) => {
     if (p.user.id === currentUser.id || p.user.name === currentUser.name) return;
+    const remoteStream = p.mediaStream || voiceService.getRemoteStream(p.user.id);
     const hasLiveVideo = Boolean(
-      p.mediaStream &&
-      p.mediaStream.getVideoTracks().some((t) => t.readyState === 'live')
+      remoteStream &&
+      remoteStream.getVideoTracks().some((t) => t.readyState === 'live')
     );
-    if ((p.isScreenSharing || hasLiveVideo) && p.mediaStream && hasLiveVideo) {
+    if ((p.isScreenSharing || hasLiveVideo) && remoteStream && hasLiveVideo) {
       if (!activeScreenShares.some((s) => s.id === p.user.id)) {
         activeScreenShares.push({
           id: p.user.id,
           user: p.user,
           isLocal: false,
-          stream: p.mediaStream,
+          stream: remoteStream,
           title: `Tela de ${p.user.displayName || p.user.name}`,
         });
       }
@@ -248,6 +250,35 @@ export const DiscordVoiceStage: React.FC = () => {
       videoEl.srcObject = null;
     }
   }, [activeStream, viewMode, currentSelectedShare]);
+
+  // Log de diagnóstico detalhado para monitoramento de transmissões locais e remotas
+  useEffect(() => {
+    console.log('[DiscordVoiceStage Diagnostic]', {
+      currentUser: currentUser.name,
+      currentUserId: currentUser.id,
+      focusedParticipantId,
+      currentSelectedShare: currentSelectedShare
+        ? { id: currentSelectedShare.id, title: currentSelectedShare.title, isLocal: currentSelectedShare.isLocal }
+        : null,
+      activeScreenShares: activeScreenShares.map((s) => ({
+        id: s.id,
+        title: s.title,
+        isLocal: s.isLocal,
+        trackCount: s.stream.getVideoTracks().length,
+        tracks: s.stream.getVideoTracks().map((t) => ({ id: t.id, readyState: t.readyState, muted: t.muted })),
+      })),
+      participants: participants.map((p) => ({
+        id: p.user.id,
+        name: p.user.displayName || p.user.name,
+        isScreenSharing: p.isScreenSharing,
+        hasMediaStream: Boolean(p.mediaStream),
+        videoTrackCount: p.mediaStream?.getVideoTracks().length || 0,
+      })),
+      videoElConnectedStreamId: screenVideoRef.current?.srcObject
+        ? (screenVideoRef.current.srcObject as MediaStream).id
+        : null,
+    });
+  }, [activeScreenShares, focusedParticipantId, currentSelectedShare, participants]);
 
   const handleToggleScreenShare = () => {
     if (screenStream) {
