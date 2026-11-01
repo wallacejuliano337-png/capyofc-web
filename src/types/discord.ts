@@ -441,12 +441,24 @@ export interface FriendRequest {
   timestamp: string;
 }
 
+export type ScreenShareStatus = 'inactive' | 'starting' | 'active' | 'stopping';
+
+export interface ScreenShareSession {
+  sessionId: string;
+  ownerId: string;
+  status: ScreenShareStatus;
+  startedAt: number;
+  endedAt?: number;
+  title?: string;
+}
+
 export interface VoiceParticipant {
   user: User;
   isMuted: boolean;
   isDeafened: boolean;
   isSpeaking: boolean;
   isScreenSharing: boolean;
+  shareSession?: ScreenShareSession | null;
   isVideoOn: boolean;
   streamUrl?: string;
   mediaStream?: MediaStream;

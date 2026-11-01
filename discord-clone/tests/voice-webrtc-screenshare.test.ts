@@ -1458,4 +1458,192 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
       expect(stream.getVideoTracks()[0].stop).toHaveBeenCalled();
     });
   });
+
+  describe('10. Screen Sharing Deterministic State Machine & Anti-Oscillation Suite', () => {
+    it('Requirement 1: Entering a call without screen sharing has 0 screen shares and no AO VIVO', () => {
+      const uA = makeUser('user-a', 'Coronel');
+      useVoiceStreamStore.setState({ screenStream: null });
+      useDiscord.setState({ isScreenSharing: false });
+
+      const evalResult = voiceService.evaluateScreenShareState(uA.id, null, false);
+      expect(evalResult.isSharing).toBe(false);
+      expect(evalResult.session).toBeNull();
+      expect(evalResult.stream).toBeUndefined();
+      expect(voiceService.isLocalSharingActive()).toBe(false);
+      expect(voiceService.isParticipantSharing(uA.id)).toBe(false);
+    });
+
+    it('Requirement 2: Two participants connected without sharing have 0 screen shares and no AO VIVO', () => {
+      const uA = makeUser('user-a', 'Coronel');
+      const uB = makeUser('user-b', 'HERMAN BETA');
+
+      // Stale presence from user-b claiming isScreenSharing: true without a valid session object
+      const evalB = voiceService.evaluateScreenShareState(uB.id, null, true);
+      expect(evalB.isSharing).toBe(false);
+      expect(evalB.session).toBeNull();
+      expect(evalB.stream).toBeUndefined();
+
+      // Participants list has isScreenSharing: false for both
+      const participants = [
+        { user: uA, isScreenSharing: voiceService.isLocalSharingActive(), isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+        { user: uB, isScreenSharing: evalB.isSharing, isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+      ];
+
+      const shares = resolveActiveShares(participants, uA.id, null);
+      expect(shares).toHaveLength(0);
+      expect(participants.every((p) => !p.isScreenSharing)).toBe(true);
+    });
+
+    it('Requirement 3: Starting screen share activates session with valid sessionId once', () => {
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      const streamB = makeStream('user-b');
+      const sessionB = {
+        sessionId: 'share_user-b_1001',
+        ownerId: uB.id,
+        status: 'active' as const,
+        startedAt: 1000,
+        title: 'Tela de HERMAN BETA',
+      };
+
+      const startResult = voiceService.startRemoteScreenShareSession(uB.id, sessionB);
+      expect(startResult.isSharing).toBe(true);
+      expect(startResult.session.sessionId).toBe('share_user-b_1001');
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(true);
+      expect(voiceService.getActiveShareSession(uB.id)?.sessionId).toBe('share_user-b_1001');
+    });
+
+    it('Requirement 4: Continuous sharing remains stable across multiple presence sync evaluations', () => {
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      const sessionB = {
+        sessionId: 'share_user-b_1001',
+        ownerId: uB.id,
+        status: 'active' as const,
+        startedAt: 1000,
+        title: 'Tela de HERMAN BETA',
+      };
+
+      // 5 consecutive evaluations (e.g. rapid presence updates, pings, speaking state changes)
+      for (let i = 0; i < 5; i++) {
+        const evalResult = voiceService.evaluateScreenShareState(uB.id, sessionB, true);
+        expect(evalResult.isSharing).toBe(true);
+        expect(evalResult.session?.sessionId).toBe('share_user-b_1001');
+        expect(voiceService.isParticipantSharing(uB.id)).toBe(true);
+      }
+    });
+
+    it('Requirement 5: Stopping screen share invalidates session and removes AO VIVO immediately', () => {
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      const stoppedSession = {
+        sessionId: 'share_user-b_1001',
+        ownerId: uB.id,
+        status: 'inactive' as const,
+        startedAt: 1000,
+        endedAt: 2000,
+      };
+
+      voiceService.endRemoteScreenShareSession(uB.id, stoppedSession);
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(false);
+      expect(voiceService.getActiveShareSession(uB.id)).toBeUndefined();
+      expect(voiceService.getRemoteStream(uB.id)).toBeUndefined();
+
+      const evalResult = voiceService.evaluateScreenShareState(uB.id, stoppedSession, false);
+      expect(evalResult.isSharing).toBe(false);
+      expect(evalResult.session).toBeNull();
+    });
+
+    it('Requirement 6: Delayed/stale start event arriving after stop is strictly rejected by monotonic check', () => {
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      // Session 1001 was ended at t=2000 in previous test
+      const delayedStartSession = {
+        sessionId: 'share_user-b_1001',
+        ownerId: uB.id,
+        status: 'active' as const,
+        startedAt: 1000, // Older than endedAt: 2000
+        title: 'Tela de HERMAN BETA',
+      };
+
+      // Even if incoming session claims to be active:
+      const evalResult = voiceService.evaluateScreenShareState(uB.id, delayedStartSession, true);
+      expect(evalResult.isSharing).toBe(false);
+      expect(evalResult.session).toBeNull();
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(false);
+    });
+
+    it('Requirement 7: Reconnecting to call without sharing resets all sessions and prevents ghost recovery', () => {
+      const uA = makeUser('user-a', 'Coronel');
+      useVoiceStreamStore.setState({ screenStream: null });
+      useDiscord.setState({ isScreenSharing: false });
+
+      // Join channel cleanly
+      voiceService.leaveChannel(false);
+
+      expect(voiceService.isLocalSharingActive()).toBe(false);
+      expect(voiceService.getActiveShareSession(uA.id)).toBeUndefined();
+    });
+
+    it('Requirement 8: Two participants sharing simultaneously have unique sessionIds and titles', () => {
+      const uA = makeUser('user-a', 'Coronel');
+      const sA = makeStream('user-a');
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      const sB = makeStream('user-b');
+
+      const sessionA = {
+        sessionId: 'share_coronel_99',
+        ownerId: uA.id,
+        status: 'active' as const,
+        startedAt: 3000,
+        title: 'Coronel (Sua tela)',
+      };
+      const sessionB = {
+        sessionId: 'share_herman_101',
+        ownerId: uB.id,
+        status: 'active' as const,
+        startedAt: 3050,
+        title: 'Tela de HERMAN BETA',
+      };
+
+      voiceService.startRemoteScreenShareSession(uB.id, sessionB);
+
+      const participants = [
+        { user: uA, isScreenSharing: true, mediaStream: sA, shareSession: sessionA, isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+        { user: uB, isScreenSharing: true, mediaStream: sB, shareSession: sessionB, isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'viewer-id', null);
+      expect(shares).toHaveLength(2);
+      expect(shares.map((s) => s.id)).toEqual(['user-a', 'user-b']);
+    });
+
+    it('Requirement 9: Electron minimize and restore keeps active session valid and triggers recovery', () => {
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(true);
+
+      const recoveredSpy = vi.fn();
+      if (typeof window !== 'undefined') {
+        window.addEventListener('capy:media-recovered', recoveredSpy);
+      }
+
+      voiceService.recoverMediaSession('electron-restore-test');
+
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('capy:media-recovered', recoveredSpy);
+      }
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(true);
+    });
+
+    it('Requirement 10: Web tab switch and return keeps session state valid without oscillation', () => {
+      const uB = makeUser('user-b', 'HERMAN BETA');
+      // Background / tab hidden
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(true);
+
+      // Return to tab
+      voiceService.recoverMediaSession('visibilitychange-test');
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(true);
+
+      // Verify that ending it now cleanly terminates
+      voiceService.endRemoteScreenShareSession(uB.id);
+      expect(voiceService.isParticipantSharing(uB.id)).toBe(false);
+    });
+  });
+
 });

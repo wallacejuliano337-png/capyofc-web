@@ -2,7 +2,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useDiscord } from '../store/discordStore';
 import { useVoiceStreamStore } from '../store/voiceStreamStore';
-import { VoiceParticipant, User } from '../types/discord';
+import { VoiceParticipant, User, ScreenShareSession, ScreenShareStatus } from '../types/discord';
 import { playNotificationSound } from './notification-sounds';
 import { presenceService } from './presenceService';
 
@@ -83,6 +83,8 @@ class VoiceService {
   private unsubscribeDiscordStore: (() => void) | null = null;
   private lastSpeakingState = false;
   private hasBoundInteractionListener = false;
+  private activeSessions = new Map<string, ScreenShareSession>();
+  private endedSessions = new Map<string, { lastEndedSessionId: string; endedAt: number }>();
 
   private rtcConfig: RTCConfiguration = {
     iceServers: [
@@ -172,6 +174,143 @@ class VoiceService {
   /**
    * Recuperação resiliente de mídia e transmissões ao restaurar a janela ou retornar à página
    */
+
+  /**
+   * Avalia de forma determinística e idempotente o estado de compartilhamento de tela de um participante.
+   * Ignora sessões já finalizadas, timestamps defasados e presenças antigas do Supabase.
+   */
+  public evaluateScreenShareState(
+    peerId: string,
+    incomingSession?: ScreenShareSession | null,
+    incomingIsSharingFlag?: boolean
+  ): { isSharing: boolean; session: ScreenShareSession | null; stream: MediaStream | undefined } {
+    const curUser = useDiscord.getState().currentUser;
+    const isLocal = peerId === curUser.id;
+
+    // 1. Participante local: fonte de verdade é o stream de tela ativo local e sessão local
+    if (isLocal) {
+      const screenStream = useVoiceStreamStore.getState().screenStream;
+      const hasLiveTrack = Boolean(
+        screenStream && screenStream.getVideoTracks().some((t) => t.readyState === 'live')
+      );
+      const localSession = this.activeSessions.get(peerId);
+      if (hasLiveTrack && localSession && (localSession.status === 'active' || localSession.status === 'starting')) {
+        return { isSharing: true, session: localSession, stream: screenStream ?? undefined };
+      }
+      return { isSharing: false, session: null, stream: undefined };
+    }
+
+    // 2. Participante remoto
+    const lastEnded = this.endedSessions.get(peerId);
+
+    // 2a. Se recebeu encerramento explícito ou session nula com flag false
+    if (
+      incomingSession?.status === 'inactive' ||
+      incomingSession?.status === 'stopping' ||
+      (incomingSession === null && incomingIsSharingFlag === false)
+    ) {
+      if (incomingSession?.sessionId) {
+        this.endedSessions.set(peerId, {
+          lastEndedSessionId: incomingSession.sessionId,
+          endedAt: incomingSession.endedAt || Date.now(),
+        });
+      }
+      this.activeSessions.delete(peerId);
+      this.remoteStreams.delete(peerId);
+      return { isSharing: false, session: null, stream: undefined };
+    }
+
+    // 2b. Rejeição de eventos atrasados de sessões já encerradas
+    if (incomingSession && lastEnded) {
+      if (incomingSession.sessionId === lastEnded.lastEndedSessionId) {
+        return { isSharing: false, session: null, stream: undefined };
+      }
+      if (incomingSession.startedAt && incomingSession.startedAt <= lastEnded.endedAt) {
+        return { isSharing: false, session: null, stream: undefined };
+      }
+    }
+
+    // 2c. Sessão ativa recebida
+    if (incomingSession && (incomingSession.status === 'active' || incomingSession.status === 'starting')) {
+      this.activeSessions.set(peerId, incomingSession);
+      const remoteStream = this.getRemoteStream(peerId);
+      return { isSharing: true, session: incomingSession, stream: remoteStream };
+    }
+
+    // 2d. Se não veio objeto de sessão, verifica se já existe sessão ativa registrada em memória
+    const existingSession = this.activeSessions.get(peerId);
+    if (existingSession && (existingSession.status === 'active' || existingSession.status === 'starting')) {
+      const remoteStream = this.getRemoteStream(peerId);
+      return { isSharing: true, session: existingSession, stream: remoteStream };
+    }
+
+    // 2e. Se apenas a flag incomingIsSharingFlag veio true sem sessão:
+    // ATENÇÃO: Presença antiga do Supabase com isScreenSharing: true SEM sessão NÃO pode ligar AO VIVO!
+    return { isSharing: false, session: null, stream: undefined };
+  }
+
+  /**
+   * Registra o início de uma transmissão remota
+   */
+  public startRemoteScreenShareSession(peerId: string, session: ScreenShareSession): { isSharing: boolean; session: ScreenShareSession; stream: MediaStream | undefined } {
+    const lastEnded = this.endedSessions.get(peerId);
+    if (lastEnded) {
+      if (session.sessionId === lastEnded.lastEndedSessionId || (session.startedAt && session.startedAt <= lastEnded.endedAt)) {
+        return { isSharing: false, session: { ...session, status: 'inactive' }, stream: undefined };
+      }
+    }
+
+    const activeSession: ScreenShareSession = {
+      ...session,
+      status: 'active',
+    };
+    this.activeSessions.set(peerId, activeSession);
+    const stream = this.getRemoteStream(peerId);
+    return { isSharing: true, session: activeSession, stream };
+  }
+
+  /**
+   * Registra o encerramento definitivo de uma transmissão remota
+   */
+  public endRemoteScreenShareSession(peerId: string, session?: ScreenShareSession): void {
+    const activeSession = this.activeSessions.get(peerId) || session;
+    const endedAt = Date.now();
+    if (activeSession) {
+      this.endedSessions.set(peerId, {
+        lastEndedSessionId: activeSession.sessionId,
+        endedAt,
+      });
+    }
+    this.activeSessions.delete(peerId);
+    this.remoteStreams.delete(peerId);
+  }
+
+  /**
+   * Retorna a sessão ativa de um participante
+   */
+  public getActiveShareSession(userId: string): ScreenShareSession | undefined {
+    return this.activeSessions.get(userId);
+  }
+
+  /**
+   * Verifica se um participante tem sessão ativa e válida de compartilhamento
+   */
+  public isParticipantSharing(userId: string): boolean {
+    const session = this.activeSessions.get(userId);
+    return Boolean(session && (session.status === 'active' || session.status === 'starting'));
+  }
+
+  /**
+   * Retorna se o usuário local está transmitindo ativamente
+   */
+  public isLocalSharingActive(): boolean {
+    const curUser = useDiscord.getState().currentUser;
+    const session = this.activeSessions.get(curUser.id);
+    const screenStream = useVoiceStreamStore.getState().screenStream;
+    const hasLiveTrack = Boolean(screenStream && screenStream.getVideoTracks().some(t => t.readyState === 'live'));
+    return Boolean(hasLiveTrack && session && session.status === 'active');
+  }
+
   public recoverMediaSession(reason = 'manual'): void {
     if (!this.currentChannelId) return;
 
@@ -194,17 +333,20 @@ class VoiceService {
         } catch {}
       }
 
-      // Reassociar faixas de vídeo ativas nos transceivers remotos
-      if (typeof pc.getTransceivers === 'function') {
-        const transceivers = pc.getTransceivers();
-        const videoTransceiver = transceivers.find(
-          (t) => t.receiver?.track && t.receiver.track.kind === 'video'
-        );
-        if (videoTransceiver?.receiver?.track) {
-          const track = videoTransceiver.receiver.track;
-          if (track.readyState === 'live') {
-            track.enabled = true;
-            this.syncRemoteVideoTrack(peerId, track);
+      // Reassociar faixas de vídeo ativas nos transceivers remotos SOMENTE se houver sessão ativa
+      const peerSession = this.activeSessions.get(peerId);
+      if (peerSession && (peerSession.status === 'active' || peerSession.status === 'starting')) {
+        if (typeof pc.getTransceivers === 'function') {
+          const transceivers = pc.getTransceivers();
+          const videoTransceiver = transceivers.find(
+            (t) => t.receiver?.track && t.receiver.track.kind === 'video'
+          );
+          if (videoTransceiver?.receiver?.track) {
+            const track = videoTransceiver.receiver.track;
+            if (track.readyState === 'live') {
+              track.enabled = true;
+              this.syncRemoteVideoTrack(peerId, track);
+            }
           }
         }
       }
@@ -551,7 +693,7 @@ class VoiceService {
   /**
    * Broadcast state changes (speaking, mute, video, screenshare) to all peers
    */
-  broadcastState(state: { isSpeaking?: boolean; isMuted?: boolean; isDeafened?: boolean; isVideoOn?: boolean; isScreenSharing?: boolean }): void {
+  broadcastState(state: { isSpeaking?: boolean; isMuted?: boolean; isDeafened?: boolean; isVideoOn?: boolean; isScreenSharing?: boolean; shareSession?: ScreenShareSession | null }): void {
     if (!this.realtimeChannel) return;
 
     const curUser = useDiscord.getState().currentUser;
@@ -1025,6 +1167,7 @@ class VoiceService {
    * Instantly clean up leaving participant
    */
   private handleParticipantLeave(userId: string): void {
+    this.endRemoteScreenShareSession(userId);
     const pc = this.peerConnections.get(userId);
     if (pc) {
       try {

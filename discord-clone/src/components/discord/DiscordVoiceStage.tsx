@@ -146,39 +146,34 @@ export const DiscordVoiceStage: React.FC = () => {
   const participants: VoiceParticipant[] = rawParticipants.map((p) => {
     const isLocal = p.user.id === currentUser.id || p.user.name === currentUser.name;
     if (isLocal) {
-      const isLocalSharing = Boolean(
-        screenStream && screenStream.getVideoTracks().some((t) => t.readyState === 'live')
-      );
+      const isLocalSharing = voiceService.isLocalSharingActive();
       return {
         ...p,
         isMuted: isMicMuted,
         isVideoOn: isVideoOn,
         isSpeaking: isSpeaking,
         isScreenSharing: isLocalSharing,
+        mediaStream: isLocalSharing && screenStream ? screenStream : undefined,
       };
     }
 
-    const remoteStream = p.mediaStream || voiceService.getRemoteStream(p.user.id);
-    const hasLiveVideo = Boolean(
-      remoteStream &&
-      remoteStream.getVideoTracks().some((t) => t.readyState === 'live')
-    );
-    const peerEstablished = voiceService.hasEstablishedPeer(p.user.id);
-    // Se a conexão WebRTC já foi estabelecida, só pode ser considerado AO VIVO se realmente houver vídeo ativo
-    const isVerifiedSharing = hasLiveVideo || (!peerEstablished && p.isScreenSharing);
+    const isRemoteSharing = voiceService.isParticipantSharing(p.user.id);
+    const remoteStream = isRemoteSharing
+      ? (voiceService.getRemoteStream(p.user.id) || p.mediaStream)
+      : undefined;
 
     return {
       ...p,
-      isScreenSharing: isVerifiedSharing,
-      mediaStream: hasLiveVideo ? remoteStream : (isVerifiedSharing ? p.mediaStream : undefined),
+      isScreenSharing: isRemoteSharing,
+      mediaStream: remoteStream,
     };
   });
 
   // 1. Compilação de todas as transmissões de tela ativas (locais e remotas)
   const activeScreenShares: ActiveScreenShare[] = [];
 
-  // Transmissão local (se o usuário estiver compartilhando sua tela)
-  if (screenStream) {
+  // Transmissão local (se o usuário estiver compartilhando sua tela de fato)
+  if (voiceService.isLocalSharingActive() && screenStream) {
     const hasLiveVideo = screenStream
       .getVideoTracks()
       .some((t) => t.readyState === 'live');
@@ -193,23 +188,26 @@ export const DiscordVoiceStage: React.FC = () => {
     }
   }
 
-  // Transmissões remotas (recebidas via WebRTC dos outros participantes)
+  // Transmissões remotas (recebidas via WebRTC de participantes com sessão ativa)
   participants.forEach((p) => {
     if (p.user.id === currentUser.id || p.user.name === currentUser.name) return;
-    const remoteStream = p.mediaStream || voiceService.getRemoteStream(p.user.id);
-    const hasLiveVideo = Boolean(
-      remoteStream &&
-      remoteStream.getVideoTracks().some((t) => t.readyState === 'live')
-    );
-    if ((p.isScreenSharing || hasLiveVideo) && remoteStream && hasLiveVideo) {
-      if (!activeScreenShares.some((s) => s.id === p.user.id)) {
-        activeScreenShares.push({
-          id: p.user.id,
-          user: p.user,
-          isLocal: false,
-          stream: remoteStream,
-          title: `Tela de ${p.user.displayName || p.user.name}`,
-        });
+    if (p.isScreenSharing) {
+      const remoteStream = p.mediaStream || voiceService.getRemoteStream(p.user.id);
+      const hasLiveVideo = Boolean(
+        remoteStream &&
+        remoteStream.getVideoTracks().some((t) => t.readyState === 'live')
+      );
+      if (remoteStream && hasLiveVideo) {
+        if (!activeScreenShares.some((s) => s.id === p.user.id)) {
+          const session = voiceService.getActiveShareSession(p.user.id);
+          activeScreenShares.push({
+            id: p.user.id,
+            user: p.user,
+            isLocal: false,
+            stream: remoteStream,
+            title: session?.title || `Tela de ${p.user.displayName || p.user.name}`,
+          });
+        }
       }
     }
   });
