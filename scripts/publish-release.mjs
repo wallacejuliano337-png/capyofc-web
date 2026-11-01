@@ -81,11 +81,11 @@ for (const f of filesToUpload) {
 console.log(`\n2. Criando release ${tag} no GitHub...`);
 const releaseNotes = `## O que há de novo no Capy.ofc v${version}
 
-- **Correção Crítica para Visualização Remota de Compartilhamento de Tela**: correção definitiva na recepção e renderização da tela compartilhada por outro participante remoto na chamada de voz.
-- **Sincronização Ativa de Transceivers WebRTC**: vinculação e escuta imediata de faixas de vídeo recebidas (\`receiver.track\`) nas etapas de oferta (\`offer\`) e resposta (\`answer\`), garantindo detecção e exibição da transmissão mesmo quando o evento \`ontrack\` não é redisparado por reutilização de transceivers WebRTC.
-- **Proteção do Estado de Transmissão Remota**: correção do tratamento de sinalização e presença para evitar que a stream remota seja definida como indefinida prematuramente antes da conclusão da troca de SDP.
-- **Renderização Resiliente no Palco e Miniaturas**: palco central e seletores agora verificam tanto o estado dos participantes quanto as streams remotas ativas do serviço de voz (\`voiceService.getRemoteStream\`).
-- **Suporte Total a Compartilhamento Simultâneo**: seleção e alternância contínua entre telas quando dois ou mais participantes transmitem ao mesmo tempo.
+- **Correção Definitiva de Estado AO VIVO**: reconciliação do indicador AO VIVO com a presença ativa e faixas WebRTC reais, eliminando falso indicador ao entrar em chamadas.
+- **Recuperação Automática de Mídia ao Minimizar ou Alternar Abas**: ouvintes para \`visibilitychange\`, \`pageshow\`, \`focus\` e eventos de janela do Electron que auditam transceivers WebRTC e retomam a reprodução do vídeo instantaneamente sem intervenção do apresentador.
+- **Desativação de Throttling em Segundo Plano no Electron**: \`backgroundThrottling: false\` em webPreferences para evitar suspensão de decodificadores e renderizadores de vídeo WebRTC quando a janela é minimizada para a barra de tarefas.
+- **Sinalização de Sincronização Sob Demanda (\`sync_request\`)**: novos entrantes e clientes retornando de segundo plano recebem imediatamente o estado em tempo real dos participantes, sem dependência de estados obsoletos do Supabase Realtime.
+- **Término Limpo de Transmissão e Limpeza de Presença**: garantia de que ao parar compartilhamento ou sair de chamadas, o estado AO VIVO seja desativado e o canal de presença do Supabase seja imediatamente atualizado.
 `;
 
 const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {

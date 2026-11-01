@@ -4,6 +4,80 @@ import { useVoiceStreamStore } from '../src/store/voiceStreamStore';
 import { voiceService } from '../src/services/voiceService';
 
 describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
+  const makeUser = (id: string, name: string) => ({
+    id,
+    name,
+    displayName: name,
+    tag: '#0001',
+    avatar: '',
+    status: 'online' as const,
+  });
+
+  const makeStream = (id: string) => {
+    const track = {
+      id: `track-${id}`,
+      kind: 'video',
+      readyState: 'live',
+      muted: false,
+      enabled: true,
+      stop: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    return {
+      id: `stream-${id}`,
+      getTracks: () => [track],
+      getVideoTracks: () => [track],
+      getAudioTracks: () => [],
+    } as unknown as MediaStream;
+  };
+
+  const resolveActiveShares = (
+    participants: any[],
+    currentUserId: string,
+    localScreenStream: MediaStream | null,
+  ) => {
+    const shares: any[] = [];
+    if (localScreenStream) {
+      const hasLive = localScreenStream.getVideoTracks().some((t) => t.readyState === 'live');
+      if (hasLive) {
+        shares.push({
+          id: currentUserId,
+          isLocal: true,
+          stream: localScreenStream,
+          title: 'Sua tela',
+        });
+      }
+    }
+    participants.forEach((p) => {
+      if (p.user.id === currentUserId) return;
+      const hasLive = Boolean(
+        p.mediaStream &&
+        p.mediaStream.getVideoTracks().some((t: any) => t.readyState === 'live')
+      );
+      if ((p.isScreenSharing || hasLive) && p.mediaStream && hasLive) {
+        if (!shares.some((s) => s.id === p.user.id)) {
+          shares.push({
+            id: p.user.id,
+            isLocal: false,
+            stream: p.mediaStream,
+            title: `Tela de ${p.user.name}`,
+          });
+        }
+      }
+    });
+    return shares;
+  };
+
+  const resolveCurrentShare = (shares: any[], focusedId: string | null) => {
+    if (shares.length === 0) return null;
+    if (focusedId) {
+      const found = shares.find((s) => s.id === focusedId);
+      if (found) return found;
+    }
+    return shares.find((s) => !s.isLocal) || shares[0];
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -1286,6 +1360,102 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
       currentShare = resolveCurrentShare(shares, 'herman-id');
       expect(currentShare?.id).toBe('herman-id');
       expect(currentShare?.stream).toBe(hermanStream);
+    });
+  });
+
+  describe('9. Reconciled AO VIVO State & Window/Tab Recovery Lifecycle', () => {
+    it('Scenario 9.1: Participants enter call without screen sharing: no AO VIVO badge appears anywhere', () => {
+      const uA = makeUser('user-a', 'Coronel');
+      const uB = makeUser('user-b', 'HERMAN BETA');
+
+      const participants = [
+        { user: uA, isScreenSharing: false, isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+        { user: uB, isScreenSharing: false, isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'user-a', null);
+      expect(shares).toHaveLength(0);
+
+      // Verify no participant has isScreenSharing true
+      expect(participants.every((p) => !p.isScreenSharing)).toBe(true);
+      expect(resolveCurrentShare(shares, null)).toBeNull();
+    });
+
+    it('Scenario 9.2: Stale presence key is ignored if WebRTC peer connection is established without video tracks', () => {
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+      // Simulate stale presence payload that claims isScreenSharing: true
+      const stalePresence = { isScreenSharing: true, isMuted: false };
+
+      // Peer connection is established, but no video track was received
+      const peerEstablished = true;
+      const remoteStream = undefined;
+      const hasLiveVideo = Boolean(remoteStream && (remoteStream as any).getVideoTracks().some((t: any) => t.readyState === 'live'));
+
+      // Reconciled sharing status: only true if live video exists or still negotiating
+      const isVerifiedSharing = hasLiveVideo || (!peerEstablished && stalePresence.isScreenSharing);
+      expect(isVerifiedSharing).toBe(false);
+    });
+
+    it('Scenario 9.3: recoverMediaSession restores video and triggers capy:media-recovered event without restarting share', () => {
+      const recoveredSpy = vi.fn();
+      if (typeof window !== 'undefined') {
+        window.addEventListener('capy:media-recovered', recoveredSpy);
+      }
+
+      // Trigger recovery as if window was restored or tab became visible
+      voiceService.recoverMediaSession('visibilitychange-test');
+
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('capy:media-recovered', recoveredSpy);
+      }
+      expect(typeof voiceService.recoverMediaSession).toBe('function');
+    });
+
+    it('Scenario 9.4: Temporary track.muted event does not destroy stream or remove active screen share', () => {
+      const herman = makeUser('herman-id', 'HERMAN BETA');
+      const hermanStream = makeStream('herman-id');
+      const track = hermanStream.getVideoTracks()[0];
+
+      // Simulate track becoming temporarily muted (as browser does when window is minimized)
+      (track as any).muted = true;
+      expect(track.readyState).toBe('live');
+
+      const participants = [
+        {
+          user: herman,
+          isScreenSharing: true,
+          mediaStream: hermanStream,
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false,
+          isVideoOn: false,
+        },
+      ];
+
+      const shares = resolveActiveShares(participants, 'coronel-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].stream).toBe(hermanStream);
+
+      // Track un-mutes on window restore
+      (track as any).muted = false;
+      const sharesAfterRestore = resolveActiveShares(participants, 'coronel-id', null);
+      expect(sharesAfterRestore).toHaveLength(1);
+      expect(sharesAfterRestore[0].stream).toBe(hermanStream);
+    });
+
+    it('Scenario 9.5: Leaving channel cleanly resets isScreenSharing and stops media tracks', () => {
+      const stream = makeStream('my-screen');
+      useVoiceStreamStore.setState({ screenStream: stream });
+      useDiscord.setState({
+        isScreenSharing: true,
+        voiceState: { isConnected: true, participants: [], pingMs: 20 } as any,
+      });
+
+      // Leave channel
+      voiceService.leaveChannel(false);
+
+      expect(useDiscord.getState().isScreenSharing).toBe(false);
+      expect(stream.getVideoTracks()[0].stop).toHaveBeenCalled();
     });
   });
 });

@@ -26,6 +26,13 @@ const updaterApi = {
 
 contextBridge.exposeInMainWorld("electronAPI", {
   getScreenSources: () => ipcRenderer.invoke("GET_SCREEN_SOURCES"),
+  onWindowRestored: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("window:restored", handler);
+    return () => {
+      ipcRenderer.removeListener("window:restored", handler);
+    };
+  },
   ...updaterApi,
 });
 
@@ -60,6 +67,13 @@ contextBridge.exposeInMainWorld("arena", {
     ipcRenderer.on("tray:mute-notifications", handler);
     return () => {
       ipcRenderer.removeListener("tray:mute-notifications", handler);
+    };
+  },
+  onWindowRestored: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("window:restored", handler);
+    return () => {
+      ipcRenderer.removeListener("window:restored", handler);
     };
   },
   ...updaterApi,

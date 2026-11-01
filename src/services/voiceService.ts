@@ -9,7 +9,7 @@ import { presenceService } from './presenceService';
 interface VoiceSignalPayload {
   senderId: string;
   targetId?: string;
-  type: 'offer' | 'answer' | 'candidate' | 'state' | 'leave';
+  type: 'offer' | 'answer' | 'candidate' | 'state' | 'leave' | 'sync_request';
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
   state?: {
@@ -108,6 +108,7 @@ class VoiceService {
 
   constructor() {
     this.bindWindowInteraction();
+    this.bindLifecycleListeners();
   }
 
   /**
@@ -123,6 +124,111 @@ class VoiceService {
 
     window.addEventListener('click', onUserInteraction, { passive: true });
     window.addEventListener('keydown', onUserInteraction, { passive: true });
+  }
+
+  /**
+   * Registra ouvintes globais para recuperar vídeo e áudio após minimizar a janela ou alternar abas
+   */
+  private bindLifecycleListeners(): void {
+    if (typeof window === 'undefined') return;
+
+    const handleVisibilityRecovery = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        this.recoverMediaSession('visibilitychange-visible');
+      }
+    };
+
+    const handleWindowFocus = () => {
+      this.recoverMediaSession('window-focus');
+    };
+
+    const handlePageShow = () => {
+      this.recoverMediaSession('pageshow');
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityRecovery);
+    }
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleWindowFocus);
+
+    const electronApi = (window as any).electronAPI || (window as any).arena;
+    if (typeof electronApi?.onWindowRestored === 'function') {
+      electronApi.onWindowRestored(() => {
+        this.recoverMediaSession('electron-window-restored');
+      });
+    }
+  }
+
+  /**
+   * Verifica se o peer connection com um determinado participante já está estabelecido
+   */
+  public hasEstablishedPeer(peerId: string): boolean {
+    const pc = this.peerConnections.get(peerId);
+    if (!pc) return false;
+    return pc.connectionState === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed';
+  }
+
+  /**
+   * Recuperação resiliente de mídia e transmissões ao restaurar a janela ou retornar à página
+   */
+  public recoverMediaSession(reason = 'manual'): void {
+    if (!this.currentChannelId) return;
+
+    console.log(`[voiceService Diagnostic] recoverMediaSession (motivo: ${reason})`);
+
+    const curUser = useDiscord.getState().currentUser;
+
+    // 1. Auditar e recuperar conexões WebRTC e transceivers
+    this.peerConnections.forEach((pc, peerId) => {
+      console.log(`[voiceService Diagnostic] Peer ${peerId} audit ao recuperar (${reason}):`, {
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        signalingState: pc.signalingState,
+      });
+
+      if (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed') {
+        console.warn(`[voiceService] Reiniciando ICE para o peer ${peerId} após restauração de janela...`);
+        try {
+          pc.restartIce();
+        } catch {}
+      }
+
+      // Reassociar faixas de vídeo ativas nos transceivers remotos
+      if (typeof pc.getTransceivers === 'function') {
+        const transceivers = pc.getTransceivers();
+        const videoTransceiver = transceivers.find(
+          (t) => t.receiver?.track && t.receiver.track.kind === 'video'
+        );
+        if (videoTransceiver?.receiver?.track) {
+          const track = videoTransceiver.receiver.track;
+          if (track.readyState === 'live') {
+            track.enabled = true;
+            this.syncRemoteVideoTrack(peerId, track);
+          }
+        }
+      }
+    });
+
+    // 2. Retomar elementos de áudio remoto
+    this.resumeAllAudio();
+
+    // 3. Solicitar sincronização imediata de estado aos outros participantes
+    if (this.realtimeChannel) {
+      void this.realtimeChannel.send({
+        type: 'broadcast',
+        event: 'voice_signal',
+        payload: {
+          senderId: curUser.id,
+          type: 'sync_request',
+        },
+      });
+    }
+
+    // 4. Notificar a UI (React e elementos de vídeo) para retomar reprodução
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('capy:media-recovered', { detail: { reason } }));
+    }
   }
 
   /**
@@ -160,6 +266,12 @@ class VoiceService {
 
     const { currentUser, isMicMuted, isDeafened, isVideoOn } = useDiscord.getState();
     const { isSpeaking, screenStream } = useVoiceStreamStore.getState();
+    const hasLiveScreen = Boolean(
+      screenStream && screenStream.getVideoTracks().some((t) => t.readyState === 'live')
+    );
+    if (!hasLiveScreen) {
+      useDiscord.setState({ isScreenSharing: false });
+    }
 
     // Set initial local state in discordStore
     const localParticipant: VoiceParticipant = {
@@ -168,7 +280,8 @@ class VoiceService {
       isDeafened: isDeafened,
       isSpeaking: isSpeaking,
       isVideoOn: isVideoOn,
-      isScreenSharing: Boolean(screenStream),
+      isScreenSharing: hasLiveScreen,
+      mediaStream: hasLiveScreen && screenStream ? screenStream : undefined,
     };
 
     useDiscord.setState({
@@ -220,7 +333,8 @@ class VoiceService {
         const curDeafened = useDiscord.getState().isDeafened;
         const curVideo = useDiscord.getState().isVideoOn;
         const curSpeaking = useVoiceStreamStore.getState().isSpeaking;
-        const curScreen = Boolean(useVoiceStreamStore.getState().screenStream);
+        const curStream = useVoiceStreamStore.getState().screenStream;
+        const curScreen = Boolean(curStream && curStream.getVideoTracks().some((t) => t.readyState === 'live'));
 
         await channel.track({
           user: curUser,
@@ -232,6 +346,16 @@ class VoiceService {
           joinedAt: Date.now(),
         });
         void presenceService.syncVoicePresence();
+
+        // Solicita sincronização ativa imediata de estado aos outros participantes já na sala
+        void channel.send({
+          type: 'broadcast',
+          event: 'voice_signal',
+          payload: {
+            senderId: curUser.id,
+            type: 'sync_request',
+          },
+        });
       }
     });
 
@@ -344,6 +468,15 @@ class VoiceService {
       this.unsubscribeDiscordStore = null;
     }
 
+    // Para o compartilhamento de tela se ativo e reseta flags locais
+    const activeScreenStream = useVoiceStreamStore.getState().screenStream;
+    if (activeScreenStream) {
+      try {
+        useVoiceStreamStore.getState().stopScreenShare();
+      } catch {}
+    }
+    useDiscord.setState({ isScreenSharing: false });
+
     // Broadcast immediate leave signal to all peers
     const curUser = useDiscord.getState().currentUser;
     if (this.realtimeChannel) {
@@ -449,6 +582,10 @@ class VoiceService {
 
     const participantsMap = new Map<string, VoiceParticipant>();
 
+    const isLocalSharing = Boolean(
+      screenStream && screenStream.getVideoTracks().some((t) => t.readyState === 'live')
+    );
+
     // 1. Always include local user first with real local flags
     participantsMap.set(curUser.id, {
       user: curUser,
@@ -456,7 +593,8 @@ class VoiceService {
       isDeafened: isDeafened,
       isSpeaking: isSpeaking,
       isVideoOn: isVideoOn,
-      isScreenSharing: Boolean(screenStream),
+      isScreenSharing: isLocalSharing,
+      mediaStream: isLocalSharing && screenStream ? screenStream : undefined,
     });
 
     // 2. Parse presence entries for all users in the room
@@ -466,17 +604,29 @@ class VoiceService {
       if (userId === curUser.id) return;
       activeRemoteUserIds.add(userId);
 
-      const latestPresence = (presences as any[])?.[0];
+      const presencesArr: any[] = Array.isArray(presences) ? (presences as any[]) : [];
+      const sortedPresences = [...presencesArr].sort((a: any, b: any) => (b?.joinedAt || 0) - (a?.joinedAt || 0));
+      const latestPresence: any = sortedPresences[0] || (presences as any[])?.[0];
+
       if (latestPresence?.user) {
         const u = latestPresence.user as User;
         const existingParticipant = useDiscord.getState().voiceState.participants.find((p) => p.user.id === u.id);
 
         const remoteStream = this.getRemoteStream(u.id) || existingParticipant?.mediaStream;
-        const isSharing = Boolean(
-          latestPresence.isScreenSharing !== undefined
-            ? latestPresence.isScreenSharing
-            : (existingParticipant?.isScreenSharing ?? false)
+        const hasLiveVideo = Boolean(
+          remoteStream && remoteStream.getVideoTracks().some((t) => t.readyState === 'live')
         );
+
+        // Se o peer já tem conexão WebRTC estabelecida e não possui track de vídeo ao vivo, não é AO VIVO
+        const peerEstablished = this.hasEstablishedPeer(u.id);
+        let isSharing = false;
+        if (hasLiveVideo) {
+          isSharing = true;
+        } else if (!peerEstablished) {
+          isSharing = Boolean(latestPresence.isScreenSharing);
+        } else {
+          isSharing = false;
+        }
 
         participantsMap.set(u.id, {
           user: u,
@@ -730,6 +880,33 @@ class VoiceService {
     // 0. Immediate leave signal from remote peer
     if (payload.type === 'leave') {
       this.handleParticipantLeave(payload.senderId);
+      return;
+    }
+
+    // 0a. Solicitação de sincronização de estado de outro participante
+    if (payload.type === 'sync_request') {
+      const { isMicMuted, isDeafened, isVideoOn } = useDiscord.getState();
+      const { isSpeaking, screenStream } = useVoiceStreamStore.getState();
+      const isSharing = Boolean(screenStream && screenStream.getVideoTracks().some((t) => t.readyState === 'live'));
+
+      if (this.realtimeChannel) {
+        void this.realtimeChannel.send({
+          type: 'broadcast',
+          event: 'voice_signal',
+          payload: {
+            senderId: curUser.id,
+            targetId: payload.senderId,
+            type: 'state',
+            state: {
+              isSpeaking,
+              isMuted: isMicMuted,
+              isDeafened,
+              isVideoOn,
+              isScreenSharing: isSharing,
+            },
+          },
+        });
+      }
       return;
     }
 
@@ -1001,6 +1178,20 @@ class VoiceService {
 
     this.broadcastState({ isScreenSharing: true });
     void presenceService.syncVoicePresence();
+    if (this.realtimeChannel) {
+      const curUser = useDiscord.getState().currentUser;
+      const { isMicMuted, isDeafened, isVideoOn } = useDiscord.getState();
+      const isSpeaking = useVoiceStreamStore.getState().isSpeaking;
+      void this.realtimeChannel.track({
+        user: curUser,
+        isMuted: isMicMuted,
+        isDeafened,
+        isSpeaking,
+        isVideoOn,
+        isScreenSharing: true,
+        joinedAt: Date.now(),
+      });
+    }
   }
 
   /**
@@ -1044,6 +1235,24 @@ class VoiceService {
 
     this.broadcastState({ isScreenSharing: false });
     void presenceService.syncVoicePresence();
+    const curUser = useDiscord.getState().currentUser;
+    if (this.realtimeChannel) {
+      const { isMicMuted, isDeafened, isVideoOn } = useDiscord.getState();
+      const isSpeaking = useVoiceStreamStore.getState().isSpeaking;
+      void this.realtimeChannel.track({
+        user: curUser,
+        isMuted: isMicMuted,
+        isDeafened,
+        isSpeaking,
+        isVideoOn,
+        isScreenSharing: false,
+        joinedAt: Date.now(),
+      });
+    }
+    this.updateParticipantState(curUser.id, {
+      isScreenSharing: false,
+      mediaStream: undefined,
+    });
   }
 
   /**
@@ -1196,10 +1405,25 @@ class VoiceService {
 
     const onTrackEnded = () => {
       console.log(`[voiceService Diagnostic] Remote video track ended from peer ${peerId}`);
-      this.updateParticipantState(peerId, {
-        isScreenSharing: false,
-        mediaStream: undefined,
-      });
+      // Re-verificar se ainda existe outra faixa de vídeo ativa no transceiver
+      const pc = this.peerConnections.get(peerId);
+      const remainingVideoTrack = typeof pc?.getTransceivers === 'function'
+        ? pc.getTransceivers().find((t) => t.receiver?.track?.kind === 'video' && t.receiver.track.readyState === 'live')?.receiver.track
+        : null;
+
+      if (!remainingVideoTrack) {
+        this.updateParticipantState(peerId, {
+          isScreenSharing: false,
+          mediaStream: undefined,
+        });
+      } else {
+        this.syncRemoteVideoTrack(peerId, remainingVideoTrack);
+      }
+    };
+
+    const onTrackMute = () => {
+      // NÃO descartar a stream no mute! O Chromium/Electron pode sinalizar mute temporário ao minimizar.
+      console.log(`[voiceService Diagnostic] Remote video track temporarily muted (minimized/background) from peer ${peerId}`);
     };
 
     const onTrackUnmute = () => {
@@ -1210,13 +1434,21 @@ class VoiceService {
         isScreenSharing: true,
         mediaStream: freshStream,
       });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('capy:media-recovered', { detail: { reason: 'track-unmute', peerId } }));
+      }
     };
 
     track.removeEventListener('ended', onTrackEnded);
+    track.removeEventListener('mute', onTrackMute);
     track.removeEventListener('unmute', onTrackUnmute);
+
     track.addEventListener('ended', onTrackEnded);
+    track.addEventListener('mute', onTrackMute);
     track.addEventListener('unmute', onTrackUnmute);
+
     track.onended = onTrackEnded;
+    track.onmute = onTrackMute;
     track.onunmute = onTrackUnmute;
 
     // Atualiza imediatamente o participante no estado de voz

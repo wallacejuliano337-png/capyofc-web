@@ -98,6 +98,9 @@ function logDebug(msg: string) {
     }
     win.focus();
     win.moveTop();
+    try {
+      win.webContents.send("window:restored");
+    } catch {}
   }
 
   function getAppIcon() {
@@ -252,6 +255,7 @@ function logDebug(msg: string) {
         nodeIntegration: false,
         sandbox: false,
         webSecurity: true,
+        backgroundThrottling: false,
       },
     });
 
@@ -452,6 +456,25 @@ function logDebug(msg: string) {
     win.on("focus", () => {
       if (win && !win.isDestroyed()) {
         win.flashFrame(false);
+        try {
+          win.webContents.send("window:restored");
+        } catch {}
+      }
+    });
+
+    win.on("restore", () => {
+      if (win && !win.isDestroyed()) {
+        try {
+          win.webContents.send("window:restored");
+        } catch {}
+      }
+    });
+
+    win.on("show", () => {
+      if (win && !win.isDestroyed()) {
+        try {
+          win.webContents.send("window:restored");
+        } catch {}
       }
     });
 

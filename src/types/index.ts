@@ -134,6 +134,7 @@ declare global {
       ) => () => void;
       openUpdateModal?: () => Promise<boolean>;
       onShowUpdateModal?: (callback: () => void) => () => void;
+      onWindowRestored?: (callback: () => void) => () => void;
     };
     arena?: {
       window: (action: "minimize" | "maximize" | "close") => Promise<void>;
@@ -164,6 +165,7 @@ declare global {
       onVoiceDisconnect?: (callback: () => void) => () => void;
       openUpdateModal?: () => Promise<boolean>;
       onShowUpdateModal?: (callback: () => void) => () => void;
+      onWindowRestored?: (callback: () => void) => () => void;
     };
   }
 }

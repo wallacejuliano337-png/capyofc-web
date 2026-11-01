@@ -1,6 +1,6 @@
 {
-  "version": "0.1.7",
-  "build": "2026.11.01-01",
-  "buildTime": 1793498400000,
-  "releaseNotes": "Capy.ofc v0.1.7: Correção crítica na recepção e renderização da tela compartilhada de outro participante remoto e estabilização de compartilhamentos simultâneos de tela."
+  "version": "0.1.8",
+  "build": "2026.11.01-02",
+  "buildTime": 1793504400000,
+  "releaseNotes": "Capy.ofc v0.1.8: Correção definitiva de reconciliação de estado AO VIVO, recuperação contínua de compartilhamento de tela ao minimizar ou trocar de aba (Web e Electron) e desativação de throttling em segundo plano."
 }
