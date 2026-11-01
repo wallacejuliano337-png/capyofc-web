@@ -1,6 +1,6 @@
 {
-  "version": "0.1.8",
-  "build": "2026.11.01-02",
-  "buildTime": 1793504400000,
-  "releaseNotes": "Capy.ofc v0.1.8: Correção definitiva de reconciliação de estado AO VIVO, recuperação contínua de compartilhamento de tela ao minimizar ou trocar de aba (Web e Electron) e desativação de throttling em segundo plano."
+  "version": "0.1.9",
+  "build": "2026.11.01-03",
+  "buildTime": 1793508000000,
+  "releaseNotes": "Capy.ofc v0.1.9: Correção definitiva de WebRTC, eliminação de falso indicador AO VIVO (transceiver recvonly inicial, validação estrita de sessões ativas e prevenção de tela preta no palco central)."
 }

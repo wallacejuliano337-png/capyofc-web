@@ -67,6 +67,11 @@ const filesToUpload = [
   { name: 'latest.yml', type: 'text/yaml' },
 ];
 
+const portableFile = `Capy.ofc-Portable-${version}.exe`;
+if (fs.existsSync(path.join(releaseDir, portableFile))) {
+  filesToUpload.push({ name: portableFile, type: 'application/octet-stream' });
+}
+
 for (const f of filesToUpload) {
   const fp = path.join(releaseDir, f.name);
   if (!fs.existsSync(fp)) {
@@ -97,7 +102,7 @@ const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/rel
   body: JSON.stringify({
     tag_name: tag,
     target_commitish: 'main',
-    name: version,
+    name: `Capy.ofc v${version}`,
     body: releaseNotes,
     draft: true,
     prerelease: false,
