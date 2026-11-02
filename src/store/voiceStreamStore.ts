@@ -290,7 +290,7 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
           video: {
             width: { ideal: dims.width, max: dims.width },
             height: { ideal: dims.height, max: dims.height },
-            frameRate: { ideal: fps, max: fps, min: 15 },
+            frameRate: { ideal: fps, max: fps },
           },
           audio: Boolean(streamQuality.includeAudio),
         });

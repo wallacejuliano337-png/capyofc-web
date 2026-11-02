@@ -9,7 +9,7 @@ import { presenceService } from './presenceService';
 interface VoiceSignalPayload {
   senderId: string;
   targetId?: string;
-  type: 'offer' | 'answer' | 'candidate' | 'state' | 'leave' | 'sync_request' | 'share_start' | 'share_stop' | 'keyframe_request';
+  type: 'offer' | 'answer' | 'candidate' | 'state' | 'leave' | 'sync_request' | 'share_start' | 'share_stop' | 'keyframe_request' | 'watch_stream' | 'unwatch_stream';
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
   state?: {
@@ -265,6 +265,14 @@ class VoiceService {
       status: 'active',
     };
     this.activeSessions.set(peerId, activeSession);
+    const pc = this.peerConnections.get(peerId);
+    if (pc) {
+      const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+      const vt = transceivers.find((t) => t.receiver?.track && t.receiver.track.kind === 'video');
+      if (vt?.receiver?.track) {
+        this.syncRemoteVideoTrack(peerId, vt.receiver.track);
+      }
+    }
     const stream = this.getRemoteStream(peerId);
     return { isSharing: true, session: activeSession, stream };
   }
@@ -1087,6 +1095,31 @@ class VoiceService {
       return;
     }
 
+    // 0aa. Espectador iniciou a visualização da transmissão do apresentador
+    if (payload.type === 'watch_stream') {
+      const curUser = useDiscord.getState().currentUser;
+      if (payload.targetId && payload.targetId !== curUser.id) return;
+      console.log(`[voiceService] Espectador ${payload.senderId} entrou na transmissão, enviando Keyframe IDR...`);
+      const screenStream = useVoiceStreamStore.getState().screenStream;
+      const screenVideoTrack = screenStream?.getVideoTracks().find((t) => t.readyState === 'live');
+      if (screenVideoTrack) {
+        const pc = this.peerConnections.get(payload.senderId);
+        if (pc) {
+          const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+          const vt = transceivers.find((t) => t.sender?.track?.kind === 'video' || t.sender?.track === screenVideoTrack);
+          if (vt?.sender && typeof vt.sender.replaceTrack === 'function') {
+            vt.sender.replaceTrack(screenVideoTrack).catch(() => {});
+          }
+        }
+      }
+      return;
+    }
+
+    if (payload.type === 'unwatch_stream') {
+      console.log(`[voiceService] Espectador ${payload.senderId} parou de assistir a transmissão`);
+      return;
+    }
+
     // 0a. Solicitação de re-injeção imediata de Keyframe IDR para recuperação de tela preta
     if (payload.type === 'keyframe_request') {
       const curUser = useDiscord.getState().currentUser;
@@ -1366,6 +1399,19 @@ class VoiceService {
     this.activeSessions.set(curUser.id, localSession);
     useDiscord.setState({ isScreenSharing: true });
 
+    // 1. Broadcast share_start aos peers antecipadamente para sincronizar sessões antes da oferta WebRTC
+    if (this.realtimeChannel) {
+      void this.realtimeChannel.send({
+        type: 'broadcast',
+        event: 'voice_signal',
+        payload: {
+          senderId: curUser.id,
+          type: 'share_start',
+          shareSession: localSession,
+        },
+      });
+    }
+
     for (const [peerId, pc] of this.peerConnections.entries()) {
       try {
         const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
@@ -1380,6 +1426,9 @@ class VoiceService {
           videoTransceiver.direction = 'sendrecv';
           if (typeof videoTransceiver.sender?.replaceTrack === 'function') {
             await videoTransceiver.sender.replaceTrack(videoTrack);
+          }
+          if (typeof (videoTransceiver.sender as any).setStreams === 'function') {
+            try { (videoTransceiver.sender as any).setStreams(stream); } catch {}
           }
           try {
             const params = videoTransceiver.sender.getParameters();
@@ -1802,6 +1851,71 @@ class VoiceService {
    * Get active remote media stream for video/screen sharing
    * REGRA OBRIGATÓRIA: Só retorna stream se o participante possuir sessão comprovadamente ativa!
    */
+  /**
+   * Espectador entra ativamente na transmissão de um apresentador
+   */
+  public enterStream(presenterId: string, sessionId?: string): void {
+    const curUser = useDiscord.getState().currentUser;
+    console.log(`[voiceService] enterStream: espectador ${curUser.id} entrando na transmissão de ${presenterId}`);
+
+    const sendSignals = () => {
+      if (this.realtimeChannel) {
+        void this.realtimeChannel.send({
+          type: 'broadcast',
+          event: 'voice_signal',
+          payload: {
+            senderId: curUser.id,
+            targetId: presenterId,
+            type: 'watch_stream',
+            shareSession: sessionId ? { sessionId, ownerId: presenterId, status: 'active', startedAt: Date.now() } : undefined,
+          },
+        });
+
+        void this.realtimeChannel.send({
+          type: 'broadcast',
+          event: 'voice_signal',
+          payload: {
+            senderId: curUser.id,
+            targetId: presenterId,
+            type: 'keyframe_request',
+          },
+        });
+      }
+    };
+
+    if (typeof RTCPeerConnection !== 'undefined') {
+      void this.ensurePeerConnection(presenterId).then((pc) => {
+        const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+        const videoTransceiver = transceivers.find((t) => t.receiver?.track && t.receiver.track.kind === 'video');
+        if (videoTransceiver?.receiver?.track) {
+          this.syncRemoteVideoTrack(presenterId, videoTransceiver.receiver.track);
+        }
+        sendSignals();
+      }).catch(() => {
+        sendSignals();
+      });
+    } else {
+      sendSignals();
+    }
+  }
+
+  public leaveStream(presenterId: string): void {
+    const curUser = useDiscord.getState().currentUser;
+    console.log(`[voiceService] leaveStream: espectador ${curUser.id} saindo da transmissão de ${presenterId}`);
+
+    if (this.realtimeChannel) {
+      void this.realtimeChannel.send({
+        type: 'broadcast',
+        event: 'voice_signal',
+        payload: {
+          senderId: curUser.id,
+          targetId: presenterId,
+          type: 'unwatch_stream',
+        },
+      });
+    }
+  }
+
   getRemoteStream(peerId: string): MediaStream | undefined {
     const session = this.activeSessions.get(peerId);
     if (!session || (session.status !== 'active' && session.status !== 'starting')) {

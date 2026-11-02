@@ -27,7 +27,7 @@ import {
  * Miniatura de vídeo dedicada para visualização em tempo real de transmissões secundárias.
  */
 interface StreamMiniThumbnailProps {
-  stream: MediaStream;
+  stream: MediaStream | null;
 }
 
 const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => {
@@ -87,10 +87,12 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
 
 export interface ActiveScreenShare {
   id: string; // user.id
+  sessionId?: string;
   user: User;
   isLocal: boolean;
-  stream: MediaStream;
+  stream: MediaStream | null;
   title: string;
+  hasLiveVideo?: boolean;
 }
 
 export const DiscordVoiceStage: React.FC = () => {
@@ -121,6 +123,30 @@ export const DiscordVoiceStage: React.FC = () => {
 
   const [viewMode, setViewMode] = useState<'stage' | 'grid'>('grid');
   const [watchingShareId, setWatchingShareId] = useState<string | null>(null);
+  const [isVideoRendering, setIsVideoRendering] = useState(false);
+  const [isConnectingStream, setIsConnectingStream] = useState(false);
+
+  const handleEnterStream = (shareId: string, sessionId?: string) => {
+    console.log(`[DiscordVoiceStage] handleEnterStream: entrando na transmissão de ${shareId} (sessionId: ${sessionId})`);
+    setWatchingShareId(shareId);
+    setFocusedParticipantId(shareId);
+    setViewMode('stage');
+    setIsConnectingStream(true);
+    setIsVideoRendering(false);
+    voiceService.enterStream(shareId, sessionId);
+  };
+
+  const handleLeaveStream = () => {
+    if (watchingShareId) {
+      console.log(`[DiscordVoiceStage] handleLeaveStream: saindo de ${watchingShareId}`);
+      voiceService.leaveStream(watchingShareId);
+    }
+    setWatchingShareId(null);
+    setFocusedParticipantId(null);
+    setViewMode('grid');
+    setIsConnectingStream(false);
+    setIsVideoRendering(false);
+  };
   const [voiceContextMenu, setVoiceContextMenu] = useState<{
     user: User;
     position: { x: number; y: number };
@@ -180,12 +206,15 @@ export const DiscordVoiceStage: React.FC = () => {
       .getVideoTracks()
       .some((t) => t.readyState === 'live');
     if (hasLiveVideo) {
+      const localSession = voiceService.getActiveShareSession(currentUser.id);
       activeScreenShares.push({
         id: currentUser.id,
+        sessionId: localSession?.sessionId,
         user: currentUser,
         isLocal: true,
         stream: screenStream,
         title: `${currentUser.displayName || currentUser.name} (${activeSourceName || 'Sua tela'})`,
+        hasLiveVideo: true,
       });
     }
   }
@@ -193,23 +222,24 @@ export const DiscordVoiceStage: React.FC = () => {
   // Transmissões remotas (recebidas via WebRTC de participantes com sessão ativa)
   participants.forEach((p) => {
     if (p.user.id === currentUser.id || p.user.name === currentUser.name) return;
-    if (p.isScreenSharing) {
+    const isSharing = voiceService.isParticipantSharing(p.user.id) || p.isScreenSharing;
+    if (isSharing) {
+      const session = voiceService.getActiveShareSession(p.user.id);
       const remoteStream = p.mediaStream || voiceService.getRemoteStream(p.user.id);
       const hasLiveVideo = Boolean(
         remoteStream &&
         remoteStream.getVideoTracks().some((t) => t.readyState === 'live')
       );
-      if (remoteStream && hasLiveVideo) {
-        if (!activeScreenShares.some((s) => s.id === p.user.id)) {
-          const session = voiceService.getActiveShareSession(p.user.id);
-          activeScreenShares.push({
-            id: p.user.id,
-            user: p.user,
-            isLocal: false,
-            stream: remoteStream,
-            title: session?.title || `Tela de ${p.user.displayName || p.user.name}`,
-          });
-        }
+      if (!activeScreenShares.some((s) => s.id === p.user.id)) {
+        activeScreenShares.push({
+          id: p.user.id,
+          sessionId: session?.sessionId,
+          user: p.user,
+          isLocal: false,
+          stream: remoteStream || null,
+          title: session?.title || `Tela de ${p.user.displayName || p.user.name}`,
+          hasLiveVideo,
+        });
       }
     }
   });
@@ -224,19 +254,25 @@ export const DiscordVoiceStage: React.FC = () => {
     if (watchingShareId) {
       currentSelectedShare = activeScreenShares.find((s) => s.id === watchingShareId) || null;
     }
-    if (!currentSelectedShare && isLocalSharingActive) {
+    if (!currentSelectedShare && isLocalSharingActive && viewMode === 'stage') {
       currentSelectedShare = activeScreenShares.find((s) => s.isLocal) || null;
     }
   }
 
-  // Fallback quando a transmissão assistida encerra: retorna à grade com segurança
+  // Fallback quando a transmissão assistida encerra de fato: retorna à grade com segurança
   useEffect(() => {
-    if (watchingShareId && !activeScreenShares.some((s) => s.id === watchingShareId)) {
-      setWatchingShareId(null);
-      setFocusedParticipantId(null);
-      setViewMode('grid');
+    if (watchingShareId) {
+      const isStillSharing = voiceService.isParticipantSharing(watchingShareId);
+      if (!isStillSharing) {
+        console.log(`[DiscordVoiceStage] Transmissão assistida ${watchingShareId} foi encerrada pelo apresentador`);
+        setWatchingShareId(null);
+        setFocusedParticipantId(null);
+        setViewMode('grid');
+        setIsConnectingStream(false);
+        setIsVideoRendering(false);
+      }
     }
-  }, [activeScreenShares, watchingShareId]);
+  }, [participants, watchingShareId]);
 
   const activeStream = currentSelectedShare ? currentSelectedShare.stream : null;
   const activeStreamOwner = currentSelectedShare
@@ -246,87 +282,86 @@ export const DiscordVoiceStage: React.FC = () => {
   // Vincula a transmissão selecionada ao elemento de vídeo principal do palco com recuperação contínua
   useEffect(() => {
     const videoEl = screenVideoRef.current;
-    if (videoEl && activeStream) {
-      const hasLiveTrack = activeStream
-        .getVideoTracks()
-        .some((t) => t.readyState === 'live');
+    if (!videoEl || !activeStream) {
+      if (videoEl) videoEl.srcObject = null;
+      setIsVideoRendering(false);
+      return;
+    }
 
-      if (!hasLiveTrack) {
-        videoEl.srcObject = null;
-        return;
+    if (videoEl.srcObject !== activeStream) {
+      videoEl.srcObject = activeStream;
+    }
+
+    const checkRendering = () => {
+      if (videoEl && videoEl.videoWidth > 0 && !videoEl.paused) {
+        setIsVideoRendering(true);
+        setIsConnectingStream(false);
       }
+    };
 
-      const playVideo = () => {
-        if (!videoEl || !activeStream) return;
-        if (videoEl.srcObject !== activeStream) {
-          videoEl.srcObject = activeStream;
-        }
-        if (videoEl.paused) {
-          videoEl.play().catch((err) => {
-            console.warn('[DiscordVoiceStage] Error playing stream video:', err);
-          });
-        }
-      };
-
+    const playVideo = () => {
+      if (!videoEl || !activeStream) return;
       if (videoEl.srcObject !== activeStream) {
         videoEl.srcObject = activeStream;
       }
-      playVideo();
-
-      const videoTracks = activeStream.getVideoTracks();
-      const onTrackUnmute = () => playVideo();
-
-      videoTracks.forEach((t) => {
-        t.enabled = true;
-        t.addEventListener('unmute', onTrackUnmute);
-      });
-      videoEl.addEventListener('loadedmetadata', playVideo);
-      videoEl.addEventListener('canplay', playVideo);
-
-      // Ouvintes de ciclo de vida para retomar o vídeo após minimizar janela ou alternar abas
-      const handleMediaRecovered = () => {
-        console.log('[DiscordVoiceStage] capy:media-recovered recebido, retomando reprodução...');
-        playVideo();
-      };
-
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-          console.log('[DiscordVoiceStage] Janela visível, garantindo reprodução...');
-          playVideo();
-        }
-      };
-
-      const handleWindowFocus = () => {
-        playVideo();
-      };
-
-      const handleUnexpectedPause = () => {
-        if (document.visibilityState === 'visible' && videoEl && videoEl.paused && activeStream) {
-          playVideo();
-        }
-      };
-
-      videoEl.addEventListener('pause', handleUnexpectedPause);
-      window.addEventListener('capy:media-recovered', handleMediaRecovered);
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      window.addEventListener('focus', handleWindowFocus);
-      window.addEventListener('pageshow', handleWindowFocus);
-
-      return () => {
-        videoTracks.forEach((t) => {
-          t.removeEventListener('unmute', onTrackUnmute);
+      if (videoEl.paused) {
+        videoEl.play().catch((err) => {
+          console.warn('[DiscordVoiceStage] Error playing stream video:', err);
         });
-        videoEl.removeEventListener('loadedmetadata', playVideo);
-        videoEl.removeEventListener('canplay', playVideo);
-        videoEl.removeEventListener('pause', handleUnexpectedPause);
-        window.removeEventListener('capy:media-recovered', handleMediaRecovered);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('focus', handleWindowFocus);
-        window.removeEventListener('pageshow', handleWindowFocus);
-      };
-    } else if (videoEl && !activeStream) {
-      videoEl.srcObject = null;
-    }
+      }
+      checkRendering();
+    };
+
+    playVideo();
+
+    const videoTracks = activeStream.getVideoTracks();
+    const onTrackUnmute = () => {
+      playVideo();
+      checkRendering();
+    };
+
+    videoTracks.forEach((t) => {
+      t.enabled = true;
+      t.addEventListener('unmute', onTrackUnmute);
+    });
+
+    videoEl.addEventListener('loadedmetadata', playVideo);
+    videoEl.addEventListener('loadeddata', onTrackUnmute);
+    videoEl.addEventListener('canplay', playVideo);
+    videoEl.addEventListener('playing', checkRendering);
+    videoEl.addEventListener('timeupdate', checkRendering);
+
+    const handleMediaRecovered = () => {
+      playVideo();
+      checkRendering();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        playVideo();
+        checkRendering();
+      }
+    };
+
+    window.addEventListener('capy:media-recovered', handleMediaRecovered);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', playVideo);
+    window.addEventListener('pageshow', playVideo);
+
+    return () => {
+      videoTracks.forEach((t) => {
+        t.removeEventListener('unmute', onTrackUnmute);
+      });
+      videoEl.removeEventListener('loadedmetadata', playVideo);
+      videoEl.removeEventListener('loadeddata', onTrackUnmute);
+      videoEl.removeEventListener('canplay', playVideo);
+      videoEl.removeEventListener('playing', checkRendering);
+      videoEl.removeEventListener('timeupdate', checkRendering);
+      window.removeEventListener('capy:media-recovered', handleMediaRecovered);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', playVideo);
+      window.removeEventListener('pageshow', playVideo);
+    };
   }, [activeStream?.id, currentSelectedShare?.id, viewMode]);
 
   // Log de diagnóstico detalhado para monitoramento de transmissões locais e remotas
@@ -342,8 +377,8 @@ export const DiscordVoiceStage: React.FC = () => {
         id: s.id,
         title: s.title,
         isLocal: s.isLocal,
-        trackCount: s.stream.getVideoTracks().length,
-        tracks: s.stream.getVideoTracks().map((t) => ({ id: t.id, readyState: t.readyState, muted: t.muted })),
+        trackCount: s.stream ? s.stream.getVideoTracks().length : 0,
+        tracks: s.stream ? s.stream.getVideoTracks().map((t) => ({ id: t.id, readyState: t.readyState, muted: t.muted })) : [],
       })),
       participants: participants.map((p) => ({
         id: p.user.id,
@@ -491,10 +526,9 @@ export const DiscordVoiceStage: React.FC = () => {
       <div
         key={p.user.id}
         onClick={() => {
-          if (p.isScreenSharing || activeShare) {
-            setWatchingShareId(p.user.id);
-            setFocusedParticipantId(p.user.id);
-            setViewMode('stage');
+          if (p.isScreenSharing || activeShare || voiceService.isParticipantSharing(p.user.id)) {
+            const session = voiceService.getActiveShareSession(p.user.id);
+            handleEnterStream(p.user.id, session?.sessionId);
           }
         }}
         onContextMenu={(e) => {
@@ -562,13 +596,20 @@ export const DiscordVoiceStage: React.FC = () => {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setFocusedParticipantId(p.user.id);
-                setViewMode('stage');
+                const session = voiceService.getActiveShareSession(p.user.id);
+                handleEnterStream(p.user.id, session?.sessionId);
               }}
-              title="Assistir à transmissão ao vivo"
-              className="bg-[#5865f2] hover:bg-[#4752c4] px-1.5 py-0.5 rounded text-[9px] font-bold text-white leading-none flex-shrink-0 cursor-pointer transition-colors"
+              title="Entrar na transmissão ao vivo"
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold rounded-md shadow-md transition-all cursor-pointer"
             >
-              AO VIVO
+              <span className="bg-[#ef4444] text-white text-[9px] font-bold px-1.5 py-0.5 rounded leading-none flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                AO VIVO
+              </span>
+              <span className="flex items-center gap-1">
+                <Play className="w-3 h-3 fill-current" />
+                Entrar na Transmissão
+              </span>
             </button>
           )}
         </div>
@@ -625,11 +666,7 @@ export const DiscordVoiceStage: React.FC = () => {
           {/* Botão destacado: Parar de Assistir (se estiver assistindo transmissão remota) */}
           {watchingShareId && currentSelectedShare && (
             <button
-              onClick={() => {
-                setWatchingShareId(null);
-                setFocusedParticipantId(null);
-                setViewMode('grid');
-              }}
+              onClick={handleLeaveStream}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#da373c] hover:bg-[#a1282c] text-white text-xs font-semibold shadow-md transition-all cursor-pointer border border-transparent"
               title="Sair da transmissão e voltar à grade (áudio continua ativo)"
             >
@@ -721,11 +758,7 @@ export const DiscordVoiceStage: React.FC = () => {
                     <button
                       key={`stream-selector-${share.id}`}
                       type="button"
-                      onClick={() => {
-                        setWatchingShareId(share.id);
-                        setFocusedParticipantId(share.id);
-                        setViewMode('stage');
-                      }}
+                      onClick={() => handleEnterStream(share.id, share.sessionId)}
                       title={`Assistir transmissão de ${share.user.displayName || share.user.name}`}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border select-none ${
                         isSelected
@@ -773,6 +806,28 @@ export const DiscordVoiceStage: React.FC = () => {
               muted
               className="w-full h-full object-contain bg-black"
             />
+
+            {/* Overlay de carregamento / conexão suave (evita tela preta morta) */}
+            {(!isVideoRendering || isConnectingStream) && !currentSelectedShare?.isLocal && (
+              <div className="absolute inset-0 bg-[#111214]/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
+                <div className="relative">
+                  <img
+                    src={getAvatarUrl(currentSelectedShare?.user.avatar)}
+                    alt={currentSelectedShare?.user.name}
+                    className="w-16 h-16 rounded-full object-cover ring-4 ring-[#5865f2]/40"
+                  />
+                  <div className="absolute -inset-1 rounded-full border-2 border-transparent border-t-[#5865f2] animate-spin" />
+                </div>
+                <div className="text-center px-4">
+                  <p className="text-sm font-semibold text-white">
+                    Conectando à transmissão de {currentSelectedShare?.user.displayName || currentSelectedShare?.user.name}...
+                  </p>
+                  <p className="text-xs text-[#949ba4] mt-1">
+                    Sincronizando áudio e vídeo WebRTC em tempo real
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Top left stream info */}
             <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 pointer-events-none">
@@ -849,11 +904,7 @@ export const DiscordVoiceStage: React.FC = () => {
               return (
                 <div
                   key={`grid-stream-${share.id}`}
-                  onClick={() => {
-                        setWatchingShareId(share.id);
-                        setFocusedParticipantId(share.id);
-                        setViewMode('stage');
-                      }}
+                  onClick={() => handleEnterStream(share.id, share.sessionId)}
                   className={`relative bg-black rounded-xl overflow-hidden flex items-center justify-center border transition-all cursor-pointer w-full h-full min-h-[160px] max-h-[360px] shadow-lg ${
                     isSelected
                       ? 'border-[#5865f2] ring-2 ring-[#5865f2]'

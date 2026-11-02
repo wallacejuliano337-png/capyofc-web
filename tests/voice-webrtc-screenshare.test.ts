@@ -1646,4 +1646,70 @@ describe('Capy.ofc — WebRTC Voice & Screen Sharing System', () => {
     });
   });
 
+  describe('11. Spectator Mode ("Entrar na Transmissão" & "Parar de Assistir") & WebRTC Video Pipeline', () => {
+    it('sends watch_stream and keyframe_request when entering a stream', () => {
+      const mockChannel = {
+        send: vi.fn().mockResolvedValue('ok'),
+      };
+      (voiceService as any).realtimeChannel = mockChannel;
+
+      voiceService.enterStream('presenter-123', 'session-abc');
+
+      expect(mockChannel.send).toHaveBeenCalled();
+      const calls = mockChannel.send.mock.calls;
+      const watchCall = calls.find((c: any) => c[0].payload?.type === 'watch_stream');
+      const keyframeCall = calls.find((c: any) => c[0].payload?.type === 'keyframe_request');
+
+      expect(watchCall).toBeDefined();
+      expect(watchCall![0].payload.targetId).toBe('presenter-123');
+      expect(keyframeCall).toBeDefined();
+      expect(keyframeCall![0].payload.targetId).toBe('presenter-123');
+    });
+
+    it('sends unwatch_stream when leaving a stream without terminating presenter share', () => {
+      const mockChannel = {
+        send: vi.fn().mockResolvedValue('ok'),
+      };
+      (voiceService as any).realtimeChannel = mockChannel;
+
+      voiceService.leaveStream('presenter-123');
+
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        type: 'broadcast',
+        event: 'voice_signal',
+        payload: {
+          senderId: expect.any(String),
+          targetId: 'presenter-123',
+          type: 'unwatch_stream',
+        },
+      });
+    });
+
+    it('resolves active shares when presenter is actively sharing in voiceService', () => {
+      const uPresenter = makeUser('u-pres', 'Apresentador Web');
+      const session = {
+        sessionId: 'share-pres-1',
+        ownerId: uPresenter.id,
+        status: 'active' as const,
+        startedAt: 5000,
+        title: 'Tela de Apresentador Web',
+      };
+
+      voiceService.startRemoteScreenShareSession(uPresenter.id, session);
+      expect(voiceService.isParticipantSharing(uPresenter.id)).toBe(true);
+
+      const stream = makeStream(uPresenter.id);
+      const participants = [
+        { user: uPresenter, isScreenSharing: true, mediaStream: stream, shareSession: session, isMuted: false, isDeafened: false, isSpeaking: false, isVideoOn: false },
+      ];
+
+      const shares = resolveActiveShares(participants, 'viewer-id', null);
+      expect(shares).toHaveLength(1);
+      expect(shares[0].id).toBe(uPresenter.id);
+
+      // Clean up session
+      voiceService.endRemoteScreenShareSession(uPresenter.id);
+      expect(voiceService.isParticipantSharing(uPresenter.id)).toBe(false);
+    });
+  });
 });
