@@ -9,7 +9,7 @@ import { presenceService } from './presenceService';
 interface VoiceSignalPayload {
   senderId: string;
   targetId?: string;
-  type: 'offer' | 'answer' | 'candidate' | 'state' | 'leave' | 'sync_request' | 'share_start' | 'share_stop';
+  type: 'offer' | 'answer' | 'candidate' | 'state' | 'leave' | 'sync_request' | 'share_start' | 'share_stop' | 'keyframe_request';
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
   state?: {
@@ -869,6 +869,19 @@ class VoiceService {
           direction: 'sendrecv',
           streams: [screenStream],
         });
+        try {
+          const params = videoTransceiver.sender.getParameters();
+          if (params) {
+            params.degradationPreference = 'maintain-resolution';
+            if (!params.encodings || params.encodings.length === 0) {
+              params.encodings = [{}];
+            }
+            params.encodings[0].maxBitrate = 3500000;
+            (params.encodings[0] as any).minBitrate = 300000;
+            params.encodings[0].networkPriority = 'high';
+            videoTransceiver.sender.setParameters(params).catch(() => {});
+          }
+        } catch {}
       } else {
         videoTransceiver = pc.addTransceiver('video', { direction: 'recvonly' });
       }
@@ -1070,6 +1083,26 @@ class VoiceService {
             },
           },
         });
+      }
+      return;
+    }
+
+    // 0a. Solicitação de re-injeção imediata de Keyframe IDR para recuperação de tela preta
+    if (payload.type === 'keyframe_request') {
+      const curUser = useDiscord.getState().currentUser;
+      if (payload.targetId && payload.targetId !== curUser.id) return;
+      const screenStream = useVoiceStreamStore.getState().screenStream;
+      const screenVideoTrack = screenStream?.getVideoTracks().find((t) => t.readyState === 'live');
+      if (screenVideoTrack) {
+        console.log(`[voiceService] Keyframe solicitado por ${payload.senderId}, gerando IDR imediato...`);
+        const pc = this.peerConnections.get(payload.senderId);
+        if (pc) {
+          const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+          const vt = transceivers.find((t) => t.sender?.track?.kind === 'video' || t.sender?.track === screenVideoTrack);
+          if (vt?.sender && typeof vt.sender.replaceTrack === 'function') {
+            vt.sender.replaceTrack(screenVideoTrack).catch(() => {});
+          }
+        }
       }
       return;
     }
@@ -1347,6 +1380,21 @@ class VoiceService {
           videoTransceiver.direction = 'sendrecv';
           if (typeof videoTransceiver.sender?.replaceTrack === 'function') {
             await videoTransceiver.sender.replaceTrack(videoTrack);
+          }
+          try {
+            const params = videoTransceiver.sender.getParameters();
+            if (params) {
+              params.degradationPreference = 'maintain-resolution';
+              if (!params.encodings || params.encodings.length === 0) {
+                params.encodings = [{}];
+              }
+              params.encodings[0].maxBitrate = 3500000;
+              (params.encodings[0] as any).minBitrate = 300000;
+              params.encodings[0].networkPriority = 'high';
+              await videoTransceiver.sender.setParameters(params);
+            }
+          } catch (e) {
+            console.warn('[voiceService] setParameters warning:', e);
           }
         } else {
           try {
@@ -1643,9 +1691,11 @@ class VoiceService {
     track.enabled = true;
 
     let videoStream = this.remoteStreams.get(peerId);
-    if (!videoStream || !videoStream.getTracks().some((t) => t.id === track.id)) {
+    if (!videoStream) {
       videoStream = new MediaStream([track]);
       this.remoteStreams.set(peerId, videoStream);
+    } else if (!videoStream.getTracks().some((t) => t.id === track.id)) {
+      videoStream.addTrack(track);
     }
 
     const session = this.activeSessions.get(peerId);
@@ -1672,20 +1722,46 @@ class VoiceService {
       }
     };
 
+    let muteRecoveryTimer: any = null;
+    const curUser = useDiscord.getState().currentUser;
+
     const onTrackMute = () => {
-      console.log(`[voiceService Diagnostic] Remote video track temporarily muted (minimized/background) from peer ${peerId}`);
+      console.log(`[voiceService Diagnostic] Remote video track temporarily muted from peer ${peerId}`);
+      clearTimeout(muteRecoveryTimer);
+      // Se permanecer muted por mais de 500ms, pede um keyframe IDR ao apresentador para não ficar com tela preta
+      muteRecoveryTimer = setTimeout(() => {
+        if (track.muted && this.realtimeChannel) {
+          console.log(`[voiceService] Track ainda mutada após 500ms, enviando keyframe_request para peer ${peerId}`);
+          void this.realtimeChannel.send({
+            type: 'broadcast',
+            event: 'voice_signal',
+            payload: {
+              senderId: curUser.id,
+              targetId: peerId,
+              type: 'keyframe_request',
+            },
+          });
+        }
+      }, 500);
     };
 
     const onTrackUnmute = () => {
+      clearTimeout(muteRecoveryTimer);
       console.log(`[voiceService Diagnostic] Remote video track unmuted from peer ${peerId}`);
+      track.enabled = true;
       const currentSession = this.activeSessions.get(peerId);
       if (currentSession && (currentSession.status === 'active' || currentSession.status === 'starting')) {
-        const freshStream = new MediaStream([track]);
-        this.remoteStreams.set(peerId, freshStream);
+        let stream = this.remoteStreams.get(peerId);
+        if (!stream) {
+          stream = new MediaStream([track]);
+          this.remoteStreams.set(peerId, stream);
+        } else if (!stream.getTracks().some((t) => t.id === track.id)) {
+          stream.addTrack(track);
+        }
         this.updateParticipantState(peerId, {
           isScreenSharing: true,
           shareSession: currentSession,
-          mediaStream: freshStream,
+          mediaStream: stream,
         });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('capy:media-recovered', { detail: { reason: 'track-unmute', peerId } }));

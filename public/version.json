@@ -1,6 +1,6 @@
 {
-  "version": "0.1.9",
-  "build": "2026.11.01-03",
-  "buildTime": 1793508000000,
-  "releaseNotes": "Capy.ofc v0.1.9: Correção definitiva de WebRTC, eliminação de falso indicador AO VIVO (transceiver recvonly inicial, validação estrita de sessões ativas e prevenção de tela preta no palco central)."
+  "version": "0.2.0",
+  "build": "2026.11.01-04",
+  "buildTime": 1793592157029,
+  "releaseNotes": "Capy.ofc v0.2.0: Correção definitiva de tela preta no compartilhamento de tela WebRTC (keep-alive de framerate a 15fps, keyframe request sob demanda, setParameters maintain-resolution), novo sistema de espectadores estilo Discord ('Entrar na Transmissão' e 'Parar de Assistir' sem interrupção de áudio) e estabilidade de conexões ativas."
 }

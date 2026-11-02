@@ -86,11 +86,11 @@ for (const f of filesToUpload) {
 console.log(`\n2. Criando release ${tag} no GitHub...`);
 const releaseNotes = `## O que há de novo no Capy.ofc v${version}
 
-- **Correção Definitiva de Estado AO VIVO**: reconciliação do indicador AO VIVO com a presença ativa e faixas WebRTC reais, eliminando falso indicador ao entrar em chamadas.
-- **Recuperação Automática de Mídia ao Minimizar ou Alternar Abas**: ouvintes para \`visibilitychange\`, \`pageshow\`, \`focus\` e eventos de janela do Electron que auditam transceivers WebRTC e retomam a reprodução do vídeo instantaneamente sem intervenção do apresentador.
+- **Correção Definitiva de Tela Preta no Compartilhamento de Tela**: resolução da inatividade de quadros do capturador que causava tela preta após 5 segundos (\`kVideoMuteTimeoutMs\`). Implementado keep-alive de framerate (mínimo 15 fps em Electron e Web), parametrização de sender WebRTC (\`degradationPreference: 'maintain-resolution'\`, bitrate de 3.5 Mbps) e mecanismo sob demanda de solicitação de Keyframe IDR (\`keyframe_request\`) entre espectadores e apresentador.
+- **Sistema de Espectadores Estilo Discord ('Entrar na Transmissão' e 'Parar de Assistir')**: o palco de vídeo central não se abre mais compulsoriamente para os participantes quando alguém inicia uma transmissão. Os participantes permanecem na Grade com uma barra de 'Transmissões Disponíveis', podendo clicar livremente em 'Entrar na Transmissão' para assistir em destaque, ou 'Parar de Assistir' a qualquer momento para retornar à grade sem qualquer interrupção na conexão de voz.
+- **Suporte a Transmissões Múltiplas Simultâneas**: os espectadores podem alternar livremente entre as telas dos apresentadores com abas de seleção direta no palco central.
+- **Preservação Integral da Eliminação de Falsos Indicadores AO VIVO (v0.1.9)**: transceivers de vídeo mantidos em \`recvonly\` por padrão, validação restrita de sessões em \`activeSessions\`, e disparo ordenado de eventos \`share_start\` e \`share_stop\`.
 - **Desativação de Throttling em Segundo Plano no Electron**: \`backgroundThrottling: false\` em webPreferences para evitar suspensão de decodificadores e renderizadores de vídeo WebRTC quando a janela é minimizada para a barra de tarefas.
-- **Sinalização de Sincronização Sob Demanda (\`sync_request\`)**: novos entrantes e clientes retornando de segundo plano recebem imediatamente o estado em tempo real dos participantes, sem dependência de estados obsoletos do Supabase Realtime.
-- **Término Limpo de Transmissão e Limpeza de Presença**: garantia de que ao parar compartilhamento ou sair de chamadas, o estado AO VIVO seja desativado e o canal de presença do Supabase seja imediatamente atualizado.
 `;
 
 const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases`, {

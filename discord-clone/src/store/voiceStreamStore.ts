@@ -241,6 +241,7 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
             chromeMediaSourceId: source.id,
             maxWidth: dims.width,
             maxHeight: dims.height,
+            minFrameRate: 15,
             maxFrameRate: fps,
           },
         };
@@ -261,7 +262,8 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
           if ('contentHint' in videoTrack) {
-            videoTrack.contentHint = streamQuality.optimizeForText ? 'detail' : 'motion';
+            videoTrack.contentHint = 'motion';
+          videoTrack.enabled = true;
           }
           videoTrack.onended = () => {
             get().stopScreenShare();
@@ -286,9 +288,9 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
 
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: {
-            width: { max: dims.width },
-            height: { max: dims.height },
-            frameRate: { max: fps },
+            width: { ideal: dims.width, max: dims.width },
+            height: { ideal: dims.height, max: dims.height },
+            frameRate: { ideal: fps, max: fps, min: 15 },
           },
           audio: Boolean(streamQuality.includeAudio),
         });
@@ -296,7 +298,8 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
           if ('contentHint' in videoTrack) {
-            videoTrack.contentHint = streamQuality.optimizeForText ? 'detail' : 'motion';
+            videoTrack.contentHint = 'motion';
+          videoTrack.enabled = true;
           }
           videoTrack.onended = () => {
             get().stopScreenShare();

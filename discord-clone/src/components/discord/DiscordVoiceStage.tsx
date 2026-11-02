@@ -19,6 +19,8 @@ import {
   LayoutGrid,
   Tv,
   Layers,
+  EyeOff,
+  Play,
 } from 'lucide-react';
 
 /**
@@ -69,7 +71,6 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', play);
       window.removeEventListener('pageshow', play);
-      if (el) el.srcObject = null;
     };
   }, [stream]);
 
@@ -118,7 +119,8 @@ export const DiscordVoiceStage: React.FC = () => {
     disconnectAll,
   } = useVoiceStreamStore();
 
-  const [viewMode, setViewMode] = useState<'stage' | 'grid'>('stage');
+  const [viewMode, setViewMode] = useState<'stage' | 'grid'>('grid');
+  const [watchingShareId, setWatchingShareId] = useState<string | null>(null);
   const [voiceContextMenu, setVoiceContextMenu] = useState<{
     user: User;
     position: { x: number; y: number };
@@ -214,31 +216,27 @@ export const DiscordVoiceStage: React.FC = () => {
 
   const hasActiveStream = activeScreenShares.length > 0;
 
-  // 2. Determinação da transmissão selecionada para exibição em destaque no palco
+  // 2. Determinação da transmissão selecionada pelo espectador ou apresentador local
+  const isLocalSharingActive = voiceService.isLocalSharingActive() && Boolean(screenStream);
+
   let currentSelectedShare: ActiveScreenShare | null = null;
   if (hasActiveStream) {
-    if (focusedParticipantId) {
-      currentSelectedShare =
-        activeScreenShares.find((s) => s.id === focusedParticipantId) || null;
+    if (watchingShareId) {
+      currentSelectedShare = activeScreenShares.find((s) => s.id === watchingShareId) || null;
     }
-    if (!currentSelectedShare) {
-      // Prioriza transmissão remota se o usuário local também estiver transmitindo, ou a primeira ativa
-      currentSelectedShare =
-        activeScreenShares.find((s) => !s.isLocal) || activeScreenShares[0];
+    if (!currentSelectedShare && isLocalSharingActive) {
+      currentSelectedShare = activeScreenShares.find((s) => s.isLocal) || null;
     }
   }
 
-  // 3. Fallback automático quando a transmissão selecionada é encerrada ou fica indisponível
+  // Fallback quando a transmissão assistida encerra: retorna à grade com segurança
   useEffect(() => {
-    if (activeScreenShares.length === 0) {
-      if (focusedParticipantId !== null) {
-        setFocusedParticipantId(null);
-      }
-    } else if (focusedParticipantId && !activeScreenShares.some((s) => s.id === focusedParticipantId)) {
-      const nextShare = activeScreenShares.find((s) => !s.isLocal) || activeScreenShares[0];
-      setFocusedParticipantId(nextShare ? nextShare.id : null);
+    if (watchingShareId && !activeScreenShares.some((s) => s.id === watchingShareId)) {
+      setWatchingShareId(null);
+      setFocusedParticipantId(null);
+      setViewMode('grid');
     }
-  }, [activeScreenShares, focusedParticipantId, setFocusedParticipantId]);
+  }, [activeScreenShares, watchingShareId]);
 
   const activeStream = currentSelectedShare ? currentSelectedShare.stream : null;
   const activeStreamOwner = currentSelectedShare
@@ -329,7 +327,7 @@ export const DiscordVoiceStage: React.FC = () => {
     } else if (videoEl && !activeStream) {
       videoEl.srcObject = null;
     }
-  }, [activeStream, viewMode, currentSelectedShare]);
+  }, [activeStream?.id, currentSelectedShare?.id, viewMode]);
 
   // Log de diagnóstico detalhado para monitoramento de transmissões locais e remotas
   useEffect(() => {
@@ -392,6 +390,7 @@ export const DiscordVoiceStage: React.FC = () => {
           <div
             key={`compact-share-${p.user.id}`}
             onClick={() => {
+              setWatchingShareId(p.user.id);
               setFocusedParticipantId(p.user.id);
               setViewMode('stage');
             }}
@@ -493,6 +492,7 @@ export const DiscordVoiceStage: React.FC = () => {
         key={p.user.id}
         onClick={() => {
           if (p.isScreenSharing || activeShare) {
+            setWatchingShareId(p.user.id);
             setFocusedParticipantId(p.user.id);
             setViewMode('stage');
           }
@@ -622,10 +622,36 @@ export const DiscordVoiceStage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Stage / Grid toggle - only shown when stream is active */}
+          {/* Botão destacado: Parar de Assistir (se estiver assistindo transmissão remota) */}
+          {watchingShareId && currentSelectedShare && (
+            <button
+              onClick={() => {
+                setWatchingShareId(null);
+                setFocusedParticipantId(null);
+                setViewMode('grid');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#da373c] hover:bg-[#a1282c] text-white text-xs font-semibold shadow-md transition-all cursor-pointer border border-transparent"
+              title="Sair da transmissão e voltar à grade (áudio continua ativo)"
+            >
+              <EyeOff className="w-3.5 h-3.5" />
+              <span>Parar de Assistir</span>
+            </button>
+          )}
+
+          {/* Alternador de Grade / Palco */}
           {hasActiveStream && (
             <button
-              onClick={() => setViewMode(viewMode === 'stage' ? 'grid' : 'stage')}
+              onClick={() => {
+                if (viewMode === 'stage') {
+                  setViewMode('grid');
+                } else {
+                  if (!currentSelectedShare && activeScreenShares.length > 0) {
+                    const first = activeScreenShares.find((s) => !s.isLocal) || activeScreenShares[0];
+                    setWatchingShareId(first.id);
+                  }
+                  setViewMode('stage');
+                }
+              }}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] bg-[#2b2d31] hover:bg-[#35373c] text-xs font-medium text-[#dbdee1] transition-colors cursor-pointer border border-[#1f2023]"
             >
               {viewMode === 'stage' ? (
@@ -661,7 +687,7 @@ export const DiscordVoiceStage: React.FC = () => {
       </header>
 
       {/* 2. Main Content Area */}
-      {hasActiveStream && viewMode === 'stage' ? (
+      {currentSelectedShare !== null && viewMode === 'stage' ? (
         /* ── MODO PALCO COM STREAM ATIVO ── */
         <div
           className={`flex-1 flex flex-col p-3 gap-3 overflow-hidden relative ${
@@ -696,6 +722,7 @@ export const DiscordVoiceStage: React.FC = () => {
                       key={`stream-selector-${share.id}`}
                       type="button"
                       onClick={() => {
+                        setWatchingShareId(share.id);
                         setFocusedParticipantId(share.id);
                         setViewMode('stage');
                       }}
@@ -823,9 +850,10 @@ export const DiscordVoiceStage: React.FC = () => {
                 <div
                   key={`grid-stream-${share.id}`}
                   onClick={() => {
-                    setFocusedParticipantId(share.id);
-                    setViewMode('stage');
-                  }}
+                        setWatchingShareId(share.id);
+                        setFocusedParticipantId(share.id);
+                        setViewMode('stage');
+                      }}
                   className={`relative bg-black rounded-xl overflow-hidden flex items-center justify-center border transition-all cursor-pointer w-full h-full min-h-[160px] max-h-[360px] shadow-lg ${
                     isSelected
                       ? 'border-[#5865f2] ring-2 ring-[#5865f2]'

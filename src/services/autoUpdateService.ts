@@ -7,7 +7,7 @@ export interface VersionManifest {
   releaseNotes: string;
 }
 
-export const CURRENT_APP_VERSION = '0.1.9';
+export const CURRENT_APP_VERSION = '0.2.0';
 export const CURRENT_APP_BUILD = '2026.11.01-03';
 
 interface AutoUpdateState {
