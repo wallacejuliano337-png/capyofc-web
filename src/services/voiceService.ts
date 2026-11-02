@@ -1924,7 +1924,26 @@ class VoiceService {
   }
 
   public async getDiagnostics(targetPeerId?: string) {
-    const results: any[] = [];
+    const curUser = useDiscord.getState().currentUser;
+    const localScreenStream = useVoiceStreamStore.getState().screenStream;
+    const localVideoTrack = localScreenStream?.getVideoTracks()[0];
+    const localSettings = typeof localVideoTrack?.getSettings === 'function' ? localVideoTrack.getSettings() : {};
+
+    const localCapture = {
+      isCapturing: Boolean(localScreenStream),
+      hasVideoTrack: Boolean(localVideoTrack),
+      readyState: localVideoTrack?.readyState || 'none',
+      muted: localVideoTrack ? localVideoTrack.muted : null,
+      enabled: localVideoTrack ? localVideoTrack.enabled : null,
+      width: localSettings.width || null,
+      height: localSettings.height || null,
+      frameRate: localSettings.frameRate || null,
+      contentHint: (localVideoTrack as any)?.contentHint || null,
+      activeSourceName: useVoiceStreamStore.getState().activeSourceName,
+      localSession: this.activeSessions.get(curUser.id) || null,
+    };
+
+    const peers: any[] = [];
     for (const [peerId, pc] of this.peerConnections.entries()) {
       if (targetPeerId && peerId !== targetPeerId) continue;
       let inboundVideo: any = {};
@@ -1934,36 +1953,81 @@ class VoiceService {
         stats.forEach((report: any) => {
           if (report.type === 'inbound-rtp' && report.kind === 'video') {
             inboundVideo = {
-              framesReceived: report.framesReceived,
-              framesDecoded: report.framesDecoded,
-              framesDropped: report.framesDropped,
-              bytesReceived: report.bytesReceived,
-              frameWidth: report.frameWidth,
-              frameHeight: report.frameHeight,
-              keyFramesDecoded: report.keyFramesDecoded,
+              bytesReceived: report.bytesReceived || 0,
+              packetsReceived: report.packetsReceived || 0,
+              packetsLost: report.packetsLost || 0,
+              framesReceived: report.framesReceived || 0,
+              framesDecoded: report.framesDecoded || 0,
+              framesDropped: report.framesDropped || 0,
+              framesPerSecond: report.framesPerSecond || 0,
+              frameWidth: report.frameWidth || 0,
+              frameHeight: report.frameHeight || 0,
+              keyFramesDecoded: report.keyFramesDecoded || 0,
+              jitter: report.jitter || 0,
+              lastPacketReceivedTimestamp: report.lastPacketReceivedTimestamp || null,
             };
           } else if (report.type === 'outbound-rtp' && report.kind === 'video') {
             outboundVideo = {
-              framesSent: report.framesSent,
-              bytesSent: report.bytesSent,
-              frameWidth: report.frameWidth,
-              frameHeight: report.frameHeight,
-              keyFramesEncoded: report.keyFramesEncoded,
+              bytesSent: report.bytesSent || 0,
+              packetsSent: report.packetsSent || 0,
+              framesSent: report.framesSent || 0,
+              framesEncoded: report.framesEncoded || 0,
+              framesPerSecond: report.framesPerSecond || 0,
+              frameWidth: report.frameWidth || 0,
+              frameHeight: report.frameHeight || 0,
+              keyFramesEncoded: report.keyFramesEncoded || 0,
             };
           }
         });
       } catch (e) {}
-      results.push({
+
+      const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+      const videoTransceiver = transceivers.find(
+        (t) => (t.receiver?.track && t.receiver.track.kind === 'video') || (t.sender?.track && t.sender.track.kind === 'video')
+      );
+
+      const transceiverInfo = videoTransceiver
+        ? {
+            mid: videoTransceiver.mid,
+            direction: videoTransceiver.direction,
+            currentDirection: videoTransceiver.currentDirection,
+            senderTrack: videoTransceiver.sender?.track
+              ? {
+                  id: videoTransceiver.sender.track.id,
+                  readyState: videoTransceiver.sender.track.readyState,
+                  muted: videoTransceiver.sender.track.muted,
+                  enabled: videoTransceiver.sender.track.enabled,
+                }
+              : null,
+            receiverTrack: videoTransceiver.receiver?.track
+              ? {
+                  id: videoTransceiver.receiver.track.id,
+                  readyState: videoTransceiver.receiver.track.readyState,
+                  muted: videoTransceiver.receiver.track.muted,
+                  enabled: videoTransceiver.receiver.track.enabled,
+                }
+              : null,
+          }
+        : null;
+
+      peers.push({
         peerId,
         iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: (pc as any).iceGatheringState || 'unknown',
         connectionState: pc.connectionState,
         signalingState: pc.signalingState,
-        activeSession: this.activeSessions.get(peerId),
+        activeSession: this.activeSessions.get(peerId) || null,
+        transceiver: transceiverInfo,
         inboundVideo,
         outboundVideo,
       });
     }
-    return results;
+
+    return {
+      timestamp: Date.now(),
+      localCapture,
+      peers,
+    };
   }
 
   getRemoteStream(peerId: string): MediaStream | undefined {

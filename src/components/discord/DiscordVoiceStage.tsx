@@ -21,7 +21,9 @@ import {
   Layers,
   EyeOff,
   Play,
+  Activity,
 } from 'lucide-react';
+import { WebRTCDiagnosticsModal, VideoElementDebugInfo } from './WebRTCDiagnosticsModal';
 
 /**
  * Miniatura de vídeo dedicada para visualização em tempo real de transmissões secundárias.
@@ -155,6 +157,19 @@ export const DiscordVoiceStage: React.FC = () => {
   const [watchingShareId, setWatchingShareId] = useState<string | null>(null);
   const [isVideoRendering, setIsVideoRendering] = useState(false);
   const [isConnectingStream, setIsConnectingStream] = useState(false);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [videoDebugInfo, setVideoDebugInfo] = useState<VideoElementDebugInfo>({
+    videoWidth: 0,
+    videoHeight: 0,
+    readyState: 0,
+    readyStateLabel: 'HAVE_NOTHING (0)',
+    paused: true,
+    muted: true,
+    currentTime: 0,
+    lastEvent: 'inicial',
+    lastEventTime: null,
+    playResult: 'aguardando',
+  });
 
   const handleEnterStream = (shareId: string, sessionId?: string) => {
     console.log(`[DiscordVoiceStage] handleEnterStream: entrando na transmissão de ${shareId} (sessionId: ${sessionId})`);
@@ -319,17 +334,53 @@ export const DiscordVoiceStage: React.FC = () => {
       : currentSelectedShare.title
     : 'Transmissão Ao Vivo';
 
-  // Vincula a transmissão selecionada ao elemento de vídeo principal do palco com recuperação contínua
+  // Vincula a transmissão selecionada ao elemento de vídeo principal do palco com instrumentação de diagnóstico
   useEffect(() => {
     const videoEl = screenVideoRef.current;
     if (!videoEl || !activeStream) {
       if (videoEl) videoEl.srcObject = null;
       setIsVideoRendering(false);
+      setVideoDebugInfo((prev) => ({
+        ...prev,
+        videoWidth: 0,
+        videoHeight: 0,
+        readyState: 0,
+        readyStateLabel: 'HAVE_NOTHING (0)',
+        paused: true,
+        lastEvent: 'stream_removido',
+        lastEventTime: Date.now(),
+      }));
       return;
     }
 
+    const updateDebug = (event: string, playRes?: string) => {
+      if (!videoEl) return;
+      const rState = videoEl.readyState;
+      const rLabels: Record<number, string> = {
+        0: 'HAVE_NOTHING (0)',
+        1: 'HAVE_METADATA (1)',
+        2: 'HAVE_CURRENT_DATA (2)',
+        3: 'HAVE_FUTURE_DATA (3)',
+        4: 'HAVE_ENOUGH_DATA (4)',
+      };
+      setVideoDebugInfo({
+        videoWidth: videoEl.videoWidth,
+        videoHeight: videoEl.videoHeight,
+        readyState: rState,
+        readyStateLabel: rLabels[rState] || String(rState),
+        paused: videoEl.paused,
+        muted: videoEl.muted,
+        currentTime: videoEl.currentTime,
+        lastEvent: event,
+        lastEventTime: Date.now(),
+        playResult: playRes !== undefined ? playRes : (videoEl.paused ? 'Pausado' : 'Reproduzindo'),
+      });
+    };
+
     if (videoEl.srcObject !== activeStream) {
       videoEl.srcObject = activeStream;
+      videoEl.muted = true;
+      updateDebug('srcObject_atribuido');
     }
 
     const checkRendering = () => {
@@ -337,26 +388,36 @@ export const DiscordVoiceStage: React.FC = () => {
         setIsVideoRendering(true);
         setIsConnectingStream(false);
       }
+      updateDebug('checkRendering');
     };
 
-    const playVideo = () => {
+    const playVideo = (origin = 'manual') => {
       if (!videoEl || !activeStream) return;
+      videoEl.muted = true;
       if (videoEl.srcObject !== activeStream) {
         videoEl.srcObject = activeStream;
       }
       if (videoEl.paused) {
-        videoEl.play().catch((err) => {
-          console.warn('[DiscordVoiceStage] Error playing stream video:', err);
-        });
+        videoEl
+          .play()
+          .then(() => {
+            updateDebug(origin, 'OK (Reproduzindo)');
+          })
+          .catch((err) => {
+            console.warn('[DiscordVoiceStage] Error playing stream video:', err);
+            updateDebug(origin, `Erro: ${err.name || err.message}`);
+          });
+      } else {
+        updateDebug(origin, 'OK (Já em reprodução)');
       }
       checkRendering();
     };
 
-    playVideo();
+    playVideo('mount');
 
     const videoTracks = activeStream.getVideoTracks();
     const onTrackUnmute = () => {
-      playVideo();
+      playVideo('unmute');
       checkRendering();
     };
 
@@ -369,21 +430,47 @@ export const DiscordVoiceStage: React.FC = () => {
       if (e.track.kind === 'video') {
         e.track.enabled = true;
         e.track.addEventListener('unmute', onTrackUnmute);
-        playVideo();
+        playVideo('addtrack');
       }
     };
 
     activeStream.addEventListener('addtrack', handleAddTrack);
-    videoEl.addEventListener('loadedmetadata', playVideo);
-    videoEl.addEventListener('loadeddata', onTrackUnmute);
-    videoEl.addEventListener('canplay', playVideo);
-    videoEl.addEventListener('playing', checkRendering);
-    videoEl.addEventListener('timeupdate', checkRendering);
+
+    const onLoadedMetadata = () => {
+      updateDebug('loadedmetadata');
+      playVideo('loadedmetadata');
+    };
+    const onLoadedData = () => {
+      updateDebug('loadeddata');
+      checkRendering();
+    };
+    const onCanPlay = () => {
+      updateDebug('canplay');
+      playVideo('canplay');
+    };
+    const onPlaying = () => {
+      updateDebug('playing');
+      checkRendering();
+    };
+    const onTimeUpdate = () => {
+      updateDebug('timeupdate');
+      checkRendering();
+    };
+    const onError = () => {
+      updateDebug(`error: ${videoEl.error ? videoEl.error.message : 'desconhecido'}`);
+    };
+
+    videoEl.addEventListener('loadedmetadata', onLoadedMetadata);
+    videoEl.addEventListener('loadeddata', onLoadedData);
+    videoEl.addEventListener('canplay', onCanPlay);
+    videoEl.addEventListener('playing', onPlaying);
+    videoEl.addEventListener('timeupdate', onTimeUpdate);
+    videoEl.addEventListener('error', onError);
 
     let attempts = 0;
     const pollInterval = setInterval(() => {
       attempts++;
-      playVideo();
+      playVideo('poll');
       checkRendering();
       if ((videoEl && videoEl.videoWidth > 0) || attempts > 15) {
         clearInterval(pollInterval);
@@ -391,21 +478,21 @@ export const DiscordVoiceStage: React.FC = () => {
     }, 250);
 
     const handleMediaRecovered = () => {
-      playVideo();
+      playVideo('media-recovered');
       checkRendering();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        playVideo();
+        playVideo('visibilitychange');
         checkRendering();
       }
     };
 
     window.addEventListener('capy:media-recovered', handleMediaRecovered);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', playVideo);
-    window.addEventListener('pageshow', playVideo);
+    window.addEventListener('focus', () => playVideo('window-focus'));
+    window.addEventListener('pageshow', () => playVideo('pageshow'));
 
     return () => {
       clearInterval(pollInterval);
@@ -413,15 +500,14 @@ export const DiscordVoiceStage: React.FC = () => {
         t.removeEventListener('unmute', onTrackUnmute);
       });
       activeStream.removeEventListener('addtrack', handleAddTrack);
-      videoEl.removeEventListener('loadedmetadata', playVideo);
-      videoEl.removeEventListener('loadeddata', onTrackUnmute);
-      videoEl.removeEventListener('canplay', playVideo);
-      videoEl.removeEventListener('playing', checkRendering);
-      videoEl.removeEventListener('timeupdate', checkRendering);
+      videoEl.removeEventListener('loadedmetadata', onLoadedMetadata);
+      videoEl.removeEventListener('loadeddata', onLoadedData);
+      videoEl.removeEventListener('canplay', onCanPlay);
+      videoEl.removeEventListener('playing', onPlaying);
+      videoEl.removeEventListener('timeupdate', onTimeUpdate);
+      videoEl.removeEventListener('error', onError);
       window.removeEventListener('capy:media-recovered', handleMediaRecovered);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', playVideo);
-      window.removeEventListener('pageshow', playVideo);
     };
   }, [activeStream, currentSelectedShare?.id, viewMode]);
 
@@ -764,6 +850,21 @@ export const DiscordVoiceStage: React.FC = () => {
             </button>
           )}
 
+          {/* Diagnóstico de Transmissão WebRTC */}
+          <button
+            onClick={() => setIsDiagnosticsOpen((v) => !v)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] text-xs font-medium transition-colors cursor-pointer border ${
+              isDiagnosticsOpen
+                ? 'bg-[#5865f2] text-white border-[#5865f2]'
+                : 'bg-[#2b2d31] hover:bg-[#35373c] text-[#dbdee1] border-[#1f2023]'
+            }`}
+            title="Abrir painel de diagnóstico WebRTC em tempo real"
+          >
+            <Activity className="w-3.5 h-3.5 text-[#5865f2]" />
+            <span className="hidden md:inline">Diagnóstico de transmissão</span>
+            <span className="md:hidden">Diag</span>
+          </button>
+
           {/* Open Chat */}
           <button
             onClick={() => setActiveView('chat')}
@@ -924,6 +1025,15 @@ export const DiscordVoiceStage: React.FC = () => {
                   <span>Trocar Janela</span>
                 </button>
               )}
+
+              <button
+                onClick={() => setIsDiagnosticsOpen(true)}
+                className="flex items-center gap-1.5 bg-black/80 hover:bg-[#35373c] backdrop-blur-md px-2 py-1 rounded text-xs text-[#dbdee1] border border-white/10 transition-colors cursor-pointer"
+                title="Abrir painel de diagnóstico WebRTC em tempo real"
+              >
+                <Activity className="w-3.5 h-3.5 text-[#5865f2]" />
+                <span>Diagnóstico de transmissão</span>
+              </button>
 
               <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm px-2 py-1 rounded text-[11px] text-[#949ba4] pointer-events-none border border-white/5">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#23a55a]" />
@@ -1097,6 +1207,29 @@ export const DiscordVoiceStage: React.FC = () => {
           <span className="hidden sm:inline">Desconectar</span>
         </button>
       </div>
+
+      {/* WebRTC Diagnostics Modal */}
+      <WebRTCDiagnosticsModal
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        videoEl={screenVideoRef.current}
+        videoDebugInfo={videoDebugInfo}
+        activePresenterId={currentSelectedShare && !currentSelectedShare.isLocal ? currentSelectedShare.id : null}
+        onForceKeyframe={() => {
+          if (currentSelectedShare && !currentSelectedShare.isLocal) {
+            voiceService.enterStream(currentSelectedShare.id, currentSelectedShare.sessionId);
+          }
+        }}
+        onForcePlay={() => {
+          const el = screenVideoRef.current;
+          if (el) {
+            el.muted = true;
+            el.play().catch((err) => {
+              setVideoDebugInfo((prev) => ({ ...prev, playResult: `Erro: ${err.name || err.message}` }));
+            });
+          }
+        }}
+      />
 
       {/* Voice User Context Menu */}
       {voiceContextMenu && (
