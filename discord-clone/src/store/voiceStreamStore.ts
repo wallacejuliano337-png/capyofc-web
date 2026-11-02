@@ -261,10 +261,12 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
 
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
-          if ('contentHint' in videoTrack) {
-            videoTrack.contentHint = 'motion';
           videoTrack.enabled = true;
-          }
+          try {
+            if ('contentHint' in videoTrack) {
+              (videoTrack as any).contentHint = 'motion';
+            }
+          } catch {}
           videoTrack.onended = () => {
             get().stopScreenShare();
           };
@@ -297,10 +299,12 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
 
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
-          if ('contentHint' in videoTrack) {
-            videoTrack.contentHint = 'motion';
           videoTrack.enabled = true;
-          }
+          try {
+            if ('contentHint' in videoTrack) {
+              (videoTrack as any).contentHint = 'motion';
+            }
+          } catch {}
           videoTrack.onended = () => {
             get().stopScreenShare();
           };

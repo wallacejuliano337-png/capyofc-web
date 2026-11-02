@@ -436,7 +436,7 @@ class VoiceService {
         ownerId: currentUser.id,
         status: 'active',
         startedAt: Date.now(),
-        title: `${currentUser.displayName || currentUser.name} (Sua tela)`,
+        title: `Tela de ${currentUser.displayName || currentUser.name}`,
       };
       this.activeSessions.set(currentUser.id, initialLocalSession);
       useDiscord.setState({ isScreenSharing: true });
@@ -790,10 +790,13 @@ class VoiceService {
         const u = latestPresence.user as User;
         const existingParticipant = useDiscord.getState().voiceState.participants.find((p) => p.user.id === u.id);
 
-        const presenceSession = latestPresence.shareSession as ScreenShareSession | undefined;
-        const presenceSharing = Boolean(latestPresence.isScreenSharing);
-
-        const shareEval = this.evaluateScreenShareState(u.id, presenceSession, presenceSharing);
+        // REGRA CRÍTICA: Supabase Realtime Presence NUNCA pode iniciar ou reativar compartilhamento de tela!
+        // Apenas o sinal live share_start ou sync_request/response do WebRTC é fonte de verdade para mídia ativa.
+        const currentActiveSession = this.activeSessions.get(u.id);
+        const isSessionActive = Boolean(
+          currentActiveSession && (currentActiveSession.status === 'active' || currentActiveSession.status === 'starting')
+        );
+        const remoteStream = isSessionActive ? this.getRemoteStream(u.id) : undefined;
 
         participantsMap.set(u.id, {
           user: u,
@@ -801,9 +804,9 @@ class VoiceService {
           isDeafened: existingParticipant?.isDeafened ?? Boolean(latestPresence.isDeafened),
           isSpeaking: existingParticipant?.isSpeaking ?? Boolean(latestPresence.isSpeaking),
           isVideoOn: existingParticipant?.isVideoOn ?? Boolean(latestPresence.isVideoOn),
-          isScreenSharing: shareEval.isSharing,
-          shareSession: shareEval.session,
-          mediaStream: shareEval.isSharing ? shareEval.stream : undefined,
+          isScreenSharing: isSessionActive,
+          shareSession: isSessionActive ? currentActiveSession : null,
+          mediaStream: remoteStream,
         });
       }
     });
@@ -1099,10 +1102,10 @@ class VoiceService {
     }
 
     // 0aa. Espectador iniciou a visualização da transmissão do apresentador
-    if (payload.type === 'watch_stream') {
+    if (payload.type === 'watch_stream' || payload.type === 'keyframe_request') {
       const curUser = useDiscord.getState().currentUser;
       if (payload.targetId && payload.targetId !== curUser.id) return;
-      console.log(`[voiceService] Espectador ${payload.senderId} entrou na transmissão, enviando Keyframe IDR...`);
+      console.log(`[voiceService] Keyframe solicitado por ${payload.senderId} (tipo: ${payload.type}), gerando IDR imediato...`);
       const screenStream = useVoiceStreamStore.getState().screenStream;
       const screenVideoTrack = screenStream?.getVideoTracks().find((t) => t.readyState === 'live');
       if (screenVideoTrack) {
@@ -1111,7 +1114,10 @@ class VoiceService {
           const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
           const vt = transceivers.find((t) => t.sender?.track?.kind === 'video' || t.sender?.track === screenVideoTrack);
           if (vt?.sender && typeof vt.sender.replaceTrack === 'function') {
-            vt.sender.replaceTrack(screenVideoTrack).catch(() => {});
+            // Re-bind com null e a faixa live força o encoder do Chromium a emitir um IDR keyframe imediato
+            void vt.sender.replaceTrack(null).then(() => {
+              void vt.sender.replaceTrack(screenVideoTrack);
+            }).catch(() => {});
           }
         }
       }
@@ -1120,26 +1126,6 @@ class VoiceService {
 
     if (payload.type === 'unwatch_stream') {
       console.log(`[voiceService] Espectador ${payload.senderId} parou de assistir a transmissão`);
-      return;
-    }
-
-    // 0a. Solicitação de re-injeção imediata de Keyframe IDR para recuperação de tela preta
-    if (payload.type === 'keyframe_request') {
-      const curUser = useDiscord.getState().currentUser;
-      if (payload.targetId && payload.targetId !== curUser.id) return;
-      const screenStream = useVoiceStreamStore.getState().screenStream;
-      const screenVideoTrack = screenStream?.getVideoTracks().find((t) => t.readyState === 'live');
-      if (screenVideoTrack) {
-        console.log(`[voiceService] Keyframe solicitado por ${payload.senderId}, gerando IDR imediato...`);
-        const pc = this.peerConnections.get(payload.senderId);
-        if (pc) {
-          const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
-          const vt = transceivers.find((t) => t.sender?.track?.kind === 'video' || t.sender?.track === screenVideoTrack);
-          if (vt?.sender && typeof vt.sender.replaceTrack === 'function') {
-            vt.sender.replaceTrack(screenVideoTrack).catch(() => {});
-          }
-        }
-      }
       return;
     }
 
@@ -1397,7 +1383,7 @@ class VoiceService {
       ownerId: curUser.id,
       status: 'active',
       startedAt: Date.now(),
-      title: `${curUser.displayName || curUser.name} (${activeSourceName || 'Sua tela'})`,
+      title: `Tela de ${curUser.displayName || curUser.name}`,
     };
     this.activeSessions.set(curUser.id, localSession);
     useDiscord.setState({ isScreenSharing: true });
@@ -1746,8 +1732,15 @@ class VoiceService {
     if (!videoStream) {
       videoStream = new MediaStream([track]);
       this.remoteStreams.set(peerId, videoStream);
-    } else if (!videoStream.getTracks().some((t) => t.id === track.id)) {
-      videoStream.addTrack(track);
+    } else {
+      videoStream.getVideoTracks().forEach((t) => {
+        if (t.id !== track.id || t.readyState === 'ended') {
+          try { videoStream?.removeTrack(t); } catch {}
+        }
+      });
+      if (!videoStream.getTracks().some((t) => t.id === track.id)) {
+        videoStream.addTrack(track);
+      }
     }
 
     const session = this.activeSessions.get(peerId);

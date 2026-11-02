@@ -52,8 +52,32 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
     }
     play();
 
+    const videoTracks = stream.getVideoTracks();
+    videoTracks.forEach((t) => {
+      t.enabled = true;
+      t.addEventListener('unmute', play);
+    });
+
+    const handleAddTrack = (e: MediaStreamTrackEvent) => {
+      if (e.track.kind === 'video') {
+        e.track.enabled = true;
+        e.track.addEventListener('unmute', play);
+        play();
+      }
+    };
+
+    stream.addEventListener('addtrack', handleAddTrack);
     el.addEventListener('loadedmetadata', play);
+    el.addEventListener('loadeddata', play);
     el.addEventListener('canplay', play);
+
+    const pollInterval = setInterval(() => {
+      if (el && (el.paused || el.videoWidth === 0)) {
+        play();
+      } else {
+        clearInterval(pollInterval);
+      }
+    }, 350);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') play();
@@ -65,7 +89,13 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
     window.addEventListener('pageshow', play);
 
     return () => {
+      clearInterval(pollInterval);
+      videoTracks.forEach((t) => {
+        t.removeEventListener('unmute', play);
+      });
+      stream.removeEventListener('addtrack', handleAddTrack);
       el.removeEventListener('loadedmetadata', play);
+      el.removeEventListener('loadeddata', play);
       el.removeEventListener('canplay', play);
       window.removeEventListener('capy:media-recovered', play);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -276,7 +306,9 @@ export const DiscordVoiceStage: React.FC = () => {
 
   const activeStream = currentSelectedShare ? currentSelectedShare.stream : null;
   const activeStreamOwner = currentSelectedShare
-    ? currentSelectedShare.title
+    ? currentSelectedShare.isLocal
+      ? 'Sua Tela'
+      : currentSelectedShare.title
     : 'Transmissão Ao Vivo';
 
   // Vincula a transmissão selecionada ao elemento de vídeo principal do palco com recuperação contínua
@@ -325,11 +357,30 @@ export const DiscordVoiceStage: React.FC = () => {
       t.addEventListener('unmute', onTrackUnmute);
     });
 
+    const handleAddTrack = (e: MediaStreamTrackEvent) => {
+      if (e.track.kind === 'video') {
+        e.track.enabled = true;
+        e.track.addEventListener('unmute', onTrackUnmute);
+        playVideo();
+      }
+    };
+
+    activeStream.addEventListener('addtrack', handleAddTrack);
     videoEl.addEventListener('loadedmetadata', playVideo);
     videoEl.addEventListener('loadeddata', onTrackUnmute);
     videoEl.addEventListener('canplay', playVideo);
     videoEl.addEventListener('playing', checkRendering);
     videoEl.addEventListener('timeupdate', checkRendering);
+
+    let attempts = 0;
+    const pollInterval = setInterval(() => {
+      attempts++;
+      playVideo();
+      checkRendering();
+      if ((videoEl && videoEl.videoWidth > 0) || attempts > 15) {
+        clearInterval(pollInterval);
+      }
+    }, 250);
 
     const handleMediaRecovered = () => {
       playVideo();
@@ -349,9 +400,11 @@ export const DiscordVoiceStage: React.FC = () => {
     window.addEventListener('pageshow', playVideo);
 
     return () => {
+      clearInterval(pollInterval);
       videoTracks.forEach((t) => {
         t.removeEventListener('unmute', onTrackUnmute);
       });
+      activeStream.removeEventListener('addtrack', handleAddTrack);
       videoEl.removeEventListener('loadedmetadata', playVideo);
       videoEl.removeEventListener('loadeddata', onTrackUnmute);
       videoEl.removeEventListener('canplay', playVideo);
@@ -362,7 +415,7 @@ export const DiscordVoiceStage: React.FC = () => {
       window.removeEventListener('focus', playVideo);
       window.removeEventListener('pageshow', playVideo);
     };
-  }, [activeStream?.id, currentSelectedShare?.id, viewMode]);
+  }, [activeStream, currentSelectedShare?.id, viewMode]);
 
   // Log de diagnóstico detalhado para monitoramento de transmissões locais e remotas
   useEffect(() => {
@@ -664,7 +717,7 @@ export const DiscordVoiceStage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {/* Botão destacado: Parar de Assistir (se estiver assistindo transmissão remota) */}
-          {watchingShareId && currentSelectedShare && (
+          {watchingShareId && currentSelectedShare && !currentSelectedShare.isLocal && (
             <button
               onClick={handleLeaveStream}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#da373c] hover:bg-[#a1282c] text-white text-xs font-semibold shadow-md transition-all cursor-pointer border border-transparent"

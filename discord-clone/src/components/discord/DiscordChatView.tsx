@@ -68,6 +68,7 @@ export const DiscordChatView: React.FC<DiscordChatViewProps> = ({ onBack, isMobi
     hasServerPermission,
     setActiveServer,
     joinCommunityServer,
+    subscribeToChatChannel,
   } = useDiscord();
 
   const { theme } = useTheme();

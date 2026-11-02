@@ -14,6 +14,7 @@ import {
   Server,
   ServerFolder,
   Message,
+  MessageAttachment,
   VoiceConnectionState,
   VoiceParticipant,
   ShopItem,
@@ -948,6 +949,8 @@ export interface DiscordStore {
   ) => void;
   editMessage: (channelId: string, messageId: string, newContent: string) => void;
   deleteMessage: (channelId: string, messageId: string) => void;
+  fetchMessages: (channelId: string) => Promise<void>;
+  subscribeToChatChannel: (channelId: string) => () => void;
   pinMessage: (channelId: string, messageId: string) => void;
   toggleReaction: (channelId: string, messageId: string, emoji: string) => void;
 
@@ -1340,6 +1343,67 @@ const saveMessagesToStorage = (messages: Record<string, Message[]>) => {
   } catch {}
 };
 
+let chatRealtimeChannel: any = null;
+let currentSubscribedChatChannelId: string | null = null;
+
+export const OFFICIAL_GERAL_CHANNEL_UUID = 'e12e572c-2576-4965-8ded-312ae4d98257';
+export const OFFICIAL_CHANNEL_MAP: Record<string, string> = {
+  'ch-geral': OFFICIAL_GERAL_CHANNEL_UUID,
+  'ch-anuncios': '2224ff4a-fde5-4243-8572-256e9a226ad1',
+  'ch-avisos': '2224ff4a-fde5-4243-8572-256e9a226ad1',
+  'ch-novidades': '2224ff4a-fde5-4243-8572-256e9a226ad1',
+  'ch-clips': '2f283544-ba27-43dd-a225-cce5866e42aa',
+  'ch-jogadas': '2f283544-ba27-43dd-a225-cce5866e42aa',
+  'ch-dev-tech': '37672e02-445c-4e1d-8ab3-6f4a2e3fc896',
+};
+
+export function resolveDbChannelId(channelId: string): string | null {
+  if (!channelId) return null;
+  if (OFFICIAL_CHANNEL_MAP[channelId]) return OFFICIAL_CHANNEL_MAP[channelId];
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(channelId)) {
+    return channelId;
+  }
+  return null;
+}
+
+export function resolveStoreChannelId(dbChannelId: string): string {
+  for (const [storeId, uuid] of Object.entries(OFFICIAL_CHANNEL_MAP)) {
+    if (uuid === dbChannelId) return storeId;
+  }
+  return dbChannelId;
+}
+
+export function mapDbMessageToDiscordMessage(dbMsg: any, fallbackChannelId: string): Message {
+  const profile = dbMsg.profiles;
+  const createdAt = dbMsg.created_at ? new Date(dbMsg.created_at) : new Date();
+  const timeString = `Hoje às ${createdAt.getHours().toString().padStart(2, '0')}:${createdAt.getMinutes().toString().padStart(2, '0')}`;
+
+  const author: User = {
+    id: profile?.id || dbMsg.author_id,
+    name: profile?.username || 'usuario',
+    displayName: profile?.display_name || profile?.username || 'Membro',
+    avatar: getAvatarUrl(profile?.avatar_url),
+    tag: (profile?.id || dbMsg.author_id || '').replace(/-/g, '').slice(0, 4),
+    status: 'online',
+    bannerColor: profile?.profile_primary_color || '#5865f2',
+    nameColor: profile?.name_color,
+    nameFont: profile?.name_font,
+    nameEffect: profile?.name_effect,
+  };
+
+  return {
+    id: dbMsg.id,
+    channelId: fallbackChannelId,
+    author,
+    content: dbMsg.content || '',
+    timestamp: timeString,
+    edited: Boolean(dbMsg.edited_at),
+    isEdited: Boolean(dbMsg.edited_at),
+    attachments: (dbMsg.attachments || []) as MessageAttachment[],
+    reactions: [],
+  };
+}
+
 let presenceRealtimeChannel: any = null;
 let presenceSweepInterval: any = null;
 let presenceDebounceTimeout: any = null;
@@ -1363,11 +1427,15 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
 
   updatePresenceLease: (userId, expiresAt, status) => {
     presenceLeaseCache.set(userId, expiresAt);
-    if (status === 'online') {
-      const current = new Set(get().realtimeOnlineIds);
+    const now = Date.now();
+    const isOnline = isPresenceOnline({ status, expires_at: expiresAt }, now);
+    const current = new Set(get().realtimeOnlineIds);
+    if (isOnline) {
       current.add(userId);
-      set({ realtimeOnlineIds: current });
+    } else {
+      current.delete(userId);
     }
+    set({ realtimeOnlineIds: current });
     scheduleDebouncedMemberRefresh();
   },
 
@@ -4227,6 +4295,122 @@ export const useDiscord = create<DiscordStore>((set, get) => ({
       saveMessagesToStorage(updated);
       return { messages: updated };
     });
+  },
+
+  fetchMessages: async (channelId: string) => {
+    const dbChannelId = resolveDbChannelId(channelId);
+    if (!dbChannelId || !supabase) return;
+
+    try {
+      const { data: dbMsgs, error } = await db()
+        .from('messages')
+        .select('*, profiles:author_id(*)')
+        .eq('channel_id', dbChannelId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (error) {
+        console.warn('[discordStore] fetchMessages error:', error);
+        return;
+      }
+
+      if (dbMsgs && dbMsgs.length > 0) {
+        const mapped = dbMsgs.map((m: any) => mapDbMessageToDiscordMessage(m, channelId));
+        set((state) => {
+          const updated = {
+            ...state.messages,
+            [channelId]: mapped,
+          };
+          saveMessagesToStorage(updated);
+          return { messages: updated };
+        });
+      }
+    } catch (err) {
+      console.warn('[discordStore] fetchMessages exception:', err);
+    }
+  },
+
+  subscribeToChatChannel: (channelId: string) => {
+    const dbChannelId = resolveDbChannelId(channelId);
+    void get().fetchMessages(channelId);
+    if (!dbChannelId || !supabase) return () => {};
+
+    if (currentSubscribedChatChannelId === channelId && chatRealtimeChannel) {
+      return () => {};
+    }
+
+    if (chatRealtimeChannel && supabase) {
+      try {
+        void supabase.removeChannel(chatRealtimeChannel);
+      } catch {}
+      chatRealtimeChannel = null;
+      currentSubscribedChatChannelId = null;
+    }
+
+    currentSubscribedChatChannelId = channelId;
+    const topic = `capychat-chat-${dbChannelId}`;
+    const channel = supabase.channel(topic);
+
+    channel
+      .on('broadcast', { event: 'new_message' }, ({ payload }) => {
+        if (!payload || !payload.id) return;
+        const targetCh = resolveStoreChannelId(payload.channelId || dbChannelId);
+        set((state) => {
+          const current = state.messages[targetCh] || [];
+          if (current.some((m) => m.id === payload.id)) return state;
+          const updated = {
+            ...state.messages,
+            [targetCh]: [...current, payload],
+          };
+          saveMessagesToStorage(updated);
+          return { messages: updated };
+        });
+      })
+      .on('broadcast', { event: 'edit_message' }, ({ payload }) => {
+        if (!payload || !payload.id) return;
+        const targetCh = resolveStoreChannelId(payload.channelId || dbChannelId);
+        set((state) => {
+          const current = state.messages[targetCh] || [];
+          const updated = {
+            ...state.messages,
+            [targetCh]: current.map((m) =>
+              m.id === payload.id ? { ...m, content: payload.content, isEdited: true } : m
+            ),
+          };
+          saveMessagesToStorage(updated);
+          return { messages: updated };
+        });
+      })
+      .on('broadcast', { event: 'delete_message' }, ({ payload }) => {
+        if (!payload || !payload.id) return;
+        const targetCh = resolveStoreChannelId(payload.channelId || dbChannelId);
+        set((state) => {
+          const current = state.messages[targetCh] || [];
+          const updated = {
+            ...state.messages,
+            [targetCh]: current.filter((m) => m.id !== payload.id),
+          };
+          saveMessagesToStorage(updated);
+          return { messages: updated };
+        });
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          void get().fetchMessages(channelId);
+        }
+      });
+
+    chatRealtimeChannel = channel;
+
+    return () => {
+      if (chatRealtimeChannel === channel && supabase) {
+        try {
+          void supabase.removeChannel(channel);
+        } catch {}
+        chatRealtimeChannel = null;
+        currentSubscribedChatChannelId = null;
+      }
+    };
   },
 
   deleteMessage: (channelId, messageId) => {
