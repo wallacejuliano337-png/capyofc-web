@@ -113,6 +113,9 @@ class VoiceService {
   };
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      (window as any).__voiceService = this;
+    }
     this.bindWindowInteraction();
     this.bindLifecycleListeners();
   }
@@ -1914,6 +1917,49 @@ class VoiceService {
         },
       });
     }
+  }
+
+  public async getDiagnostics(targetPeerId?: string) {
+    const results: any[] = [];
+    for (const [peerId, pc] of this.peerConnections.entries()) {
+      if (targetPeerId && peerId !== targetPeerId) continue;
+      let inboundVideo: any = {};
+      let outboundVideo: any = {};
+      try {
+        const stats = await pc.getStats();
+        stats.forEach((report: any) => {
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            inboundVideo = {
+              framesReceived: report.framesReceived,
+              framesDecoded: report.framesDecoded,
+              framesDropped: report.framesDropped,
+              bytesReceived: report.bytesReceived,
+              frameWidth: report.frameWidth,
+              frameHeight: report.frameHeight,
+              keyFramesDecoded: report.keyFramesDecoded,
+            };
+          } else if (report.type === 'outbound-rtp' && report.kind === 'video') {
+            outboundVideo = {
+              framesSent: report.framesSent,
+              bytesSent: report.bytesSent,
+              frameWidth: report.frameWidth,
+              frameHeight: report.frameHeight,
+              keyFramesEncoded: report.keyFramesEncoded,
+            };
+          }
+        });
+      } catch (e) {}
+      results.push({
+        peerId,
+        iceConnectionState: pc.iceConnectionState,
+        connectionState: pc.connectionState,
+        signalingState: pc.signalingState,
+        activeSession: this.activeSessions.get(peerId),
+        inboundVideo,
+        outboundVideo,
+      });
+    }
+    return results;
   }
 
   getRemoteStream(peerId: string): MediaStream | undefined {
