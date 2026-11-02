@@ -241,7 +241,6 @@ export const useVoiceStreamStore = create<VoiceStreamStore>((set, get) => ({
             chromeMediaSourceId: source.id,
             maxWidth: dims.width,
             maxHeight: dims.height,
-            minFrameRate: 15,
             maxFrameRate: fps,
           },
         };

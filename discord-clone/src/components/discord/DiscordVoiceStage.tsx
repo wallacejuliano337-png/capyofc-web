@@ -243,7 +243,7 @@ export const DiscordVoiceStage: React.FC = () => {
         user: currentUser,
         isLocal: true,
         stream: screenStream,
-        title: `${currentUser.displayName || currentUser.name} (${activeSourceName || 'Sua tela'})`,
+        title: 'Sua Tela',
         hasLiveVideo: true,
       });
     }
@@ -267,7 +267,9 @@ export const DiscordVoiceStage: React.FC = () => {
           user: p.user,
           isLocal: false,
           stream: remoteStream || null,
-          title: session?.title || `Tela de ${p.user.displayName || p.user.name}`,
+          title: (session?.title && !session.title.includes('Sua Tela') && !session.title.includes('Sua tela'))
+            ? session.title
+            : `Tela de ${p.user.displayName || p.user.name}`,
           hasLiveVideo,
         });
       }
@@ -301,8 +303,14 @@ export const DiscordVoiceStage: React.FC = () => {
         setIsConnectingStream(false);
         setIsVideoRendering(false);
       }
+    } else if (viewMode === 'stage' && activeScreenShares.length === 0 && !isLocalSharingActive) {
+      setViewMode('grid');
+      setWatchingShareId(null);
+      setFocusedParticipantId(null);
+      setIsConnectingStream(false);
+      setIsVideoRendering(false);
     }
-  }, [participants, watchingShareId]);
+  }, [participants, watchingShareId, activeScreenShares.length, viewMode, isLocalSharingActive]);
 
   const activeStream = currentSelectedShare ? currentSelectedShare.stream : null;
   const activeStreamOwner = currentSelectedShare
@@ -478,9 +486,7 @@ export const DiscordVoiceStage: React.FC = () => {
           <div
             key={`compact-share-${p.user.id}`}
             onClick={() => {
-              setWatchingShareId(p.user.id);
-              setFocusedParticipantId(p.user.id);
-              setViewMode('stage');
+              handleEnterStream(p.user.id, activeShare.sessionId);
             }}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -858,6 +864,14 @@ export const DiscordVoiceStage: React.FC = () => {
               playsInline
               muted
               className="w-full h-full object-contain bg-black"
+              onLoadedMetadata={(e) => {
+                e.currentTarget.muted = true;
+                e.currentTarget.play().catch(() => {});
+                if (e.currentTarget.videoWidth > 0) {
+                  setIsVideoRendering(true);
+                  setIsConnectingStream(false);
+                }
+              }}
             />
 
             {/* Overlay de carregamento / conexão suave (evita tela preta morta) */}

@@ -206,11 +206,12 @@ class VoiceService {
     // 2. Participante remoto
     const lastEnded = this.endedSessions.get(peerId);
 
-    // 2a. Se recebeu encerramento explícito ou session nula com flag false
+    // 2a. Se recebeu encerramento explícito ou flag false
     if (
       incomingSession?.status === 'inactive' ||
       incomingSession?.status === 'stopping' ||
-      (incomingSession === null && incomingIsSharingFlag === false)
+      incomingIsSharingFlag === false ||
+      incomingSession === null
     ) {
       if (incomingSession?.sessionId) {
         this.endedSessions.set(peerId, {
@@ -792,9 +793,15 @@ class VoiceService {
 
         // REGRA CRÍTICA: Supabase Realtime Presence NUNCA pode iniciar ou reativar compartilhamento de tela!
         // Apenas o sinal live share_start ou sync_request/response do WebRTC é fonte de verdade para mídia ativa.
+        const isPresenceSharing = Boolean(latestPresence.isScreenSharing);
+        if (!isPresenceSharing) {
+          this.endRemoteScreenShareSession(u.id);
+        }
         const currentActiveSession = this.activeSessions.get(u.id);
         const isSessionActive = Boolean(
-          currentActiveSession && (currentActiveSession.status === 'active' || currentActiveSession.status === 'starting')
+          isPresenceSharing &&
+          currentActiveSession &&
+          (currentActiveSession.status === 'active' || currentActiveSession.status === 'starting')
         );
         const remoteStream = isSessionActive ? this.getRemoteStream(u.id) : undefined;
 
@@ -1113,11 +1120,10 @@ class VoiceService {
         if (pc) {
           const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
           const vt = transceivers.find((t) => t.sender?.track?.kind === 'video' || t.sender?.track === screenVideoTrack);
-          if (vt?.sender && typeof vt.sender.replaceTrack === 'function') {
-            // Re-bind com null e a faixa live força o encoder do Chromium a emitir um IDR keyframe imediato
-            void vt.sender.replaceTrack(null).then(() => {
-              void vt.sender.replaceTrack(screenVideoTrack);
-            }).catch(() => {});
+          if (vt?.sender) {
+            if (typeof (vt.sender as any).generateKeyFrame === 'function') {
+              try { (vt.sender as any).generateKeyFrame(); } catch {}
+            }
           }
         }
       }
@@ -1883,8 +1889,13 @@ class VoiceService {
       void this.ensurePeerConnection(presenterId).then((pc) => {
         const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
         const videoTransceiver = transceivers.find((t) => t.receiver?.track && t.receiver.track.kind === 'video');
-        if (videoTransceiver?.receiver?.track) {
-          this.syncRemoteVideoTrack(presenterId, videoTransceiver.receiver.track);
+        if (videoTransceiver?.receiver) {
+          if (typeof (videoTransceiver.receiver as any).requestKeyFrame === 'function') {
+            try { (videoTransceiver.receiver as any).requestKeyFrame(); } catch {}
+          }
+          if (videoTransceiver.receiver.track) {
+            this.syncRemoteVideoTrack(presenterId, videoTransceiver.receiver.track);
+          }
         }
         sendSignals();
       }).catch(() => {
