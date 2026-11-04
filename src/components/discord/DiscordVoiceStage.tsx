@@ -37,10 +37,14 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
 
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !stream) return;
+    if (!el || !stream) {
+      if (el) el.srcObject = null;
+      return;
+    }
 
     const play = () => {
       if (!el || !stream) return;
+      el.muted = true;
       if (el.srcObject !== stream) {
         el.srcObject = stream;
       }
@@ -49,9 +53,8 @@ const StreamMiniThumbnail: React.FC<StreamMiniThumbnailProps> = ({ stream }) => 
       }
     };
 
-    if (el.srcObject !== stream) {
-      el.srcObject = stream;
-    }
+    el.muted = true;
+    el.srcObject = stream;
     play();
 
     const videoTracks = stream.getVideoTracks();
@@ -397,28 +400,28 @@ export const DiscordVoiceStage: React.FC = () => {
       if (videoEl.srcObject !== activeStream) {
         videoEl.srcObject = activeStream;
       }
-      if (videoEl.paused) {
-        videoEl
-          .play()
-          .then(() => {
-            updateDebug(origin, 'OK (Reproduzindo)');
-          })
-          .catch((err) => {
-            console.warn('[DiscordVoiceStage] Error playing stream video:', err);
-            updateDebug(origin, `Erro: ${err.name || err.message}`);
-          });
-      } else {
-        updateDebug(origin, 'OK (Já em reprodução)');
-      }
-      checkRendering();
+      videoEl
+        .play()
+        .then(() => {
+          updateDebug(origin, 'OK (Reproduzindo)');
+          checkRendering();
+        })
+        .catch((err) => {
+          console.warn('[DiscordVoiceStage] Error playing stream video:', err);
+          updateDebug(origin, `Erro: ${err.name || err.message}`);
+        });
     };
 
     playVideo('mount');
 
     const videoTracks = activeStream.getVideoTracks();
     const onTrackUnmute = () => {
+      if (!videoEl || !activeStream) return;
+      videoEl.muted = true;
+      if (videoEl.videoWidth === 0) {
+        videoEl.srcObject = activeStream;
+      }
       playVideo('unmute');
-      checkRendering();
     };
 
     videoTracks.forEach((t) => {
@@ -465,6 +468,7 @@ export const DiscordVoiceStage: React.FC = () => {
     videoEl.addEventListener('canplay', onCanPlay);
     videoEl.addEventListener('playing', onPlaying);
     videoEl.addEventListener('timeupdate', onTimeUpdate);
+    videoEl.addEventListener('resize', checkRendering);
     videoEl.addEventListener('error', onError);
 
     let attempts = 0;
@@ -505,6 +509,7 @@ export const DiscordVoiceStage: React.FC = () => {
       videoEl.removeEventListener('canplay', onCanPlay);
       videoEl.removeEventListener('playing', onPlaying);
       videoEl.removeEventListener('timeupdate', onTimeUpdate);
+      videoEl.removeEventListener('resize', checkRendering);
       videoEl.removeEventListener('error', onError);
       window.removeEventListener('capy:media-recovered', handleMediaRecovered);
       document.removeEventListener('visibilitychange', handleVisibilityChange);

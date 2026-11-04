@@ -80,6 +80,8 @@ class VoiceService {
   private pendingCandidates = new Map<string, RTCIceCandidateInit[]>();
   private remoteAudioElements = new Map<string, HTMLAudioElement>();
   private remoteStreams = new Map<string, MediaStream>();
+  private remoteAudioStreams = new Map<string, MediaStream>();
+  private remoteVideoStreams = new Map<string, MediaStream>();
   private remoteAudioAnalysers = new Map<string, { ctx: AudioContext; analyser: AnalyserNode; data: Uint8Array; rafId: number }>();
   private unsubscribeVoiceStore: (() => void) | null = null;
   private unsubscribeDiscordStore: (() => void) | null = null;
@@ -221,6 +223,8 @@ class VoiceService {
       }
       this.activeSessions.delete(peerId);
       this.remoteStreams.delete(peerId);
+      this.remoteAudioStreams.delete(peerId);
+      this.remoteVideoStreams.delete(peerId);
       return { isSharing: false, session: null, stream: undefined };
     }
 
@@ -269,6 +273,7 @@ class VoiceService {
       status: 'active',
     };
     this.activeSessions.set(peerId, activeSession);
+    this.remoteVideoStreams.delete(peerId);
     const pc = this.peerConnections.get(peerId);
     if (pc) {
       const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
@@ -294,6 +299,7 @@ class VoiceService {
       });
     }
     this.activeSessions.delete(peerId);
+    this.remoteVideoStreams.delete(peerId);
     this.remoteStreams.delete(peerId);
   }
 
@@ -697,6 +703,8 @@ class VoiceService {
     this.remoteAudioAnalysers.clear();
 
     this.remoteStreams.clear();
+    this.remoteAudioStreams.clear();
+    this.remoteVideoStreams.clear();
     this.activeSessions.clear();
     this.endedSessions.clear();
 
@@ -973,39 +981,38 @@ class VoiceService {
       }
     };
 
-    // 6. Handle remote tracks (audio and video)
+    // 6. Handle remote tracks (audio and video) com isolamento estrito de mídia
     pc.ontrack = (event) => {
       const track = event.track;
       console.log(`[voiceService] ontrack kind=${track.kind} id=${track.id} from peer ${peerId}`);
       track.enabled = true;
 
-      let peerStream = this.remoteStreams.get(peerId);
-      if (!peerStream) {
-        peerStream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream();
-        this.remoteStreams.set(peerId, peerStream);
-      }
-
       if (track.kind === 'video') {
-        // Guarda a faixa de vídeo recebida
-        if (!peerStream.getTracks().some((t) => t.id === track.id)) {
-          peerStream.addTrack(track);
-        }
+        // Fluxo de vídeo dedicado: NUNCA mistura faixa de vídeo com áudio
+        const videoStream = new MediaStream([track]);
+        this.remoteVideoStreams.set(peerId, videoStream);
+        this.remoteStreams.set(peerId, videoStream);
         this.syncRemoteVideoTrack(peerId, track);
       }
 
       if (track.kind === 'audio') {
-        if (!peerStream.getTracks().some((t) => t.id === track.id)) {
-          peerStream.addTrack(track);
+        let audioStream = this.remoteAudioStreams.get(peerId);
+        if (!audioStream) {
+          audioStream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([track]);
+          this.remoteAudioStreams.set(peerId, audioStream);
+        } else if (!audioStream.getTracks().some((t) => t.id === track.id)) {
+          audioStream.addTrack(track);
         }
+
         track.onended = () => {
-          peerStream?.removeTrack(track);
-          const remainingAudio = peerStream?.getAudioTracks() || [];
+          audioStream?.removeTrack(track);
+          const remainingAudio = audioStream?.getAudioTracks() || [];
           if (remainingAudio.length > 0) {
             this.setupRemoteAudioPlayback(peerId, new MediaStream(remainingAudio));
           }
         };
 
-        const allAudio = peerStream.getAudioTracks();
+        const allAudio = audioStream.getAudioTracks();
         const peerAudioStream = new MediaStream(allAudio);
         this.setupRemoteAudioPlayback(peerId, peerAudioStream);
         this.setupRemoteAudioVAD(peerId, new MediaStream([track]));
@@ -1734,19 +1741,11 @@ class VoiceService {
     if (!track || track.kind !== 'video') return;
     track.enabled = true;
 
-    let videoStream = this.remoteStreams.get(peerId);
-    if (!videoStream) {
+    let videoStream = this.remoteVideoStreams.get(peerId);
+    if (!videoStream || !videoStream.getTracks().some((t) => t.id === track.id)) {
       videoStream = new MediaStream([track]);
+      this.remoteVideoStreams.set(peerId, videoStream);
       this.remoteStreams.set(peerId, videoStream);
-    } else {
-      videoStream.getVideoTracks().forEach((t) => {
-        if (t.id !== track.id || t.readyState === 'ended') {
-          try { videoStream?.removeTrack(t); } catch {}
-        }
-      });
-      if (!videoStream.getTracks().some((t) => t.id === track.id)) {
-        videoStream.addTrack(track);
-      }
     }
 
     const session = this.activeSessions.get(peerId);
@@ -1800,19 +1799,17 @@ class VoiceService {
       clearTimeout(muteRecoveryTimer);
       console.log(`[voiceService Diagnostic] Remote video track unmuted from peer ${peerId}`);
       track.enabled = true;
+      // Garante uma nova referência de MediaStream para re-acoplamento imediato no React e HTMLVideoElement
+      const freshVideoStream = new MediaStream([track]);
+      this.remoteVideoStreams.set(peerId, freshVideoStream);
+      this.remoteStreams.set(peerId, freshVideoStream);
+
       const currentSession = this.activeSessions.get(peerId);
       if (currentSession && (currentSession.status === 'active' || currentSession.status === 'starting')) {
-        let stream = this.remoteStreams.get(peerId);
-        if (!stream) {
-          stream = new MediaStream([track]);
-          this.remoteStreams.set(peerId, stream);
-        } else if (!stream.getTracks().some((t) => t.id === track.id)) {
-          stream.addTrack(track);
-        }
         this.updateParticipantState(peerId, {
           isScreenSharing: true,
           shareSession: currentSession,
-          mediaStream: stream,
+          mediaStream: freshVideoStream,
         });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('capy:media-recovered', { detail: { reason: 'track-unmute', peerId } }));
@@ -1859,6 +1856,18 @@ class VoiceService {
   public enterStream(presenterId: string, sessionId?: string): void {
     const curUser = useDiscord.getState().currentUser;
     console.log(`[voiceService] enterStream: espectador ${curUser.id} entrando na transmissão de ${presenterId}`);
+
+    let session = this.activeSessions.get(presenterId);
+    if (!session && sessionId) {
+      session = {
+        sessionId,
+        ownerId: presenterId,
+        status: 'active',
+        startedAt: Date.now(),
+        title: 'Tela de Participante',
+      };
+      this.activeSessions.set(presenterId, session);
+    }
 
     const sendSignals = () => {
       if (this.realtimeChannel) {
@@ -2036,7 +2045,7 @@ class VoiceService {
       return undefined;
     }
 
-    let stream = this.remoteStreams.get(peerId);
+    let stream = this.remoteVideoStreams.get(peerId);
     const hasLiveTrack = stream?.getVideoTracks().some((t) => t.readyState === 'live');
 
     if (!stream || !hasLiveTrack) {
@@ -2048,6 +2057,7 @@ class VoiceService {
         );
         if (videoTransceiver?.receiver?.track) {
           stream = new MediaStream([videoTransceiver.receiver.track]);
+          this.remoteVideoStreams.set(peerId, stream);
           this.remoteStreams.set(peerId, stream);
         }
       }
